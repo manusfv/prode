@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Prode Mundial 2026",
-  description: "Pronósticos familiares para el Mundial 2026",
+  title: "Prode Carbia 2026",
+  description: "Prode del Clan Carbia Plus para el Mundial 2026",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

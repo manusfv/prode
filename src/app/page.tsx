@@ -49,6 +49,7 @@ import { usePathname } from "next/navigation";
 import { scoreAllForMatch } from "@/lib/scoring";
 import { loadSupabaseAppData } from "@/lib/supabase-data";
 import { createSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import {
   formatKickoff,
   getLockCopy,
@@ -108,6 +109,15 @@ const routeTabs: Record<string, Tab> = {
   "/admin": "admin",
 };
 
+const ui = {
+  panel: "rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel-bg)] shadow-[0_10px_30px_rgba(7,20,16,0.06)]",
+  panelPlain: "rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel-bg)]",
+  label: "text-[11px] font-black uppercase leading-none text-[var(--app-muted)]",
+  controlValue: "text-[13px] font-black leading-none text-[var(--text)]",
+  control: "h-9 gap-2 border-[var(--line)] bg-[var(--surface)] text-[13px] font-extrabold text-[var(--text)] hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)]",
+  row: "rounded-md bg-[var(--surface-2)]",
+};
+
 export default function Home() {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<Tab>("predictions");
@@ -115,6 +125,7 @@ export default function Home() {
   const [missingOnly, setMissingOnly] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [groupFilterOpen, setGroupFilterOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState("");
   const [groupSort, setGroupSort] = useState<GroupSort>("group");
   const [teams, setTeams] = useState<Team[]>(seedTeams);
   const [profiles, setProfiles] = useState<Profile[]>(seedProfiles);
@@ -173,6 +184,12 @@ export default function Home() {
       new Set(matches.filter((match) => match.stage === "groups" && match.group).map((match) => match.group as string)),
     ).sort(compareGroups);
   }, [matches]);
+  const filteredGroupOptions = useMemo(() => {
+    const normalizedSearch = groupSearch.trim().toLowerCase();
+    if (!normalizedSearch) return groupOptions;
+
+    return groupOptions.filter((group) => `grupo ${group}`.toLowerCase().includes(normalizedSearch));
+  }, [groupOptions, groupSearch]);
 
   const visibleMatchSections = useMemo(() => {
     if (activeStage !== "groups" || groupSort !== "group") {
@@ -259,6 +276,10 @@ export default function Home() {
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [groupFilterOpen]);
+
+  useEffect(() => {
+    if (!groupFilterOpen) setGroupSearch("");
   }, [groupFilterOpen]);
 
   async function refreshSupabaseData() {
@@ -487,16 +508,16 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="Navegación principal">
-        <div className="brand">
-          <span className="brand-mark">26</span>
+    <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-[var(--bg)] text-[var(--text)] max-[980px]:block max-[980px]:pb-20">
+      <aside className="sticky top-0 h-screen border-r border-[var(--line)] bg-[var(--sidebar-bg)] px-4 py-5 backdrop-blur-lg max-[980px]:hidden" aria-label="Navegación principal">
+        <div className="flex min-h-14 items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-[var(--radius)] border-2 border-[var(--green)] bg-[var(--solid)] text-sm font-black text-[var(--solid-fg)]">26</span>
           <div>
-            <strong>Prode Mundial</strong>
-            <small>Familia · 2026</small>
+            <strong className="block text-[17px] leading-none">Prode Carbia</strong>
+            <small className="mt-1 block text-xs font-bold text-[var(--app-muted)]">Familia · 2026</small>
           </div>
         </div>
-        <nav className="nav-list">
+        <nav className="mt-8 grid gap-2">
           <NavButton icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onClick={() => navigateToTab("predictions")} />
           <NavButton icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onClick={() => navigateToTab("leaderboard")} />
           <NavButton icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onClick={() => navigateToTab("results")} />
@@ -511,16 +532,11 @@ export default function Home() {
         />
       </aside>
 
-      <section className="workspace">
-        <header className="topbar">
+      <section className="min-w-0 p-5 max-[980px]:p-3.5 max-[430px]:p-2.5">
+        <header className="mb-7">
           <div>
-            <p className="eyeline">Hola, {currentUser.displayName}</p>
-            <h1>{pageTitle(activeTab)}</h1>
-          </div>
-          <div className="user-strip">
-            <Stat label="Puntos" value={String(me?.points ?? 0)} />
-            <Stat label="Puesto" value={`#${me?.rank ?? 1}`} />
-            <Stat label="Pendientes" value={String(missingCount)} tone={missingCount ? "warn" : "ok"} />
+            <p className={cn(ui.label, "mb-1")}>Hola, {currentUser.displayName}</p>
+            <h1 className="text-[clamp(32px,4vw,44px)] leading-none tracking-normal">{pageTitle(activeTab)}</h1>
           </div>
         </header>
 
@@ -534,96 +550,108 @@ export default function Home() {
 
         {activeTab === "predictions" && (
           <>
-            <div className="prediction-toolbar">
-              <StageTabs activeStage={activeStage} stages={stages} onChange={setActiveStage} />
-              <div className="command-row prediction-filters">
-                {activeStage === "groups" && (
-                  <div className="group-controls">
-                    <div className="group-dropdown" ref={groupFilterRef}>
-                      <Button
-                        variant="outline"
-                        className="group-dropdown-trigger"
-                        aria-expanded={groupFilterOpen}
-                        aria-haspopup="menu"
-                        onClick={() => setGroupFilterOpen((open) => !open)}
-                      >
-                        <span className="select-label-inline">Grupos</span>
-                        <strong>{selectedGroupsLabel}</strong>
-                        <ChevronDown size={15} />
-                      </Button>
-                      {groupFilterOpen && (
-                        <div className="group-dropdown-menu" role="menu" aria-label="Filtrar por grupos">
+            <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-[980px]:grid-cols-1">
+              <div className="min-w-0">
+                <div className="mb-6 flex items-center justify-between gap-4 max-[1240px]:flex-wrap">
+                  <StageTabs activeStage={activeStage} stages={stages} onChange={setActiveStage} />
+                  <div className="flex flex-1 flex-wrap items-center justify-end gap-2 max-[980px]:justify-start">
+                    {activeStage === "groups" && (
+                      <div className="flex flex-wrap items-center gap-2 max-[980px]:w-full">
+                        <div className="relative max-[980px]:w-full" ref={groupFilterRef}>
                           <Button
-                            variant={selectedGroups.length === 0 ? "default" : "ghost"}
-                            size="sm"
-                            className={selectedGroups.length === 0 ? "group-menu-item active" : "group-menu-item"}
-                            onClick={() => setSelectedGroups([])}
+                            variant="outline"
+                            className={cn(ui.control, "w-[220px] justify-between max-[980px]:w-full")}
+                            aria-expanded={groupFilterOpen}
+                            aria-haspopup="listbox"
+                            onClick={() => setGroupFilterOpen((open) => !open)}
                           >
-                            {selectedGroups.length === 0 && <Check size={14} />}
-                            Todos los grupos
+                            <span className={ui.label}>Grupos</span>
+                            <strong className={cn(ui.controlValue, "min-w-0 flex-1 truncate text-left")}>{selectedGroupsLabel}</strong>
+                            <ChevronDown size={15} />
                           </Button>
-                          {groupOptions.map((group) => (
-                            <Button
-                              key={group}
-                              variant={selectedGroups.includes(group) ? "default" : "ghost"}
-                              size="sm"
-                              className={selectedGroups.includes(group) ? "group-menu-item active" : "group-menu-item"}
-                              onClick={() => toggleGroupFilter(group)}
-                            >
-                              {selectedGroups.includes(group) && <Check size={14} />}
-                              Grupo {group}
-                            </Button>
-                          ))}
+                          {groupFilterOpen && (
+                            <div className={cn(ui.panel, "absolute left-0 top-[calc(100%+6px)] z-30 grid w-60 gap-1 p-1.5")} role="listbox" aria-label="Filtrar por grupos" aria-multiselectable="true">
+                              <Input
+                                className="h-8 text-[13px] font-bold"
+                                placeholder="Buscar grupo"
+                                value={groupSearch}
+                                onChange={(event) => setGroupSearch(event.target.value)}
+                              />
+                              <Button
+                                variant={selectedGroups.length === 0 ? "default" : "ghost"}
+                                size="sm"
+                                className="justify-start gap-2 text-[13px] font-extrabold"
+                                onClick={() => setSelectedGroups([])}
+                              >
+                                {selectedGroups.length === 0 && <Check size={14} />}
+                                Todos los grupos
+                              </Button>
+                              {filteredGroupOptions.map((group) => (
+                                <Button
+                                  key={group}
+                                  variant={selectedGroups.includes(group) ? "default" : "ghost"}
+                                  size="sm"
+                                  className="justify-start gap-2 text-[13px] font-extrabold"
+                                  onClick={() => toggleGroupFilter(group)}
+                                  role="option"
+                                  aria-selected={selectedGroups.includes(group)}
+                                >
+                                  {selectedGroups.includes(group) && <Check size={14} />}
+                                  Grupo {group}
+                                </Button>
+                              ))}
+                              {filteredGroupOptions.length === 0 && <span className="px-2 py-2 text-[13px] font-bold text-[var(--app-muted)]">Sin grupos</span>}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <Select value={groupSort} onValueChange={(value) => setGroupSort((value ?? "group") as GroupSort)}>
-                      <SelectTrigger className="group-select" aria-label="Ordenar partidos">
-                        <span className="select-label-inline">Orden</span>
-                        <SelectValue>{groupSortLabel}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="group">Orden: grupos</SelectItem>
-                        <SelectItem value="date">Orden: fecha</SelectItem>
-                      </SelectContent>
-                    </Select>
+                        <Select value={groupSort} onValueChange={(value) => setGroupSort((value ?? "group") as GroupSort)}>
+                          <SelectTrigger className={cn(ui.control, "w-[180px] max-[980px]:w-full")} aria-label="Ordenar partidos">
+                            <span className={ui.label}>Orden</span>
+                            <SelectValue className={ui.controlValue}>{groupSortLabel}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="group">Orden: grupos</SelectItem>
+                            <SelectItem value="date">Orden: fecha</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <Button
+                      variant={missingOnly ? "default" : "outline"}
+                      className={cn(ui.control, missingOnly && "border-[var(--green)] bg-[var(--green)] text-white hover:bg-[var(--green)]")}
+                      onClick={() => setMissingOnly((value) => !value)}
+                    >
+                      Faltan ({missingCount})
+                    </Button>
+                    <SaveStatus state={saveState} />
                   </div>
-                )}
-                <Button
-                  variant={missingOnly ? "default" : "outline"}
-                  className={missingOnly ? "filter active" : "filter"}
-                  onClick={() => setMissingOnly((value) => !value)}
-                >
-                  Faltan ({missingCount})
-                </Button>
-                <SaveStatus state={saveState} />
+                </div>
+                <div className="grid gap-3">
+                  {visibleMatchSections.map((section) => (
+                    <section key={section.title ?? "date"} className="grid gap-3">
+                      {section.title && <h2 className="text-base font-black leading-none">Grupo {section.title}</h2>}
+                      <div className="grid gap-3">
+                        {section.matches.map((match) => (
+                          <MatchCard
+                            key={match.id}
+                            match={match}
+                            prediction={currentPredictionMap.get(match.id)}
+                            allPredictions={predictions.filter((prediction) => prediction.matchId === match.id)}
+                            now={now}
+                            teams={teams}
+                            profiles={profiles}
+                            openStages={openStages}
+                            onChange={updatePrediction}
+                            onOpenDrawer={setDrawerMatch}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
               </div>
-            </div>
-            <section className="content-grid">
-              <div className="match-stack">
-                {visibleMatchSections.map((section) => (
-                  <section key={section.title ?? "date"} className="match-section">
-                    {section.title && <h2>Grupo {section.title}</h2>}
-                    <div className="match-section-list">
-                      {section.matches.map((match) => (
-                        <MatchCard
-                          key={match.id}
-                          match={match}
-                          prediction={currentPredictionMap.get(match.id)}
-                          allPredictions={predictions.filter((prediction) => prediction.matchId === match.id)}
-                          now={now}
-                          teams={teams}
-                          profiles={profiles}
-                          openStages={openStages}
-                          onChange={updatePrediction}
-                          onOpenDrawer={setDrawerMatch}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <aside className="side-panel">
+              <aside className="sticky top-5 grid gap-2.5 max-[980px]:static">
+                <SummaryPanel points={me?.points ?? 0} rank={me?.rank ?? 1} missingCount={missingCount} />
                 <LeaderboardPreview rows={leaderboard.slice(0, 4)} onOpen={() => navigateToTab("leaderboard")} />
               </aside>
             </section>
@@ -689,6 +717,16 @@ function compareGroups(a?: string, b?: string) {
   return (a ?? "ZZ").localeCompare(b ?? "ZZ", "es", { numeric: true });
 }
 
+function SummaryPanel({ points, rank, missingCount }: { points: number; rank: number; missingCount: number }) {
+  return (
+    <Card className={cn(ui.panel, "grid grid-cols-3 gap-2 p-2.5")}>
+      <Stat label="Puntos" value={String(points)} />
+      <Stat label="Puesto" value={`#${rank}`} />
+      <Stat label="Pendientes" value={String(missingCount)} tone={missingCount ? "warn" : "ok"} />
+    </Card>
+  );
+}
+
 function MatchCard({
   match,
   prediction,
@@ -722,22 +760,34 @@ function MatchCard({
   const missingCount = profiles.filter((profile) => profile.approved).length - submittedCount;
 
   return (
-    <Card className={`match-card ${status}`}>
-      <div className="match-meta">
-        <Badge variant="outline" className="stage-chip">{stageLabels[match.stage]}{match.group ? ` · Grupo ${match.group}` : ""}</Badge>
-        <Badge variant={status === "open" ? "secondary" : status === "locked" ? "outline" : "default"} className={`status-chip ${status}`}>
+    <Card className={cn(
+      ui.panel,
+      "p-3.5",
+      status === "locked" && "border-[rgba(217,154,25,0.45)]",
+      status === "finalized" && "border-[rgba(12,143,91,0.48)]",
+    )}>
+      <div className="flex items-center justify-between gap-3">
+        <Badge variant="outline" className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-black uppercase text-[var(--app-muted)]">
+          {stageLabels[match.stage]}{match.group ? ` · Grupo ${match.group}` : ""}
+        </Badge>
+        <Badge variant={status === "open" ? "secondary" : status === "locked" ? "outline" : "default"} className={cn(
+          "rounded-full px-2.5 py-1 text-[11px] font-black uppercase",
+          status === "open" && "bg-[rgba(36,116,232,0.10)] text-[var(--blue)]",
+          status === "locked" && "bg-[rgba(217,154,25,0.14)] text-[var(--amber)]",
+          status === "finalized" && "bg-[rgba(12,143,91,0.12)] text-[var(--green)]",
+        )}>
           {status === "open" ? getLockCopy(match.kickoffUtc, now) : status === "locked" ? "Cerrado" : "Finalizado"}
         </Badge>
       </div>
 
-      <div className="teams-grid">
+      <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto_28px_auto_minmax(0,1fr)] items-center gap-2.5 max-[980px]:grid-cols-[minmax(0,1fr)_auto] max-[980px]:gap-3">
         <TeamBlock teamId={match.homeTeamId} seed={match.homeSeed} teams={teams} />
         <ScoreControl
           value={draft.homeScore}
           disabled={!isOpen}
           onChange={(value) => onChange(match, { homeScore: value })}
         />
-        <span className="versus">vs</span>
+        <span className="text-center text-xs font-black uppercase text-[var(--app-muted)] max-[980px]:hidden">vs</span>
         <ScoreControl
           value={draft.awayScore}
           disabled={!isOpen}
@@ -747,14 +797,14 @@ function MatchCard({
       </div>
 
       {showAdvancer && (
-        <div className="advancer">
-          <span>Clasifica</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius)] border border-[rgba(36,116,232,0.18)] bg-[rgba(36,116,232,0.06)] p-2.5">
+          <span className={ui.label}>Clasifica</span>
           {[match.homeTeamId, match.awayTeamId].map((teamId) => (
             <Button
               key={teamId}
               variant={draft.winnerTeamId === teamId ? "default" : "outline"}
               size="sm"
-              className={draft.winnerTeamId === teamId ? "active" : ""}
+              className="font-extrabold"
               disabled={!isOpen}
               onClick={() => onChange(match, { winnerTeamId: teamId })}
             >
@@ -764,11 +814,11 @@ function MatchCard({
         </div>
       )}
 
-      <footer className="match-footer">
-        <span><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
+      <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3 text-xs font-extrabold text-[var(--app-muted)] max-[980px]:flex-col max-[980px]:items-start">
+        <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
         <span>{match.city ?? "Sede por definir"}</span>
         {status !== "open" && (
-          <Button variant="ghost" size="sm" className="link-button" onClick={() => onOpenDrawer(match)}>
+          <Button variant="ghost" size="sm" className="h-auto p-0 text-xs font-extrabold text-[var(--blue)] hover:bg-transparent hover:underline" onClick={() => onOpenDrawer(match)}>
             <PanelRightOpen size={15} />
             Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
           </Button>
@@ -817,7 +867,7 @@ function AuthScreen({
         <div className="brand login-brand">
           <span className="brand-mark">26</span>
           <div>
-            <strong>Prode Mundial</strong>
+            <strong>Prode Carbia</strong>
             <small>Familia · 2026</small>
           </div>
         </div>
@@ -887,7 +937,7 @@ function LoadingScreen() {
         <div className="brand login-brand">
           <span className="brand-mark">26</span>
           <div>
-            <strong>Prode Mundial</strong>
+            <strong>Prode Carbia</strong>
             <small>Familia · 2026</small>
           </div>
         </div>
@@ -911,14 +961,17 @@ function AccountPanel({
   onSignOut: () => void;
 }) {
   return (
-    <Card className={mobile ? "account-panel mobile-account-panel" : "account-panel"} size="sm">
+    <Card className={cn(
+      "grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] p-3 shadow-[0_12px_28px_rgba(7,20,16,0.08)]",
+      mobile ? "mb-3 hidden max-[980px]:grid" : "absolute bottom-5 left-4 right-4 max-[980px]:hidden",
+    )} size="sm">
       <div>
-        <strong>{currentUser.displayName}</strong>
-        <small>{currentUser.email}</small>
+        <strong className="block truncate text-[13px] font-black leading-tight">{currentUser.displayName}</strong>
+        <small className="mt-0.5 block truncate text-[11px] font-bold text-[var(--app-muted)]">{currentUser.email}</small>
       </div>
-      <div className="account-actions">
+      <div className="grid gap-2">
         <ThemePicker theme={theme} onChange={onThemeChange} />
-        <Button variant="outline" size="sm" onClick={onSignOut}>Salir</Button>
+        <Button variant="outline" size="sm" className={ui.control} onClick={onSignOut}>Salir</Button>
       </div>
     </Card>
   );
@@ -933,7 +986,7 @@ function ThemePicker({ theme, onChange }: { theme: Theme; onChange: (theme: Them
 
   return (
     <Select value={theme} onValueChange={(value) => onChange(value as Theme)}>
-      <SelectTrigger className="theme-select" aria-label="Tema">
+      <SelectTrigger className={cn(ui.control, "w-full justify-start")} aria-label="Tema">
         {theme === "light" && <Sun size={15} />}
         {theme === "dark" && <Moon size={15} />}
         {theme === "system" && <Monitor size={15} />}
@@ -956,7 +1009,11 @@ function SaveStatus({ state }: { state: "saving" | "saved" | "error" }) {
   }[state];
 
   return (
-    <Badge variant={state === "error" ? "destructive" : "secondary"} className={`save-status ${state}`}>
+    <Badge variant={state === "error" ? "destructive" : "secondary"} className={cn(
+      "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-black",
+      state === "saved" && "text-[var(--green)]",
+      state === "error" && "text-[var(--red)]",
+    )}>
       {state === "saved" && <Check size={14} />}
       {label}
     </Badge>
@@ -983,21 +1040,35 @@ function TeamBlock({
   align?: "left" | "right";
 }) {
   return (
-    <div className={`team-block ${align}`}>
-      <span className="flag">{getTeamFlag(teamId, teams)}</span>
-      <strong>{getTeamLabel(teamId, teams, seed)}</strong>
-      <small>{teamId ? teams.find((team) => team.id === teamId)?.shortName : seed}</small>
+    <div className={cn(
+      "grid min-w-0 items-center gap-x-2.5",
+      align === "right"
+        ? "grid-cols-[minmax(0,1fr)_34px] text-right max-[980px]:grid-cols-[34px_minmax(0,1fr)] max-[980px]:text-left"
+        : "grid-cols-[34px_minmax(0,1fr)]",
+    )}>
+      <span className={cn(
+        "grid size-[34px] place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-2)] text-lg",
+        align === "right" && "col-start-2 max-[980px]:col-start-1",
+      )}>{getTeamFlag(teamId, teams)}</span>
+      <strong className={cn(
+        "truncate text-base font-black",
+        align === "right" && "col-start-1 max-[980px]:col-start-2",
+      )}>{getTeamLabel(teamId, teams, seed)}</strong>
+      <small className={cn(
+        "truncate text-xs font-bold text-[var(--app-muted)]",
+        align === "right" ? "col-start-1 max-[980px]:col-start-2" : "col-start-2",
+      )}>{teamId ? teams.find((team) => team.id === teamId)?.shortName : seed}</small>
     </div>
   );
 }
 
 function ScoreControl({ value, disabled, onChange }: { value: number; disabled: boolean; onChange: (value: number) => void }) {
   return (
-    <div className="score-control">
+    <div className="grid grid-cols-[32px_44px_32px] items-center gap-1">
       <Button variant="outline" size="icon-sm" disabled={disabled || value <= 0} onClick={() => onChange(Math.max(0, value - 1))} aria-label="Restar gol">
         <Minus size={15} />
       </Button>
-      <Input disabled={disabled} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} inputMode="numeric" />
+      <Input className="h-[34px] w-11 border-[var(--line-strong)] bg-[var(--surface)] text-center text-lg font-black" disabled={disabled} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} inputMode="numeric" />
       <Button variant="outline" size="icon-sm" disabled={disabled} onClick={() => onChange(value + 1)} aria-label="Sumar gol">
         <Plus size={15} />
       </Button>
@@ -1017,14 +1088,17 @@ function StageTabs({
   const openStageSet = new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
 
   return (
-    <Tabs value={activeStage} onValueChange={(value) => onChange(value as Stage)} className="stage-tabs">
-      <TabsList>
+    <Tabs value={activeStage} onValueChange={(value) => onChange(value as Stage)}>
+      <TabsList className="max-w-full gap-1.5 overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel-bg)] p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {stageOrder.map((stage) => (
           <TabsTrigger
             key={stage}
             value={stage}
             disabled={!openStageSet.has(stage)}
-            className={activeStage === stage ? "active" : ""}
+            className={cn(
+              "h-9 min-w-24 rounded-lg px-4 text-[14px] font-extrabold text-[var(--app-muted)] transition-colors data-active:bg-[var(--surface)] data-active:text-[var(--text)] data-active:shadow-sm disabled:opacity-45",
+              activeStage === stage && "active",
+            )}
           >
             {stageLabels[stage]}
           </TabsTrigger>
@@ -1036,17 +1110,17 @@ function StageTabs({
 
 function LeaderboardPreview({ rows, onOpen }: { rows: ReturnType<typeof getLeaderboard>; onOpen: () => void }) {
   return (
-    <Card className="panel">
-      <Button variant="ghost" className="panel-header panel-link" onClick={onOpen}>
-        <h2>Tabla familiar</h2>
+    <Card className={cn(ui.panel, "p-4")}>
+      <Button variant="ghost" className="flex w-full items-center justify-between gap-3 p-0 text-left hover:bg-transparent" onClick={onOpen}>
+        <h2 className="m-0 text-[15px] font-black leading-tight">Tabla familiar</h2>
         <ChevronRight size={18} />
       </Button>
-      <div className="leader-list">
+      <div className="mt-2.5 grid gap-1.5">
         {rows.map((row) => (
-          <div key={row.user.id} className="leader-row">
-            <span>#{row.rank}</span>
-            <strong>{row.user.displayName}</strong>
-            <em>{row.points} pts</em>
+          <div key={row.user.id} className={cn(ui.row, "grid min-h-9 grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 px-2.5 py-2")}>
+            <span className="font-black text-[var(--app-muted)]">#{row.rank}</span>
+            <strong className="truncate text-[13px] font-black">{row.user.displayName}</strong>
+            <em className="text-[13px] font-black not-italic text-[var(--green)]">{row.points} pts</em>
           </div>
         ))}
       </div>
@@ -1056,16 +1130,24 @@ function LeaderboardPreview({ rows, onOpen }: { rows: ReturnType<typeof getLeade
 
 function Leaderboard({ rows }: { rows: ReturnType<typeof getLeaderboard> }) {
   return (
-    <Card className="wide-panel">
-      <div className="table-toolbar">
-        <h2>Tabla general</h2>
-        <Tabs className="stage-tabs compact">
-          <TabsList>
-            {stageOrder.map((stage) => <TabsTrigger key={stage} value={stage}>{stageLabels[stage]}</TabsTrigger>)}
+    <Card className={cn(ui.panel, "p-4")}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-lg font-black">Tabla general</h2>
+        <Tabs>
+          <TabsList className="max-w-full gap-1.5 overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel-bg)] p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {stageOrder.map((stage) => (
+              <TabsTrigger
+                key={stage}
+                value={stage}
+                className="h-9 min-w-24 rounded-lg px-4 text-[14px] font-extrabold text-[var(--app-muted)] data-active:bg-[var(--surface)] data-active:text-[var(--text)] data-active:shadow-sm"
+              >
+                {stageLabels[stage]}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </div>
-      <div className="data-table leaderboard-table">
+      <div className="mt-3 overflow-x-auto rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1081,9 +1163,9 @@ function Leaderboard({ rows }: { rows: ReturnType<typeof getLeaderboard> }) {
           <TableRow key={row.user.id} className="leaderboard-row">
             <TableCell className="rank">#{row.rank}</TableCell>
             <TableCell><strong>{row.user.displayName}</strong></TableCell>
-            <TableCell>{row.points} puntos</TableCell>
-            <TableCell>{row.exactHits} exactos</TableCell>
-            <TableCell>{row.outcomeHits} aciertos</TableCell>
+            <TableCell>{row.points}</TableCell>
+            <TableCell>{row.exactHits}</TableCell>
+            <TableCell>{row.outcomeHits}</TableCell>
           </TableRow>
         ))}
           </TableBody>
@@ -1105,15 +1187,15 @@ function Results({
   teams: Team[];
 }) {
   return (
-    <section className="results-view">
-      <div className="results-hero">
+    <section className="grid gap-3.5">
+      <div className={cn(ui.panel, "flex items-end justify-between gap-3 p-4 max-[980px]:items-start max-[980px]:flex-col")}>
         <div>
-          <p className="eyeline">Fixture y marcadores</p>
-          <h2>Resultados</h2>
+          <p className={ui.label}>Fixture y marcadores</p>
+          <h2 className="mt-1 text-3xl font-black leading-none">Resultados</h2>
         </div>
-        <span>{matches.length} partidos</span>
+        <span className="text-[13px] font-black text-[var(--app-muted)]">{matches.length} partidos</span>
       </div>
-      <div className="results-grid">
+      <div className="grid gap-3">
         {matches.map((match) => {
           const status = getMatchStatus(match, now);
           const predictionCount = predictions.filter((prediction) => prediction.matchId === match.id).length;
@@ -1122,28 +1204,49 @@ function Results({
           const hasFinalScore = status === "finalized" && match.homeScore !== null && match.awayScore !== null;
 
           return (
-            <Card key={match.id} className={`result-card ${status}`}>
-              <header>
-                <Badge variant="outline" className="stage-chip">{stageLabels[match.stage]}{match.group ? ` · Grupo ${match.group}` : ""}</Badge>
-                <Badge variant={status === "finalized" ? "default" : status === "locked" ? "outline" : "secondary"} className={`status-chip ${status}`}>
+            <Card key={match.id} className={cn(
+              ui.panel,
+              "grid gap-3.5 p-3.5",
+              status === "locked" && "border-[rgba(217,154,25,0.45)]",
+              status === "finalized" && "border-[rgba(12,143,91,0.48)]",
+            )}>
+              <header className="flex items-center justify-between gap-3">
+                <Badge variant="outline" className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-black uppercase text-[var(--app-muted)]">
+                  {stageLabels[match.stage]}{match.group ? ` · Grupo ${match.group}` : ""}
+                </Badge>
+                <Badge variant={status === "finalized" ? "default" : status === "locked" ? "outline" : "secondary"} className={cn(
+                  "rounded-full px-2.5 py-1 text-[11px] font-black uppercase",
+                  status === "open" && "bg-[rgba(36,116,232,0.10)] text-[var(--blue)]",
+                  status === "locked" && "bg-[rgba(217,154,25,0.14)] text-[var(--amber)]",
+                  status === "finalized" && "bg-[rgba(12,143,91,0.12)] text-[var(--green)]",
+                )}>
                   {status === "finalized" ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"}
                 </Badge>
               </header>
-              <div className="result-scoreline">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 max-[700px]:grid-cols-1">
                 <TeamResult teamId={match.homeTeamId} seed={match.homeSeed} label={homeLabel} teams={teams} />
                 {hasFinalScore ? (
-                  <strong className="result-score">{match.homeScore}-{match.awayScore}</strong>
+                  <strong className="min-w-[92px] rounded-[var(--radius)] border border-[rgba(12,143,91,0.24)] bg-[rgba(12,143,91,0.10)] px-3 py-2.5 text-center text-[22px] font-black leading-none text-[var(--green)]">
+                    {match.homeScore}-{match.awayScore}
+                  </strong>
                 ) : (
-                  <span className={`result-state ${status}`}>
+                  <span className={cn(
+                    "inline-flex min-h-10 min-w-[92px] items-center justify-center rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface-2)] px-3 text-center text-xs font-black uppercase text-[var(--app-muted)]",
+                    status === "open" && "min-w-11 border-transparent bg-transparent text-[13px]",
+                    status === "locked" && "border-[rgba(217,154,25,0.28)] bg-[rgba(217,154,25,0.08)] text-[var(--amber)]",
+                  )}>
                     {status === "locked" ? "Resultado pendiente" : "vs"}
                   </span>
                 )}
                 <TeamResult teamId={match.awayTeamId} seed={match.awaySeed} label={awayLabel} teams={teams} align="right" />
               </div>
-              <footer>
-                <span><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
-                <span>{match.city ?? "Sede por definir"}</span>
-                <span>{predictionCount} pronósticos</span>
+              <footer className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3 border-t border-[var(--line)] pt-3 text-xs font-extrabold text-[var(--app-muted)] max-[700px]:grid-cols-1">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <CalendarClock size={14} />
+                  <span className="truncate">{formatKickoff(match.kickoffUtc)}</span>
+                </span>
+                <span className="min-w-0 truncate max-[700px]:text-left">{match.city ?? "Sede por definir"}</span>
+                <span className="whitespace-nowrap">{predictionCount} pronósticos</span>
               </footer>
             </Card>
           );
@@ -1167,10 +1270,24 @@ function TeamResult({
   align?: "left" | "right";
 }) {
   return (
-    <div className={`result-team ${align}`}>
-      <span className="flag">{getTeamFlag(teamId, teams)}</span>
-      <strong>{label}</strong>
-      <small>{teamId ? teams.find((team) => team.id === teamId)?.shortName : seed}</small>
+    <div className={cn(
+      "grid min-w-0 items-center gap-x-2",
+      align === "right"
+        ? "grid-cols-[minmax(0,1fr)_38px] text-right max-[700px]:grid-cols-[38px_minmax(0,1fr)] max-[700px]:text-left"
+        : "grid-cols-[38px_minmax(0,1fr)]",
+    )}>
+      <span className={cn(
+        "row-span-2 grid size-[38px] place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-2)] text-lg",
+        align === "right" && "col-start-2 max-[700px]:col-start-1",
+      )}>{getTeamFlag(teamId, teams)}</span>
+      <strong className={cn(
+        "truncate font-black",
+        align === "right" && "col-start-1 max-[700px]:col-start-2",
+      )}>{label}</strong>
+      <small className={cn(
+        "truncate text-xs font-bold text-[var(--app-muted)]",
+        align === "right" ? "col-start-1 max-[700px]:col-start-2" : "col-start-2",
+      )}>{teamId ? teams.find((team) => team.id === teamId)?.shortName : seed}</small>
     </div>
   );
 }
@@ -1302,11 +1419,11 @@ function Admin({
   }
 
   return (
-    <section className="admin-grid">
-      <div className="admin-main-stack">
-        <Card className="wide-panel">
-          <div className="table-toolbar">
-            <h2>Agregar partido</h2>
+    <section className="grid grid-cols-[minmax(0,1fr)_320px] gap-4 max-[980px]:grid-cols-1">
+      <div className="grid min-w-0 content-start gap-4">
+        <Card className={cn(ui.panel, "p-4")}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="m-0 text-lg font-black">Agregar partido</h2>
           </div>
           <div className="manual-match-form">
           <label>
@@ -1426,9 +1543,9 @@ function Admin({
           </div>
         </Card>
 
-        <Card className="wide-panel">
-          <div className="table-toolbar">
-            <h2>Admin / Resultados</h2>
+        <Card className={cn(ui.panel, "p-4")}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="m-0 text-lg font-black">Admin / Resultados</h2>
             <div className="admin-actions">
               <Button variant="outline"><FileUp size={16} /> Importar CSV</Button>
               <Button variant="outline"><Download size={16} /> Exportar CSV</Button>
@@ -1535,8 +1652,8 @@ function Admin({
           </div>
         </Card>
       </div>
-      <aside className="admin-side-stack">
-        <Card className="panel">
+      <aside className="grid content-start gap-4">
+        <Card className={cn(ui.panel, "p-4")}>
           <CardHeader>
             <CardTitle>Etapas habilitadas</CardTitle>
           </CardHeader>
@@ -1566,7 +1683,7 @@ function Admin({
           </CardContent>
         </Card>
 
-        <Card className="panel">
+        <Card className={cn(ui.panel, "p-4")}>
           <CardHeader>
             <CardTitle>Usuarios pendientes</CardTitle>
           </CardHeader>
@@ -1629,9 +1746,9 @@ function useHydratedNow() {
 
 function Rules() {
   return (
-    <Card className="wide-panel rules-page">
-      <h2>Reglas del prode</h2>
-      <ul>
+    <Card className={cn(ui.panel, "p-4")}>
+      <h2 className="m-0 text-lg font-black">Reglas del prode</h2>
+      <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-normal text-[var(--app-muted)]">
         <li><strong>3 puntos</strong> por acertar el resultado exacto.</li>
         <li><strong>1 punto</strong> por acertar ganador, empate o clasificado.</li>
         <li>Los pronósticos se pueden editar hasta el inicio de cada partido.</li>
@@ -1690,7 +1807,14 @@ function PredictionDrawer({
 
 function NavButton({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <Button variant={active ? "default" : "ghost"} className={active ? "active" : ""} onClick={onClick}>
+    <Button
+      variant={active ? "default" : "ghost"}
+      className={cn(
+        "h-10 justify-start gap-2.5 rounded-[var(--radius)] px-3 text-sm font-bold",
+        active ? "bg-[var(--solid)] text-[var(--solid-fg)]" : "text-[var(--app-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]",
+      )}
+      onClick={onClick}
+    >
       {icon}
       <span>{label}</span>
     </Button>
@@ -1699,7 +1823,7 @@ function NavButton({ icon, label, active, onClick }: { icon: React.ReactNode; la
 
 function MobileNav({ activeTab, isAdmin, onChange }: { activeTab: Tab; isAdmin: boolean; onChange: (tab: Tab) => void }) {
   return (
-    <nav className="mobile-nav">
+    <nav className="fixed inset-x-2.5 bottom-2.5 z-20 hidden grid-cols-[repeat(auto-fit,minmax(58px,1fr))] gap-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--nav-bg)] p-1.5 shadow-[var(--shadow)] backdrop-blur-lg max-[980px]:grid">
       <NavButton icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onClick={() => onChange("predictions")} />
       <NavButton icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onClick={() => onChange("leaderboard")} />
       <NavButton icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onClick={() => onChange("results")} />
@@ -1710,7 +1834,16 @@ function MobileNav({ activeTab, isAdmin, onChange }: { activeTab: Tab; isAdmin: 
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "warn" | "ok" }) {
-  return <div className={`stat ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>;
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2">
+      <span className={ui.label}>{label}</span>
+      <strong className={cn(
+        "mt-1 block text-lg font-black leading-none",
+        tone === "warn" && "text-[var(--amber)]",
+        tone === "ok" && "text-[var(--green)]",
+      )}>{value}</strong>
+    </div>
+  );
 }
 
 function pageTitle(tab: Tab) {
