@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseMatchCsv } from "@/lib/csv";
 import { canSavePrediction, scorePrediction } from "@/lib/scoring";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { inferWinner } from "@/lib/tournament";
@@ -39,6 +40,10 @@ type CreateMatchInput = {
   kickoffUtc: string;
   venue: string | null;
   city: string | null;
+};
+
+type ImportMatchesCsvInput = {
+  csv: string;
 };
 
 export async function savePredictionAction(input: SavePredictionInput) {
@@ -203,6 +208,69 @@ export async function deleteMatchAction(matchId: string) {
   return { ok: true, message: "Partido eliminado junto con sus pronósticos." };
 }
 
+export async function importMatchesCsvAction(input: ImportMatchesCsvInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  let rows: ReturnType<typeof parseMatchCsv>;
+  try {
+    rows = parseMatchCsv(input.csv);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "El CSV no es válido." };
+  }
+
+  if (rows.length === 0) return { ok: false, message: "El CSV no tiene partidos para importar." };
+
+  const { error } = await supabase.from("matches").upsert(
+    rows.map((row) => ({
+      match_no: row.matchNo,
+      stage: row.stage,
+      group_label: row.stage === "groups" ? row.groupLabel : null,
+      home_team_id: row.homeTeamId,
+      away_team_id: row.awayTeamId,
+      home_seed: row.homeTeamId ? null : row.homeSeed,
+      away_seed: row.awayTeamId ? null : row.awaySeed,
+      kickoff_utc: row.kickoffUtc,
+      venue: row.venue,
+      city: row.city,
+      status: row.status,
+      home_score: row.homeScore,
+      away_score: row.awayScore,
+      winner_team_id: row.winnerTeamId,
+      finalized_at: row.status === "finalized" ? new Date().toISOString() : null,
+      finalized_by: row.status === "finalized" ? admin.userId : null,
+      updated_at: new Date().toISOString(),
+      updated_by: admin.userId,
+    })),
+    { onConflict: "match_no" },
+  );
+
+  if (error) return { ok: false, message: error.message };
+
+  const recalculation = await recalculateAllPoints(supabase);
+  if (!recalculation.ok) return recalculation;
+
+  revalidatePath("/");
+  return { ok: true, message: `${rows.length} partidos importados. ${recalculation.updated} puntajes recalculados.` };
+}
+
+export async function recalculatePointsAction() {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  const result = await recalculateAllPoints(supabase);
+  if (!result.ok) return result;
+
+  revalidatePath("/");
+  return { ok: true, message: `${result.updated} puntajes recalculados.` };
+}
+
 export async function finalizeMatchAction(input: FinalizeMatchInput) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Supabase no está configurado." };
@@ -247,35 +315,67 @@ export async function finalizeMatchAction(input: FinalizeMatchInput) {
   if (updateError) return { ok: false, message: updateError.message };
 
   if (input.status !== "finalized") {
+    const recalculation = await recalculatePredictionsForMatches(supabase, [match]);
+    if (!recalculation.ok) return recalculation;
+
     revalidatePath("/");
     return { ok: true, message: input.status === "live" ? "Partido en juego." : "Partido abierto." };
   }
 
-  const { data: predictionRows, error: predictionError } = await supabase
-    .from("predictions")
-    .select("*")
-    .eq("match_id", input.matchId);
-
-  if (predictionError) return { ok: false, message: predictionError.message };
-
-  await Promise.all(
-    predictionRows.map((predictionRow) => {
-      const prediction = mapPrediction(predictionRow);
-      const score = scorePrediction(match, prediction);
-      return supabase
-        .from("predictions")
-        .update({
-          points: score.points,
-          exact_hit: score.exactHit,
-          outcome_hit: score.outcomeHit,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", prediction.id);
-    }),
-  );
+  const recalculation = await recalculatePredictionsForMatches(supabase, [match]);
+  if (!recalculation.ok) return recalculation;
 
   revalidatePath("/");
   return { ok: true, message: "Resultado finalizado." };
+}
+
+async function recalculateAllPoints(supabase: SupabaseServerClient) {
+  const { data: matchRows, error: matchError } = await supabase
+    .from("matches")
+    .select("*");
+
+  if (matchError) return { ok: false as const, message: matchError.message };
+
+  return recalculatePredictionsForMatches(supabase, matchRows.map(mapMatch));
+}
+
+async function recalculatePredictionsForMatches(supabase: SupabaseServerClient, matches: Match[]) {
+  if (matches.length === 0) return { ok: true as const, updated: 0 };
+
+  const { data: predictionRows, error: predictionError } = await supabase
+    .from("predictions")
+    .select("*")
+    .in("match_id", matches.map((match) => match.id));
+
+  if (predictionError) return { ok: false as const, message: predictionError.message };
+
+  const matchById = new Map(matches.map((match) => [match.id, match]));
+  const updatedAt = new Date().toISOString();
+  const updates = predictionRows.map((predictionRow) => {
+    const prediction = mapPrediction(predictionRow);
+    const match = matchById.get(prediction.matchId);
+    if (!match) return null;
+
+    const score = match.status === "finalized"
+      ? scorePrediction(match, prediction)
+      : { points: null, exactHit: false, outcomeHit: false };
+
+    return supabase
+      .from("predictions")
+      .update({
+        points: score.points,
+        exact_hit: score.exactHit,
+        outcome_hit: score.outcomeHit,
+        updated_at: updatedAt,
+      })
+      .eq("id", prediction.id);
+  }).filter((update): update is NonNullable<typeof update> => update !== null);
+
+  const results = await Promise.all(updates);
+  const error = results.find((result) => result.error)?.error;
+  if (error) return { ok: false as const, message: error.message };
+
+  return { ok: true as const, updated: updates.length };
 }
 
 async function getCurrentUserId(supabase: SupabaseServerClient) {
