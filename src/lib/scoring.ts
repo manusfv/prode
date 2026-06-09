@@ -1,11 +1,62 @@
-import type { Match, Prediction, PredictionDraft, Profile, Stage } from "./types";
-import { getMatchStatus, inferWinner, needsAdvancer } from "./tournament";
+import type {
+  Group,
+  GroupPrediction,
+  GroupPredictionDraft,
+  Match,
+  Prediction,
+  PredictionDraft,
+  Profile,
+  Stage,
+} from "./types";
+import { getGroupStatus, getMatchStatus, inferWinner, needsAdvancer } from "./tournament";
 
 export type ScoreResult = {
   points: number;
   exactHit: boolean;
   outcomeHit: boolean;
 };
+
+// Points awarded for placing the team that actually finishes in each position
+// (1st, 2nd, 3rd, 4th) into the matching slot. Max 28 per group.
+export const GROUP_POSITION_POINTS = [10, 8, 6, 4] as const;
+
+export type GroupScoreResult = {
+  points: number;
+  exactPositions: number;
+};
+
+export function scoreGroupPrediction(
+  group: Group,
+  prediction: GroupPrediction,
+): GroupScoreResult {
+  const actual = [
+    group.firstTeamId,
+    group.secondTeamId,
+    group.thirdTeamId,
+    group.fourthTeamId,
+  ];
+  if (actual.some((teamId) => teamId === null)) {
+    return { points: 0, exactPositions: 0 };
+  }
+
+  const predicted = [
+    prediction.firstTeamId,
+    prediction.secondTeamId,
+    prediction.thirdTeamId,
+    prediction.fourthTeamId,
+  ];
+
+  let points = 0;
+  let exactPositions = 0;
+  for (let i = 0; i < 4; i += 1) {
+    if (predicted[i] && predicted[i] === actual[i]) {
+      points += GROUP_POSITION_POINTS[i];
+      exactPositions += 1;
+    }
+  }
+
+  return { points, exactPositions };
+}
 
 export function scorePrediction(match: Match, prediction: Prediction): ScoreResult {
   if (
@@ -75,6 +126,43 @@ export function canSavePrediction({
 
   if (needsAdvancer(match, draft) && !draft.winnerTeamId) {
     return { ok: false, reason: "Elegí quién clasifica." };
+  }
+
+  return { ok: true, reason: "Listo para guardar." };
+}
+
+export function canSaveGroupPrediction({
+  group,
+  draft,
+  profile,
+  openStages,
+  now = new Date(),
+}: {
+  group: Group;
+  draft: GroupPredictionDraft;
+  profile: Profile;
+  openStages: Set<Stage>;
+  now?: Date;
+}) {
+  if (!profile.approved) {
+    return { ok: false, reason: "Tu usuario todavía no está aprobado." };
+  }
+
+  if (!openStages.has("groups")) {
+    return { ok: false, reason: "La etapa todavía no está abierta." };
+  }
+
+  if (getGroupStatus(group, now) !== "open") {
+    return { ok: false, reason: "El grupo ya está cerrado." };
+  }
+
+  if (draft.order.some((teamId) => !teamId)) {
+    return { ok: false, reason: "Ordená los cuatro equipos." };
+  }
+
+  const filled = draft.order.filter((teamId): teamId is string => Boolean(teamId));
+  if (new Set(filled).size !== 4) {
+    return { ok: false, reason: "No repitas equipos." };
   }
 
   return { ok: true, reason: "Listo para guardar." };

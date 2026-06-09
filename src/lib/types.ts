@@ -9,6 +9,7 @@ export type Stage =
 
 export type MatchStatus = "open" | "locked" | "finalized";
 export type MatchLifecycleStatus = "open" | "live" | "finalized";
+export type GroupStatus = "open" | "locked" | "finalized";
 
 export type Role = "user" | "admin";
 
@@ -74,4 +75,34 @@ export type PredictionDraft = {
   homeScore: number | null;
   awayScore: number | null;
   winnerTeamId: string | null;
+};
+
+export type Group = {
+  groupLabel: string;
+  locksAt: string | null;
+  firstTeamId: string | null;
+  secondTeamId: string | null;
+  thirdTeamId: string | null;
+  fourthTeamId: string | null;
+  resultFinalizedAt: string | null;
+  resultFinalizedBy: string | null;
+};
+
+export type GroupPrediction = {
+  id: string;
+  userId: string;
+  groupLabel: string;
+  firstTeamId: string;
+  secondTeamId: string;
+  thirdTeamId: string;
+  fourthTeamId: string;
+  points: number | null;
+  exactPositions: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Ordered slots for positions 1°-4°; null until the user picks a team.
+export type GroupPredictionDraft = {
+  order: [string | null, string | null, string | null, string | null];
 };

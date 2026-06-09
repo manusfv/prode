@@ -1,4 +1,4 @@
-import type { Match, MatchStatus, PredictionDraft, Stage, Team } from "./types";
+import type { Group, GroupStatus, Match, MatchStatus, PredictionDraft, Stage, Team } from "./types";
 
 export const stageLabels: Record<Stage, string> = {
   groups: "Grupos",
@@ -37,6 +37,12 @@ export function getMatchStatus(match: Match, now = new Date()): MatchStatus {
 
   if (match.status === "open" && (!isPastKickoff || wasManuallyReopened)) return "open";
   return isPastKickoff ? "locked" : "open";
+}
+
+export function getGroupStatus(group: Group, now = new Date()): GroupStatus {
+  if (group.resultFinalizedAt) return "finalized";
+  if (!group.locksAt) return "open";
+  return new Date(group.locksAt).getTime() <= now.getTime() ? "locked" : "open";
 }
 
 export function getTeamLabel(teamId: string | null, teams: Team[], seed?: string) {

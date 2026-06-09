@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Match, PredictionDraft } from "./types";
-import { needsAdvancer, stepScore } from "./tournament";
+import type { Group, Match, PredictionDraft } from "./types";
+import { getGroupStatus, needsAdvancer, stepScore } from "./tournament";
 
 const knockoutMatch: Match = {
   id: "m2",
@@ -67,5 +67,41 @@ describe("needsAdvancer", () => {
 
   it("is false when one side is still empty", () => {
     expect(needsAdvancer(knockoutMatch, draft({ homeScore: 1, awayScore: null }))).toBe(false);
+  });
+});
+
+describe("getGroupStatus", () => {
+  const group: Group = {
+    groupLabel: "A",
+    locksAt: "2026-06-11T22:00:00.000Z",
+    firstTeamId: null,
+    secondTeamId: null,
+    thirdTeamId: null,
+    fourthTeamId: null,
+    resultFinalizedAt: null,
+    resultFinalizedBy: null,
+  };
+
+  it("is open before the lock time", () => {
+    expect(getGroupStatus(group, new Date("2026-06-11T21:59:00.000Z"))).toBe("open");
+  });
+
+  it("is locked at or after the lock time", () => {
+    expect(getGroupStatus(group, new Date("2026-06-11T22:00:00.000Z"))).toBe("locked");
+  });
+
+  it("is open when no lock time is set", () => {
+    expect(getGroupStatus({ ...group, locksAt: null }, new Date("2030-01-01T00:00:00.000Z"))).toBe(
+      "open",
+    );
+  });
+
+  it("is finalized once a result is recorded", () => {
+    expect(
+      getGroupStatus(
+        { ...group, resultFinalizedAt: "2026-06-25T00:00:00.000Z" },
+        new Date("2026-06-11T21:00:00.000Z"),
+      ),
+    ).toBe("finalized");
   });
 });

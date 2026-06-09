@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { Match, Prediction, Profile } from "./types";
-import { canSavePrediction, scorePrediction } from "./scoring";
+import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
+import {
+  canSaveGroupPrediction,
+  canSavePrediction,
+  scoreGroupPrediction,
+  scorePrediction,
+} from "./scoring";
 import { formatKickoff, getMatchStatus } from "./tournament";
 
 const profile: Profile = {
@@ -131,6 +136,123 @@ describe("canSavePrediction", () => {
         now: new Date("2026-06-10T00:00:00.000Z"),
       }),
     ).toEqual({ ok: false, reason: "Tu usuario todavía no está aprobado." });
+  });
+});
+
+const finalizedGroup: Group = {
+  groupLabel: "A",
+  locksAt: "2026-06-11T22:00:00.000Z",
+  firstTeamId: "arg",
+  secondTeamId: "mex",
+  thirdTeamId: "pol",
+  fourthTeamId: "ksa",
+  resultFinalizedAt: "2026-06-25T00:00:00.000Z",
+  resultFinalizedBy: "admin",
+};
+
+function groupPrediction(overrides: Partial<GroupPrediction>): GroupPrediction {
+  return {
+    id: "gp1",
+    userId: "u1",
+    groupLabel: "A",
+    firstTeamId: "arg",
+    secondTeamId: "mex",
+    thirdTeamId: "pol",
+    fourthTeamId: "ksa",
+    points: null,
+    exactPositions: 0,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("scoreGroupPrediction", () => {
+  it("awards full 28 points for a perfect group", () => {
+    expect(scoreGroupPrediction(finalizedGroup, groupPrediction({}))).toEqual({
+      points: 28,
+      exactPositions: 4,
+    });
+  });
+
+  it("awards 10 points for only the 1st place correct", () => {
+    expect(
+      scoreGroupPrediction(
+        finalizedGroup,
+        groupPrediction({ secondTeamId: "pol", thirdTeamId: "ksa", fourthTeamId: "mex" }),
+      ),
+    ).toEqual({ points: 10, exactPositions: 1 });
+  });
+
+  it("awards 16 points for 1st and 3rd correct", () => {
+    expect(
+      scoreGroupPrediction(
+        finalizedGroup,
+        groupPrediction({ secondTeamId: "ksa", fourthTeamId: "mex" }),
+      ),
+    ).toEqual({ points: 16, exactPositions: 2 });
+  });
+
+  it("scores 0 when the group result is not finalized", () => {
+    expect(
+      scoreGroupPrediction({ ...finalizedGroup, firstTeamId: null }, groupPrediction({})),
+    ).toEqual({ points: 0, exactPositions: 0 });
+  });
+});
+
+describe("canSaveGroupPrediction", () => {
+  const openGroup: Group = {
+    ...finalizedGroup,
+    resultFinalizedAt: null,
+    resultFinalizedBy: null,
+  };
+
+  it("rejects an incomplete order", () => {
+    expect(
+      canSaveGroupPrediction({
+        group: openGroup,
+        draft: { order: ["arg", "mex", "pol", null] },
+        profile,
+        openStages: new Set(["groups"]),
+        now: new Date("2026-06-10T00:00:00.000Z"),
+      }),
+    ).toEqual({ ok: false, reason: "Ordená los cuatro equipos." });
+  });
+
+  it("rejects repeated teams", () => {
+    expect(
+      canSaveGroupPrediction({
+        group: openGroup,
+        draft: { order: ["arg", "arg", "pol", "ksa"] },
+        profile,
+        openStages: new Set(["groups"]),
+        now: new Date("2026-06-10T00:00:00.000Z"),
+      }),
+    ).toEqual({ ok: false, reason: "No repitas equipos." });
+  });
+
+  it("rejects writes after the group locks", () => {
+    expect(
+      canSaveGroupPrediction({
+        group: openGroup,
+        draft: { order: ["arg", "mex", "pol", "ksa"] },
+        profile,
+        openStages: new Set(["groups"]),
+        now: new Date("2026-06-12T00:00:00.000Z"),
+      }),
+    ).toEqual({ ok: false, reason: "El grupo ya está cerrado." });
+  });
+
+  it("accepts a complete, distinct, on-time order", () => {
+    expect(
+      canSaveGroupPrediction({
+        group: openGroup,
+        draft: { order: ["arg", "mex", "pol", "ksa"] },
+        profile,
+        openStages: new Set(["groups"]),
+        now: new Date("2026-06-10T00:00:00.000Z"),
+      }),
+    ).toEqual({ ok: true, reason: "Listo para guardar." });
   });
 });
 
