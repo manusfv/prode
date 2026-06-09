@@ -39,9 +39,6 @@ insert into public.matches (
   city,
   status
 ) values
-  ('00000000-0000-0000-0000-000000000001', 1, 'groups', 'A', 'arg', 'mex', null, null, '2026-06-11T22:00:00.000Z', 'Estadio Azteca', 'Ciudad de México', 'open'),
-  ('00000000-0000-0000-0000-000000000002', 2, 'groups', 'B', 'usa', 'can', null, null, '2026-06-12T02:00:00.000Z', 'Lumen Field', 'Seattle', 'open'),
-  ('00000000-0000-0000-0000-000000000003', 3, 'groups', 'C', 'bra', 'esp', null, null, '2026-06-13T22:00:00.000Z', 'Hard Rock Stadium', 'Miami', 'open'),
   ('00000000-0000-0000-0000-000000000049', 49, 'round16', null, 'arg', 'fra', '1A', '2B', '2026-07-04T01:00:00.000Z', 'MetLife Stadium', 'New York/New Jersey', 'open'),
   ('00000000-0000-0000-0000-000000000057', 57, 'quarter', null, null, null, 'Ganador Octavos 1', 'Ganador Octavos 2', '2026-07-10T01:00:00.000Z', 'AT&T Stadium', 'Dallas', 'open')
 on conflict (id) do update set
@@ -56,3 +53,12 @@ on conflict (id) do update set
   venue = excluded.venue,
   city = excluded.city,
   status = excluded.status;
+
+-- Group stage: per-group lock times (when each group's first match kicks off).
+insert into public.groups (group_label, locks_at) values
+  ('A', '2026-06-11T22:00:00.000Z'),
+  ('B', '2026-06-12T02:00:00.000Z'),
+  ('C', '2026-06-13T22:00:00.000Z'),
+  ('D', '2026-06-14T22:00:00.000Z')
+on conflict (group_label) do update set
+  locks_at = excluded.locks_at;

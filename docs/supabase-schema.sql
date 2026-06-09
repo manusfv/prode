@@ -300,5 +300,126 @@ create index predictions_user_match_idx on public.predictions (user_id, match_id
 create index predictions_match_idx on public.predictions (match_id);
 create index matches_stage_kickoff_idx on public.matches (stage, kickoff_utc);
 
+-- Group stage: standings predictions instead of per-match scores.
+create table public.groups (
+  group_label text primary key,
+  locks_at timestamptz,
+  first_team_id text references public.teams(id),
+  second_team_id text references public.teams(id),
+  third_team_id text references public.teams(id),
+  fourth_team_id text references public.teams(id),
+  result_finalized_at timestamptz,
+  result_finalized_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.group_predictions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  group_label text not null references public.groups(group_label) on delete cascade,
+  first_team_id text not null references public.teams(id),
+  second_team_id text not null references public.teams(id),
+  third_team_id text not null references public.teams(id),
+  fourth_team_id text not null references public.teams(id),
+  points integer,
+  exact_positions integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, group_label),
+  constraint group_predictions_distinct check (
+    first_team_id <> second_team_id and first_team_id <> third_team_id
+    and first_team_id <> fourth_team_id and second_team_id <> third_team_id
+    and second_team_id <> fourth_team_id and third_team_id <> fourth_team_id
+  )
+);
+
+alter table public.groups enable row level security;
+alter table public.group_predictions enable row level security;
+
+create trigger groups_touch_updated_at
+before update on public.groups
+for each row execute function public.touch_updated_at();
+
+create trigger group_predictions_touch_updated_at
+before update on public.group_predictions
+for each row execute function public.touch_updated_at();
+
+create policy "groups_select_approved"
+on public.groups
+for select
+to authenticated
+using (public.is_approved());
+
+create policy "groups_admin_all"
+on public.groups
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+create policy "group_predictions_select_visible"
+on public.group_predictions
+for select
+to authenticated
+using (
+  public.is_approved()
+  and (
+    user_id = auth.uid()
+    or exists (
+      select 1
+      from public.groups g
+      where g.group_label = group_predictions.group_label
+        and g.locks_at is not null
+        and g.locks_at <= now()
+    )
+  )
+);
+
+create policy "group_predictions_insert_own_open"
+on public.group_predictions
+for insert
+to authenticated
+with check (
+  user_id = auth.uid()
+  and public.is_approved()
+  and exists (
+    select 1
+    from public.groups g
+    join public.stages s on s.stage = 'groups'
+    where g.group_label = group_predictions.group_label
+      and s.open = true
+      and (g.locks_at is null or g.locks_at > now())
+  )
+);
+
+create policy "group_predictions_update_own_open"
+on public.group_predictions
+for update
+to authenticated
+using (user_id = auth.uid() and public.is_approved())
+with check (
+  user_id = auth.uid()
+  and public.is_approved()
+  and exists (
+    select 1
+    from public.groups g
+    join public.stages s on s.stage = 'groups'
+    where g.group_label = group_predictions.group_label
+      and s.open = true
+      and (g.locks_at is null or g.locks_at > now())
+  )
+);
+
+create policy "group_predictions_admin_all"
+on public.group_predictions
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+create index group_predictions_user_idx on public.group_predictions (user_id);
+create index group_predictions_group_idx on public.group_predictions (group_label);
+
 -- After applying this schema, promote the first admin manually:
 -- update public.profiles set approved = true, role = 'admin' where email = 'tu-email@example.com';
