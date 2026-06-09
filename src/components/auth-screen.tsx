@@ -130,7 +130,7 @@ export function AuthScreen({
                 </span>
                 <div>
                   <strong className="block text-xl font-black leading-tight text-app-text">Prode Carbia</strong>
-                  <small className="block text-xs font-black uppercase tracking-wide text-app-brand">Familia 2026</small>
+                  <small className="block text-xs font-black uppercase tracking-wide text-app-brand">Mundial 2026</small>
                 </div>
               </div>
             </div>
