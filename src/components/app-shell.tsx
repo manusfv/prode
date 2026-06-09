@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CircleDot,
   Info,
+  Menu,
   ShieldCheck,
   Trophy,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
 import { scoreAllForMatch } from "@/lib/scoring";
 import {
@@ -75,6 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [matches, setMatches] = useState(seedMatches);
   const [predictions, setPredictions] = useState(seedPredictions);
   const [drawerMatch, setDrawerMatch] = useState<Match | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authName, setAuthName] = useState("");
@@ -290,7 +293,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       matchId: match.id,
       homeScore: patch.homeScore ?? existing?.homeScore ?? 0,
       awayScore: patch.awayScore ?? existing?.awayScore ?? 0,
-      winnerTeamId: patch.winnerTeamId ?? existing?.winnerTeamId ?? null,
+      winnerTeamId:
+        "winnerTeamId" in patch ? patch.winnerTeamId ?? null : existing?.winnerTeamId ?? null,
       points: existing?.points ?? null,
       exactHit: existing?.exactHit ?? false,
       outcomeHit: existing?.outcomeHit ?? false,
@@ -425,10 +429,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block max-lg:pb-20">
+      <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block">
         <Sidebar activeTab={activeTab} isAdmin={isAdmin} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
 
         <section className="mx-auto w-full max-w-screen-2xl min-w-0 overflow-x-clip p-5 max-lg:p-3.5 max-sm:p-2.5">
+          <div className="sticky top-0 z-20 -mx-3.5 mb-5 flex items-center gap-3 border-b border-app-line bg-app-bg/90 px-3.5 py-2.5 backdrop-blur-lg lg:hidden max-sm:-mx-2.5 max-sm:px-2.5">
+            <Button variant="ghost" size="icon" aria-label="Abrir menú" onClick={() => setMobileNavOpen(true)}>
+              <Menu />
+            </Button>
+            <span className="brand-mark" aria-hidden="true">
+              <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} />
+            </span>
+            <strong className="text-base leading-none">Prode Carbia</strong>
+          </div>
+
           <header className="mb-7">
             <div>
               <p className={cn(ui.label, "mb-1")}>Hola, {currentUser.displayName}</p>
@@ -436,12 +450,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <AccountPanel currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} mobile />
-
           {children}
         </section>
 
-        <MobileNav activeTab={activeTab} isAdmin={isAdmin} />
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetContent side="left" className="w-[280px] gap-0 border-app-line bg-app-sidebar p-4 sm:max-w-[280px]">
+            <SheetTitle className="sr-only">Menú</SheetTitle>
+            <SidebarContent
+              activeTab={activeTab}
+              isAdmin={isAdmin}
+              currentUser={currentUser}
+              theme={theme}
+              onThemeChange={setTheme}
+              onSignOut={signOut}
+              onNavigate={() => setMobileNavOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
         <PredictionDrawer
           match={drawerMatch}
           predictions={predictions}
@@ -454,23 +479,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Sidebar({
-  activeTab,
-  isAdmin,
-  currentUser,
-  theme,
-  onThemeChange,
-  onSignOut,
-}: {
+function Sidebar(props: SidebarContentProps) {
+  return (
+    <aside className="sticky top-0 flex h-screen flex-col border-r border-app-line bg-app-sidebar px-4 py-5 backdrop-blur-lg max-lg:hidden" aria-label="Navegación principal">
+      <SidebarContent {...props} />
+    </aside>
+  );
+}
+
+type SidebarContentProps = {
   activeTab: AppRoute;
   isAdmin: boolean;
   currentUser: Profile;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onSignOut: () => Promise<void> | void;
-}) {
+  onNavigate?: () => void;
+};
+
+function SidebarContent({
+  activeTab,
+  isAdmin,
+  currentUser,
+  theme,
+  onThemeChange,
+  onSignOut,
+  onNavigate,
+}: SidebarContentProps) {
   return (
-    <aside className="sticky top-0 flex h-screen flex-col border-r border-app-line bg-app-sidebar px-4 py-5 backdrop-blur-lg max-lg:hidden" aria-label="Navegación principal">
+    <>
       <div className="flex min-h-14 shrink-0 items-center gap-3">
         <span className="brand-mark" aria-hidden="true">
           <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} priority />
@@ -481,39 +518,30 @@ function Sidebar({
         </div>
       </div>
       <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-        <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} />
-        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} />
-        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} />
-        <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} />
-        {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} />}
+        <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
+        {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
       <AccountPanel currentUser={currentUser} theme={theme} onThemeChange={onThemeChange} onSignOut={onSignOut} />
-    </aside>
+    </>
   );
 }
 
-function MobileNav({ activeTab, isAdmin }: { activeTab: AppRoute; isAdmin: boolean }) {
-  return (
-    <nav className="fixed inset-x-2.5 bottom-2.5 z-20 hidden grid-cols-[repeat(auto-fit,minmax(58px,1fr))] gap-1 rounded-lg border border-app-line bg-app-nav p-1.5 shadow-app backdrop-blur-lg max-lg:grid">
-      <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} />
-      <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} />
-      <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} />
-      <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} />
-      {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} />}
-    </nav>
-  );
-}
-
-function NavLink({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
+function NavLink({ href, icon, label, active, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; onNavigate?: () => void }) {
   const router = useRouter();
   return (
     <Button
       variant={active ? "default" : "ghost"}
       className={cn(
-        "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold max-lg:h-12 max-lg:min-w-0 max-lg:flex-col max-lg:gap-1 max-lg:px-1 max-lg:text-xs",
+        "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold",
         active ? "bg-app-solid text-app-solid-fg" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text",
       )}
-      onClick={() => router.push(href)}
+      onClick={() => {
+        router.push(href);
+        onNavigate?.();
+      }}
     >
       {icon}
       <span className="max-w-full truncate">{label}</span>
@@ -524,13 +552,11 @@ function NavLink({ href, icon, label, active }: { href: string; icon: React.Reac
 function AccountPanel({
   currentUser,
   theme,
-  mobile = false,
   onThemeChange,
   onSignOut,
 }: {
   currentUser: Profile;
   theme: Theme;
-  mobile?: boolean;
   onThemeChange: (theme: Theme) => void;
   onSignOut: () => Promise<void> | void;
 }) {
@@ -548,10 +574,7 @@ function AccountPanel({
 
   return (
     <Card
-      className={cn(
-        "grid gap-3 rounded-lg border border-app-line bg-app-surface/80 p-3 shadow-app-card",
-        mobile ? "mb-3 hidden max-lg:grid" : "mt-3 shrink-0 max-lg:hidden",
-      )}
+      className="mt-3 grid shrink-0 gap-3 rounded-lg border border-app-line bg-app-surface/80 p-3 shadow-app-card"
       size="sm"
     >
       <div>
