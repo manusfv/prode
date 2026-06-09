@@ -72,6 +72,12 @@ export function getLockCopy(isoDate: string, now = new Date()) {
   return `cierra en ${minutes} min`;
 }
 
+export function stepScore(value: number | null, delta: 1 | -1): number | null {
+  if (delta === 1) return value === null ? 0 : value + 1;
+  if (value === null || value === 0) return null;
+  return value - 1;
+}
+
 export function needsAdvancer(match: Match, draft: PredictionDraft) {
   return (
     match.stage !== "groups" &&

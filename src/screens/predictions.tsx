@@ -10,7 +10,7 @@ import {
   PanelRightOpen,
   Plus,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,9 @@ import {
   needsAdvancer,
   stageLabels,
   stageOrder,
+  stepScore,
 } from "@/lib/tournament";
-import type { Match, Prediction, Profile, Stage, Team } from "@/lib/types";
+import type { Match, Prediction, PredictionDraft, Profile, Stage, Team } from "@/lib/types";
 import { compareGroups, getLeaderboard, type LeaderboardRow, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
@@ -304,11 +305,35 @@ function MatchCard({
 }) {
   const status = getMatchStatus(match, now);
   const isOpen = status === "open" && openStages.has(match.stage) && match.homeTeamId && match.awayTeamId;
-  const draft = {
-    homeScore: prediction?.homeScore ?? 0,
-    awayScore: prediction?.awayScore ?? 0,
-    winnerTeamId: prediction?.winnerTeamId ?? null,
+
+  const [draft, setDraft] = useState<PredictionDraft>(() => toDraft(prediction));
+  const savedKey = prediction
+    ? `${prediction.homeScore}-${prediction.awayScore}-${prediction.winnerTeamId ?? ""}`
+    : "";
+  useEffect(() => {
+    setDraft(toDraft(prediction));
+    // Re-seed only when the saved prediction actually changes (e.g. after a refresh).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const applyDraft = (next: PredictionDraft) => {
+    const normalized = needsAdvancer(match, next) ? next : { ...next, winnerTeamId: null };
+    setDraft(normalized);
+
+    const complete =
+      normalized.homeScore !== null &&
+      normalized.awayScore !== null &&
+      (!needsAdvancer(match, normalized) || normalized.winnerTeamId !== null);
+
+    if (complete) {
+      onChange(match, {
+        homeScore: normalized.homeScore as number,
+        awayScore: normalized.awayScore as number,
+        winnerTeamId: normalized.winnerTeamId,
+      });
+    }
   };
+
   const showAdvancer = needsAdvancer(match, draft);
   const submittedCount = allPredictions.length;
   const missingCount = profiles.filter((profile) => profile.approved).length - submittedCount;
@@ -334,14 +359,14 @@ function MatchCard({
           className="@max-xl:col-start-2 @max-xl:row-start-1"
           value={draft.homeScore}
           disabled={!isOpen}
-          onChange={(value) => onChange(match, { homeScore: value })}
+          onChange={(value) => applyDraft({ ...draft, homeScore: value })}
         />
         <span className="text-center text-xs font-black uppercase text-app-muted @max-xl:hidden">vs</span>
         <ScoreControl
           className="@max-xl:col-start-2 @max-xl:row-start-2"
           value={draft.awayScore}
           disabled={!isOpen}
-          onChange={(value) => onChange(match, { awayScore: value })}
+          onChange={(value) => applyDraft({ ...draft, awayScore: value })}
         />
         <TeamBlock className="@max-xl:col-start-1 @max-xl:row-start-2" teamId={match.awayTeamId} seed={match.awaySeed} align="right" teams={teams} />
       </div>
@@ -356,7 +381,7 @@ function MatchCard({
               size="sm"
               className="font-extrabold"
               disabled={!isOpen}
-              onClick={() => onChange(match, { winnerTeamId: teamId })}
+              onClick={() => applyDraft({ ...draft, winnerTeamId: teamId })}
             >
               {getTeamFlag(teamId, teams)} {getTeamLabel(teamId, teams)}
             </Button>
@@ -415,14 +440,34 @@ function TeamBlock({
   );
 }
 
-function ScoreControl({ value, disabled, className, onChange }: { value: number; disabled: boolean; className?: string; onChange: (value: number) => void }) {
+function toDraft(prediction?: Prediction): PredictionDraft {
+  return {
+    homeScore: prediction?.homeScore ?? null,
+    awayScore: prediction?.awayScore ?? null,
+    winnerTeamId: prediction?.winnerTeamId ?? null,
+  };
+}
+
+function ScoreControl({ value, disabled, className, onChange }: { value: number | null; disabled: boolean; className?: string; onChange: (value: number | null) => void }) {
   return (
     <div className={cn("grid grid-cols-[28px_40px_28px] items-center gap-1", className)}>
-      <Button variant="outline" size="icon-sm" disabled={disabled || value <= 0} onClick={() => onChange(Math.max(0, value - 1))} aria-label="Restar gol">
+      <Button variant="outline" size="icon-sm" disabled={disabled || value === null} onClick={() => onChange(stepScore(value, -1))} aria-label="Restar gol">
         <Minus size={15} />
       </Button>
-      <Input className="h-9 w-10 border-app-line-strong bg-app-surface text-center text-lg font-black" disabled={disabled} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} inputMode="numeric" />
-      <Button variant="outline" size="icon-sm" disabled={disabled} onClick={() => onChange(value + 1)} aria-label="Sumar gol">
+      <Input
+        className="h-9 w-10 border-app-line-strong bg-app-surface text-center text-lg font-black"
+        disabled={disabled}
+        value={value === null ? "" : String(value)}
+        placeholder="-"
+        onChange={(event) => {
+          const raw = event.target.value.trim();
+          if (raw === "") return onChange(null);
+          const parsed = Number(raw);
+          onChange(Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : null);
+        }}
+        inputMode="numeric"
+      />
+      <Button variant="outline" size="icon-sm" disabled={disabled} onClick={() => onChange(stepScore(value, 1))} aria-label="Sumar gol">
         <Plus size={15} />
       </Button>
     </div>
