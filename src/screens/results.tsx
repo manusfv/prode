@@ -3,19 +3,36 @@
 import { CalendarClock } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { formatKickoff, getMatchStatus, getTeamFlag, getTeamLabel } from "@/lib/tournament";
-import type { Team } from "@/lib/types";
-import { ui } from "@/lib/ui-tokens";
+import {
+  formatKickoff,
+  getGroupStatus,
+  getMatchStatus,
+  getTeamFlag,
+  getTeamLabel,
+} from "@/lib/tournament";
+import type { Group, Team } from "@/lib/types";
+import { compareGroups, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
 import { StageBadge, StatusChip } from "@/components/badges";
 
 export function ResultsScreen() {
-  const { matches, predictions, now, teams } = useApp();
+  const { matches, predictions, groups, now, teams } = useApp();
+  const sortedGroups = [...groups].sort((a, b) => compareGroups(a.groupLabel, b.groupLabel));
 
   return (
     <section className="grid gap-3.5">
+      {sortedGroups.length > 0 && (
+        <div className="grid gap-3">
+          <h2 className="text-base font-black leading-none">Tabla de grupos</h2>
+          <div className="grid gap-3 xl:grid-cols-2">
+            {sortedGroups.map((group) => (
+              <GroupStandingsResult key={group.groupLabel} group={group} teams={teams} now={now} />
+            ))}
+          </div>
+        </div>
+      )}
       <div className={cn(ui.panel, "flex items-end justify-between gap-3 p-4 max-lg:items-start max-lg:flex-col")}>
         <div>
           <p className={ui.label}>Fixture y marcadores</p>
@@ -75,6 +92,42 @@ export function ResultsScreen() {
         })}
       </div>
     </section>
+  );
+}
+
+function GroupStandingsResult({ group, teams, now }: { group: Group; teams: Team[]; now: Date }) {
+  const status = getGroupStatus(group, now);
+  const order = [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId];
+  const finalized = status === "finalized";
+
+  return (
+    <Card className={cn(ui.panel, "grid gap-3 p-3.5", finalized && "border-app-green/45")}>
+      <header className="flex items-center justify-between gap-3">
+        <StageBadge stage="groups" group={group.groupLabel} />
+        <StatusChip
+          status={finalized ? "finalized" : status === "locked" ? "locked" : "open"}
+          label={finalized ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"}
+        />
+      </header>
+      {finalized ? (
+        <ol className="grid gap-1.5">
+          {order.map((teamId, index) => (
+            <li
+              key={index}
+              className="grid grid-cols-[28px_36px_minmax(0,1fr)] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2"
+            >
+              <span className="text-sm font-black text-app-muted">{index + 1}°</span>
+              <span className="text-lg">{getTeamFlag(teamId, teams)}</span>
+              <strong className="truncate text-sm font-black">{getTeamLabel(teamId, teams)}</strong>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="rounded-md bg-app-surface-2 px-2.5 py-3 text-center text-sm font-bold text-app-muted">
+          Resultado pendiente
+        </p>
+      )}
+    </Card>
   );
 }
 

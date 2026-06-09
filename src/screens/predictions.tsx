@@ -26,6 +26,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   formatKickoff,
+  getGroupStatus,
   getLockCopy,
   getMatchStatus,
   getTeamFlag,
@@ -35,20 +36,29 @@ import {
   stageOrder,
   stepScore,
 } from "@/lib/tournament";
-import type { Match, Prediction, PredictionDraft, Profile, Stage, Team } from "@/lib/types";
+import type {
+  Group,
+  GroupPrediction,
+  Match,
+  Prediction,
+  PredictionDraft,
+  Profile,
+  Stage,
+  Team,
+} from "@/lib/types";
 import { compareGroups, getLeaderboard, type LeaderboardRow, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
 import { SaveStatus, StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
-type GroupSort = "group" | "date";
-
 export function PredictionsScreen() {
   const {
     currentUser,
     matches,
     predictions,
+    groups,
+    groupPredictions,
     profiles,
     stages,
     teams,
@@ -56,6 +66,7 @@ export function PredictionsScreen() {
     saveState,
     openStages,
     updatePrediction,
+    updateGroupPrediction,
     openPredictionDrawer,
   } = useApp();
   const router = useRouter();
@@ -64,7 +75,7 @@ export function PredictionsScreen() {
   });
   const [missingOnly, setMissingOnly] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [groupSort, setGroupSort] = useState<GroupSort>("group");
+  const [drawerGroup, setDrawerGroup] = useState<Group | null>(null);
 
   const currentPredictionMap = useMemo(() => {
     return new Map(
@@ -74,46 +85,38 @@ export function PredictionsScreen() {
     );
   }, [currentUser, predictions]);
 
+  const currentGroupPredictionMap = useMemo(() => {
+    return new Map(
+      groupPredictions
+        .filter((prediction) => prediction.userId === currentUser.id)
+        .map((prediction) => [prediction.groupLabel, prediction]),
+    );
+  }, [currentUser, groupPredictions]);
+
   const visibleMatches = useMemo(() => {
     return matches
       .filter((match) => match.stage === activeStage)
-      .filter((match) => activeStage !== "groups" || selectedGroups.length === 0 || selectedGroups.includes(match.group ?? ""))
       .filter((match) => !missingOnly || !currentPredictionMap.has(match.id))
-      .sort((a, b) => {
-        if (activeStage === "groups" && groupSort === "group") {
-          const groupCompare = compareGroups(a.group, b.group);
-          if (groupCompare !== 0) return groupCompare;
-        }
-        return new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime();
-      });
-  }, [activeStage, currentPredictionMap, groupSort, matches, missingOnly, selectedGroups]);
+      .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime());
+  }, [activeStage, currentPredictionMap, matches, missingOnly]);
 
   const groupOptions = useMemo(() => {
-    return Array.from(
-      new Set(matches.filter((match) => match.stage === "groups" && match.group).map((match) => match.group as string)),
-    ).sort(compareGroups);
-  }, [matches]);
+    return groups.map((group) => group.groupLabel).sort(compareGroups);
+  }, [groups]);
 
-  const visibleMatchSections = useMemo(() => {
-    if (activeStage !== "groups" || groupSort !== "group") {
-      return [{ title: null, matches: visibleMatches }];
-    }
-    const sections = new Map<string, Match[]>();
-    for (const match of visibleMatches) {
-      const group = match.group ?? "Sin grupo";
-      sections.set(group, [...(sections.get(group) ?? []), match]);
-    }
-    return Array.from(sections.entries()).map(([title, sectionMatches]) => ({
-      title,
-      matches: sectionMatches,
-    }));
-  }, [activeStage, groupSort, visibleMatches]);
+  const visibleGroups = useMemo(() => {
+    return groups
+      .filter((group) => selectedGroups.length === 0 || selectedGroups.includes(group.groupLabel))
+      .filter((group) => !missingOnly || !currentGroupPredictionMap.has(group.groupLabel))
+      .sort((a, b) => compareGroups(a.groupLabel, b.groupLabel));
+  }, [currentGroupPredictionMap, groups, missingOnly, selectedGroups]);
 
-  const groupSortLabel = groupSort === "group" ? "Por grupos" : "Por fecha";
-
-  const leaderboard = useMemo(() => getLeaderboard(predictions, profiles), [predictions, profiles]);
+  const leaderboard = useMemo(
+    () => getLeaderboard(predictions, profiles, groupPredictions),
+    [predictions, profiles, groupPredictions],
+  );
   const me = leaderboard.find((row) => row.user.id === currentUser.id);
-  const missingCount = matches.filter(
+  const missingMatches = matches.filter(
     (match) =>
       getMatchStatus(match, now) === "open" &&
       openStages.has(match.stage) &&
@@ -121,6 +124,13 @@ export function PredictionsScreen() {
       match.awayTeamId &&
       !currentPredictionMap.has(match.id),
   ).length;
+  const missingGroups = groups.filter(
+    (group) =>
+      getGroupStatus(group, now) === "open" &&
+      openStages.has("groups") &&
+      !currentGroupPredictionMap.has(group.groupLabel),
+  ).length;
+  const missingCount = missingMatches + missingGroups;
 
   return (
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
@@ -130,19 +140,7 @@ export function PredictionsScreen() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
               {activeStage === "groups" && (
-                <>
-                  <GroupFilter options={groupOptions} selected={selectedGroups} onChange={setSelectedGroups} />
-                  <Select value={groupSort} onValueChange={(value) => setGroupSort((value ?? "group") as GroupSort)}>
-                    <SelectTrigger className={cn(ui.control, "w-45 max-lg:w-full")} aria-label="Ordenar partidos">
-                      <span className={ui.label}>Orden</span>
-                      <SelectValue className={ui.controlValue}>{groupSortLabel}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="group">Orden: grupos</SelectItem>
-                      <SelectItem value="date">Orden: fecha</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </>
+                <GroupFilter options={groupOptions} selected={selectedGroups} onChange={setSelectedGroups} />
               )}
               <Button
                 variant={missingOnly ? "default" : "outline"}
@@ -156,33 +154,50 @@ export function PredictionsScreen() {
           </div>
         </div>
         <div className="grid gap-3 xl:grid-cols-2">
-          {visibleMatchSections.map((section) => (
-            <section key={section.title ?? "date"} className={cn("grid gap-3", !section.title && "xl:col-span-2")}>
-              {section.title && <h2 className="text-base font-black leading-none">Grupo {section.title}</h2>}
-              <div className={cn("grid gap-3", !section.title && "xl:grid-cols-2")}>
-                {section.matches.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    prediction={currentPredictionMap.get(match.id)}
-                    allPredictions={predictions.filter((prediction) => prediction.matchId === match.id)}
-                    now={now}
-                    teams={teams}
-                    profiles={profiles}
-                    openStages={openStages}
-                    onChange={updatePrediction}
-                    onOpenDrawer={openPredictionDrawer}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {activeStage === "groups"
+            ? visibleGroups.map((group) => (
+                <GroupStandingsCard
+                  key={group.groupLabel}
+                  group={group}
+                  teams={teams.filter((team) => team.group === group.groupLabel)}
+                  prediction={currentGroupPredictionMap.get(group.groupLabel)}
+                  allPredictions={groupPredictions.filter(
+                    (prediction) => prediction.groupLabel === group.groupLabel,
+                  )}
+                  profiles={profiles}
+                  now={now}
+                  stageOpen={openStages.has("groups")}
+                  onChange={updateGroupPrediction}
+                  onOpenDrawer={setDrawerGroup}
+                />
+              ))
+            : visibleMatches.map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  prediction={currentPredictionMap.get(match.id)}
+                  allPredictions={predictions.filter((prediction) => prediction.matchId === match.id)}
+                  now={now}
+                  teams={teams}
+                  profiles={profiles}
+                  openStages={openStages}
+                  onChange={updatePrediction}
+                  onOpenDrawer={openPredictionDrawer}
+                />
+              ))}
         </div>
       </div>
       <aside className="sticky top-5 grid gap-2.5 max-lg:static">
         <SummaryPanel points={me?.points ?? 0} rank={me?.rank ?? 1} missingCount={missingCount} />
         <LeaderboardPreview rows={leaderboard.slice(0, 4)} onOpen={() => router.push("/tabla")} />
       </aside>
+      <GroupDrawer
+        group={drawerGroup}
+        groupPredictions={groupPredictions}
+        profiles={profiles}
+        teams={teams}
+        onClose={() => setDrawerGroup(null)}
+      />
     </section>
   );
 }
@@ -279,6 +294,165 @@ function GroupFilter({
         </Combobox.Positioner>
       </Combobox.Portal>
     </Combobox.Root>
+  );
+}
+
+const POSITION_LABELS = ["1°", "2°", "3°", "4°"] as const;
+const GROUP_SLOT_NONE = "__none__";
+
+function toGroupOrder(prediction?: GroupPrediction): (string | null)[] {
+  return [
+    prediction?.firstTeamId ?? null,
+    prediction?.secondTeamId ?? null,
+    prediction?.thirdTeamId ?? null,
+    prediction?.fourthTeamId ?? null,
+  ];
+}
+
+function groupOrderTeams(prediction: GroupPrediction): string[] {
+  return [
+    prediction.firstTeamId,
+    prediction.secondTeamId,
+    prediction.thirdTeamId,
+    prediction.fourthTeamId,
+  ];
+}
+
+function GroupStandingsCard({
+  group,
+  teams,
+  prediction,
+  allPredictions,
+  profiles,
+  now,
+  stageOpen,
+  onChange,
+  onOpenDrawer,
+}: {
+  group: Group;
+  teams: Team[];
+  prediction?: GroupPrediction;
+  allPredictions: GroupPrediction[];
+  profiles: Profile[];
+  now: Date;
+  stageOpen: boolean;
+  onChange: (groupLabel: string, order: [string, string, string, string]) => void;
+  onOpenDrawer: (group: Group) => void;
+}) {
+  const status = getGroupStatus(group, now);
+  const isOpen = status === "open" && stageOpen;
+  const actual = [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId];
+
+  const [order, setOrder] = useState<(string | null)[]>(() => toGroupOrder(prediction));
+  const savedKey = prediction ? groupOrderTeams(prediction).join("-") : "";
+  useEffect(() => {
+    setOrder(toGroupOrder(prediction));
+    // Re-seed only when the saved prediction actually changes (e.g. after a refresh).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const applySlot = (index: number, teamId: string | null) => {
+    const next = [...order];
+    // If the team already sits in another slot, clear that slot so the team
+    // moves here and the old position is left empty to re-pick.
+    if (teamId) {
+      const existingIndex = next.findIndex((slot) => slot === teamId);
+      if (existingIndex !== -1 && existingIndex !== index) {
+        next[existingIndex] = null;
+      }
+    }
+    next[index] = teamId;
+    setOrder(next);
+    if (next.every((slot): slot is string => Boolean(slot)) && new Set(next).size === 4) {
+      onChange(group.groupLabel, next as [string, string, string, string]);
+    }
+  };
+
+  const submittedCount = allPredictions.length;
+  const missingCount = profiles.filter((profile) => profile.approved).length - submittedCount;
+  const statusLabel =
+    status === "open"
+      ? group.locksAt
+        ? getLockCopy(group.locksAt, now)
+        : "Sin fecha"
+      : status === "locked"
+        ? "Cerrado"
+        : "Finalizado";
+
+  return (
+    <Card className={cn(
+      ui.panel,
+      "@container p-3.5",
+      status === "locked" && "border-app-amber/45",
+      status === "finalized" && "border-app-green/45",
+    )}>
+      <div className="flex items-center justify-between gap-3">
+        <StageBadge stage="groups" group={group.groupLabel} />
+        <StatusChip status={status} label={statusLabel} />
+      </div>
+
+      <div className="mt-3.5 grid gap-2">
+        {POSITION_LABELS.map((label, index) => {
+          const slotTeamId = order[index];
+          const isCorrect = status === "finalized" && slotTeamId !== null && slotTeamId === actual[index];
+          return (
+            <div
+              key={label}
+              className={cn(
+                "grid grid-cols-[40px_minmax(0,1fr)] items-center gap-2.5 rounded-lg border border-app-line bg-app-surface px-2.5 py-2",
+                isCorrect && "border-app-green/55 bg-app-green/5",
+              )}
+            >
+              <span className="grid size-8 place-items-center rounded-md bg-app-surface-2 text-sm font-black text-app-muted">
+                {label}
+              </span>
+              <Select
+                value={slotTeamId}
+                onValueChange={(value) =>
+                  applySlot(index, value === GROUP_SLOT_NONE ? null : ((value as string) || null))
+                }
+                disabled={!isOpen}
+              >
+                <SelectTrigger className={cn(ui.control, "w-full")} aria-label={`Posición ${label}`}>
+                  <SelectValue className={ui.controlValue} placeholder="Elegí equipo">
+                    {slotTeamId
+                      ? `${getTeamFlag(slotTeamId, teams)} ${getTeamLabel(slotTeamId, teams)}`
+                      : "Elegí equipo"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={GROUP_SLOT_NONE}>— Vacío —</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.flag} {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </div>
+
+      {status !== "open" && (
+        <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted">
+          {status === "finalized" && prediction ? (
+            <span className="text-app-green">{prediction.points ?? 0} pts · {prediction.exactPositions}/4</span>
+          ) : (
+            <span />
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-0 text-xs font-extrabold text-app-blue hover:bg-transparent hover:underline"
+            onClick={() => onOpenDrawer(group)}
+          >
+            <PanelRightOpen size={15} />
+            Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+          </Button>
+        </footer>
+      )}
+    </Card>
   );
 }
 
@@ -514,6 +688,63 @@ export function PredictionDrawer({
                       <span className="text-sm font-bold">
                         {prediction.homeScore}-{prediction.awayScore}
                         {prediction.winnerTeamId ? ` · clasifica ${getTeamLabel(prediction.winnerTeamId, teams)}` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-bold text-app-muted">Sin pronóstico</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function GroupDrawer({
+  group,
+  groupPredictions,
+  profiles,
+  teams,
+  onClose,
+}: {
+  group: Group | null;
+  groupPredictions: GroupPrediction[];
+  profiles: Profile[];
+  teams: Team[];
+  onClose: () => void;
+}) {
+  const predictions = group
+    ? groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel)
+    : [];
+  const shortName = (teamId: string) =>
+    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
+
+  return (
+    <Sheet open={Boolean(group)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="sm:max-w-md">
+        {group && (
+          <>
+            <SheetHeader>
+              <p className="text-xs font-extrabold uppercase leading-none text-app-muted">
+                {stageLabels.groups}
+              </p>
+              <SheetTitle className="mt-1 text-xl font-black text-app-text">
+                Grupo {group.groupLabel}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="grid gap-1.5 px-4 pb-4">
+              {profiles.filter((profile) => profile.approved).map((profile) => {
+                const prediction = predictions.find((item) => item.userId === profile.id);
+                return (
+                  <div key={profile.id} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2">
+                    <strong className="truncate text-sm font-black">{profile.displayName}</strong>
+                    {prediction ? (
+                      <span className="text-sm font-bold">
+                        {groupOrderTeams(prediction).map(shortName).join(" · ")}
+                        {group.resultFinalizedAt ? ` · ${prediction.points ?? 0} pts` : ""}
                       </span>
                     ) : (
                       <span className="text-sm font-bold text-app-muted">Sin pronóstico</span>

@@ -20,8 +20,11 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-context";
 
 export function LeaderboardScreen() {
-  const { predictions, profiles } = useApp();
-  const rows = useMemo(() => getLeaderboard(predictions, profiles), [predictions, profiles]);
+  const { predictions, profiles, groupPredictions } = useApp();
+  const rows = useMemo(
+    () => getLeaderboard(predictions, profiles, groupPredictions),
+    [predictions, profiles, groupPredictions],
+  );
 
   return (
     <Card className={cn(ui.panel, "p-4")}>

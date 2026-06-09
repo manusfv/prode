@@ -21,13 +21,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getTeamFlag, getTeamLabel, stageLabels, stageOrder } from "@/lib/tournament";
-import type { Match, MatchLifecycleStatus, Stage } from "@/lib/types";
-import { getAdminLifecycleStatus, ui } from "@/lib/ui-tokens";
+import {
+  getGroupStatus,
+  getTeamFlag,
+  getTeamLabel,
+  stageLabels,
+  stageOrder,
+} from "@/lib/tournament";
+import type { Group, Match, MatchLifecycleStatus, Stage } from "@/lib/types";
+import { compareGroups, getAdminLifecycleStatus, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp, type CreateMatchActionInput } from "@/components/app-context";
 import { LoadingLabel } from "@/components/badges";
+
+// Group matches no longer exist; admins only create knockout fixtures.
+const creatableStages = stageOrder.filter((stage) => stage !== "groups");
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 type AdminMatchDraft = {
   status: MatchLifecycleStatus;
@@ -39,7 +56,6 @@ type AdminMatchDraft = {
 type NewMatchDraft = {
   matchNo: string;
   stage: Stage;
-  groupLabel: string;
   homeTeamId: string;
   awayTeamId: string;
   homeSeed: string;
@@ -51,8 +67,7 @@ type NewMatchDraft = {
 
 const emptyNewMatchDraft: NewMatchDraft = {
   matchNo: "",
-  stage: "groups",
-  groupLabel: "",
+  stage: "round32",
   homeTeamId: "",
   awayTeamId: "",
   homeSeed: "",
@@ -66,12 +81,16 @@ export function AdminScreen() {
   const {
     matches,
     predictions,
+    groups,
+    groupPredictions,
     profiles,
     stages,
     teams,
     now,
     dataMessage,
     finalizeMatch,
+    finalizeGroupResult,
+    updateGroupLocksAt,
     importMatchesCsv,
     exportMatchesCsv,
     recalculatePoints,
@@ -150,7 +169,7 @@ export function AdminScreen() {
     const input: CreateMatchActionInput = {
       matchNo: newMatchDraft.matchNo ? Number(newMatchDraft.matchNo) : null,
       stage: newMatchDraft.stage,
-      groupLabel: newMatchDraft.stage === "groups" ? newMatchDraft.groupLabel.trim() || null : null,
+      groupLabel: null,
       homeTeamId: newMatchDraft.homeTeamId || null,
       awayTeamId: newMatchDraft.awayTeamId || null,
       homeSeed: newMatchDraft.homeTeamId ? null : newMatchDraft.homeSeed.trim() || null,
@@ -198,15 +217,11 @@ export function AdminScreen() {
               <Select value={newMatchDraft.stage} onValueChange={(value) => updateNewMatchDraft({ stage: value as Stage })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {stageOrder.map((stage) => (
+                  {creatableStages.map((stage) => (
                     <SelectItem key={stage} value={stage}>{stageLabels[stage]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </label>
-            <label>
-              <span>Grupo</span>
-              <Input disabled={newMatchDraft.stage !== "groups"} placeholder="A" value={newMatchDraft.groupLabel} onChange={(event) => updateNewMatchDraft({ groupLabel: event.target.value.toUpperCase() })} />
             </label>
             <label>
               <span>Local</span>
@@ -253,6 +268,46 @@ export function AdminScreen() {
             <Button className="manual-match-submit" disabled={!newMatchDraft.kickoffLocal || Boolean(pendingAdminAction)} onClick={submitNewMatch}>
               <LoadingLabel loading={pendingAdminAction === "create-match"} label="Agregar partido" />
             </Button>
+          </div>
+        </Card>
+
+        <Card className={cn(ui.panel, "p-4")}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="m-0 text-lg font-black">Resultados de grupos</h2>
+          </div>
+          <div className="mt-3 grid gap-3">
+            {[...groups].sort((a, b) => compareGroups(a.groupLabel, b.groupLabel)).map((group) => (
+              <GroupAdminCard
+                key={group.groupLabel}
+                group={group}
+                teams={teams.filter((team) => team.group === group.groupLabel)}
+                predictionCount={groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel).length}
+                now={now}
+                pendingKey={pendingAdminAction}
+                onFinalize={(order) =>
+                  runAdminAction(`finalize-group-${group.groupLabel}`, () =>
+                    finalizeGroupResult({
+                      groupLabel: group.groupLabel,
+                      firstTeamId: order[0],
+                      secondTeamId: order[1],
+                      thirdTeamId: order[2],
+                      fourthTeamId: order[3],
+                    }),
+                  )
+                }
+                onSaveLocks={(locksIso) =>
+                  runAdminAction(`locks-group-${group.groupLabel}`, () =>
+                    updateGroupLocksAt(group.groupLabel, locksIso),
+                  )
+                }
+                onSetOpen={(open) =>
+                  runAdminAction(`status-group-${group.groupLabel}`, () =>
+                    updateGroupLocksAt(group.groupLabel, open ? null : new Date().toISOString()),
+                  )
+                }
+              />
+            ))}
+            {groups.length === 0 && <p className="admin-message">No hay grupos cargados.</p>}
           </div>
         </Card>
 
@@ -386,10 +441,131 @@ export function AdminScreen() {
               </div>
             ))}
             <p className="admin-note"><Lock size={14} /> Los administradores predicen con las mismas fechas de cierre.</p>
-            <p className="admin-note"><Users size={14} /> {predictions.length} pronósticos cargados.</p>
+            <p className="admin-note"><Users size={14} /> {predictions.length} pronósticos de cruces · {groupPredictions.length} de grupos.</p>
           </CardContent>
         </Card>
       </aside>
     </section>
+  );
+}
+
+const GROUP_POSITION_LABELS = ["1°", "2°", "3°", "4°"] as const;
+const GROUP_SLOT_NONE = "__none__";
+
+function GroupAdminCard({
+  group,
+  teams,
+  predictionCount,
+  now,
+  pendingKey,
+  onFinalize,
+  onSaveLocks,
+  onSetOpen,
+}: {
+  group: Group;
+  teams: { id: string; name: string; flag: string }[];
+  predictionCount: number;
+  now: Date;
+  pendingKey: string | null;
+  onFinalize: (order: [string, string, string, string]) => Promise<void> | void;
+  onSaveLocks: (locksIso: string | null) => Promise<void> | void;
+  onSetOpen: (open: boolean) => Promise<void> | void;
+}) {
+  const [order, setOrder] = useState<(string | null)[]>(() => [
+    group.firstTeamId,
+    group.secondTeamId,
+    group.thirdTeamId,
+    group.fourthTeamId,
+  ]);
+  const [locksLocal, setLocksLocal] = useState(() => toDatetimeLocal(group.locksAt));
+
+  const status = getGroupStatus(group, now);
+  const closedByTime = Boolean(group.locksAt) && new Date(group.locksAt as string).getTime() <= now.getTime();
+  const complete = order.every((slot): slot is string => Boolean(slot)) && new Set(order).size === 4;
+  const finalizePending = pendingKey === `finalize-group-${group.groupLabel}`;
+  const locksPending = pendingKey === `locks-group-${group.groupLabel}`;
+  const statusPending = pendingKey === `status-group-${group.groupLabel}`;
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-app-line bg-app-surface p-4">
+      <div className="flex items-center justify-between gap-2">
+        <strong className="text-sm font-black">Grupo {group.groupLabel}</strong>
+        <small className="text-xs font-bold text-app-muted">
+          {status === "finalized" ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"} · {predictionCount} pron.
+        </small>
+      </div>
+      <div className="grid gap-2.5 md:grid-cols-2">
+        {GROUP_POSITION_LABELS.map((label, index) => (
+          <label key={label} className="grid grid-cols-[32px_minmax(0,1fr)] items-center gap-2.5">
+            <span className="grid size-8 place-items-center rounded-md bg-app-surface-2 text-xs font-black text-app-muted">{label}</span>
+            <Select
+              value={order[index]}
+              onValueChange={(value) =>
+                setOrder((current) => {
+                  const next = [...current];
+                  if (value === GROUP_SLOT_NONE || !value) {
+                    next[index] = null;
+                    return next;
+                  }
+                  const existingIndex = next.findIndex((slot) => slot === value);
+                  if (existingIndex !== -1 && existingIndex !== index) {
+                    next[existingIndex] = null;
+                  }
+                  next[index] = value as string;
+                  return next;
+                })
+              }
+            >
+              <SelectTrigger className="w-full"><SelectValue placeholder="Elegí equipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={GROUP_SLOT_NONE}>— Vacío —</SelectItem>
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.flag} {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        ))}
+      </div>
+      <div className="grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="grid gap-1">
+          <span className={ui.label}>Cierre de pronósticos</span>
+          <Input
+            type="datetime-local"
+            className="w-full"
+            value={locksLocal}
+            onChange={(event) => setLocksLocal(event.target.value)}
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={Boolean(pendingKey)}
+            onClick={() => onSetOpen(closedByTime)}
+          >
+            <LoadingLabel loading={statusPending} label={closedByTime ? "Abrir grupo" : "Cerrar grupo"} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={Boolean(pendingKey)}
+            onClick={() => onSaveLocks(locksLocal ? new Date(locksLocal).toISOString() : null)}
+          >
+            <LoadingLabel loading={locksPending} label="Guardar cierre" />
+          </Button>
+        </div>
+      </div>
+      <Button
+        className="w-full"
+        size="sm"
+        disabled={!complete || Boolean(pendingKey)}
+        onClick={() => onFinalize(order as [string, string, string, string])}
+      >
+        <LoadingLabel loading={finalizePending} label="Guardar resultado" />
+      </Button>
+    </div>
   );
 }
