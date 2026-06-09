@@ -428,7 +428,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block max-lg:pb-20">
         <Sidebar activeTab={activeTab} isAdmin={isAdmin} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
 
-        <section className="mx-auto w-full max-w-screen-2xl min-w-0 p-5 max-lg:p-3.5 max-sm:p-2.5">
+        <section className="mx-auto w-full max-w-screen-2xl min-w-0 overflow-x-clip p-5 max-lg:p-3.5 max-sm:p-2.5">
           <header className="mb-7">
             <div>
               <p className={cn(ui.label, "mb-1")}>Hola, {currentUser.displayName}</p>
@@ -470,17 +470,17 @@ function Sidebar({
   onSignOut: () => Promise<void> | void;
 }) {
   return (
-    <aside className="sticky top-0 h-screen border-r border-app-line bg-app-sidebar px-4 py-5 backdrop-blur-lg max-lg:hidden" aria-label="Navegación principal">
-      <div className="flex min-h-14 items-center gap-3">
+    <aside className="sticky top-0 flex h-screen flex-col border-r border-app-line bg-app-sidebar px-4 py-5 backdrop-blur-lg max-lg:hidden" aria-label="Navegación principal">
+      <div className="flex min-h-14 shrink-0 items-center gap-3">
         <span className="brand-mark" aria-hidden="true">
-          <Image className="brand-logo" src="/favicon.svg" alt="" width={455} height={701} priority />
+          <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} priority />
         </span>
         <div>
           <strong className="block text-lg leading-none">Prode Carbia</strong>
           <small className="mt-1 block text-xs font-bold text-app-muted">Familia · 2026</small>
         </div>
       </div>
-      <nav className="mt-8 grid gap-2">
+      <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} />
@@ -550,7 +550,7 @@ function AccountPanel({
     <Card
       className={cn(
         "grid gap-3 rounded-lg border border-app-line bg-app-surface/80 p-3 shadow-app-card",
-        mobile ? "mb-3 hidden max-lg:grid" : "absolute bottom-5 left-4 right-4 max-lg:hidden",
+        mobile ? "mb-3 hidden max-lg:grid" : "mt-3 shrink-0 max-lg:hidden",
       )}
       size="sm"
     >

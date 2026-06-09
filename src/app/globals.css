@@ -197,6 +197,7 @@ body {
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   letter-spacing: 0;
+  overflow-x: clip;
 }
 
 button,
@@ -286,28 +287,16 @@ input:disabled {
 }
 
 .brand-mark {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 42px;
   height: 42px;
-  place-items: center;
   padding: 7px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: var(--radius);
-}
-
-.brand-mark img {
-  display: block;
-  width: auto;
-  height: 100%;
-  max-width: 100%;
-  object-fit: contain;
-}
-
-.brand-mark .brand-logo {
-  width: auto;
-  height: 100%;
 }
 
 .eyeline {

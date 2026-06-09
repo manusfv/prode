@@ -53,7 +53,7 @@ export function LoadingScreen() {
       <Card className="login-panel loading-panel">
         <div className="brand login-brand">
           <span className="brand-mark" aria-hidden="true">
-            <Image className="brand-logo" src="/favicon.svg" alt="" width={455} height={701} priority />
+            <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} priority />
           </span>
           <div>
             <strong>Prode Carbia</strong>
@@ -126,7 +126,7 @@ export function AuthScreen({
             <div>
               <div className="flex items-center gap-3">
                 <span className="brand-mark size-12 border-app-line bg-white shadow-sm" aria-hidden="true">
-                  <Image className="brand-logo" src="/favicon.svg" alt="" width={455} height={701} priority />
+                  <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} priority />
                 </span>
                 <div>
                   <strong className="block text-xl font-black leading-tight text-app-text">Prode Carbia</strong>
