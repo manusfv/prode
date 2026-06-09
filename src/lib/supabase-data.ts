@@ -1,4 +1,14 @@
-import type { Match, MatchLifecycleStatus, Prediction, Profile, Stage, StageState, Team } from "./types";
+import type {
+  Group,
+  GroupPrediction,
+  Match,
+  MatchLifecycleStatus,
+  Prediction,
+  Profile,
+  Stage,
+  StageState,
+  Team,
+} from "./types";
 
 type ProfileRow = {
   id: string;
@@ -58,6 +68,31 @@ type PredictionRow = {
   updated_at: string;
 };
 
+type GroupRow = {
+  group_label: string;
+  locks_at: string | null;
+  first_team_id: string | null;
+  second_team_id: string | null;
+  third_team_id: string | null;
+  fourth_team_id: string | null;
+  result_finalized_at: string | null;
+  result_finalized_by: string | null;
+};
+
+type GroupPredictionRow = {
+  id: string;
+  user_id: string;
+  group_label: string;
+  first_team_id: string;
+  second_team_id: string;
+  third_team_id: string;
+  fourth_team_id: string;
+  points: number | null;
+  exact_positions: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SupabaseAppData = {
   profile: Profile | null;
   profiles: Profile[];
@@ -65,6 +100,8 @@ export type SupabaseAppData = {
   stages: StageState[];
   matches: Match[];
   predictions: Prediction[];
+  groups: Group[];
+  groupPredictions: GroupPrediction[];
 };
 
 type SupabaseDataClient = {
@@ -89,15 +126,33 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
 
   const userId = userData.user?.id;
 
-  const [profilesResult, teamsResult, stagesResult, matchesResult, predictionsResult] = await Promise.all([
+  const [
+    profilesResult,
+    teamsResult,
+    stagesResult,
+    matchesResult,
+    predictionsResult,
+    groupsResult,
+    groupPredictionsResult,
+  ] = await Promise.all([
     table(client, "profiles").select("*").order("display_name", { ascending: true }),
     table(client, "teams").select("*").order("name", { ascending: true }),
     table(client, "stages").select("*").order("stage", { ascending: true }),
     table(client, "matches").select("*").order("kickoff_utc", { ascending: true }),
     table(client, "predictions").select("*").order("updated_at", { ascending: true }),
+    table(client, "groups").select("*").order("group_label", { ascending: true }),
+    table(client, "group_predictions").select("*").order("updated_at", { ascending: true }),
   ]);
 
-  const results = [profilesResult, teamsResult, stagesResult, matchesResult, predictionsResult];
+  const results = [
+    profilesResult,
+    teamsResult,
+    stagesResult,
+    matchesResult,
+    predictionsResult,
+    groupsResult,
+    groupPredictionsResult,
+  ];
   const error = results.find((result) => result.error)?.error;
   if (error) throw new Error(error.message);
 
@@ -110,6 +165,8 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     stages: (stagesResult.data as StageRow[]).map(mapStage),
     matches: (matchesResult.data as MatchRow[]).map(mapMatch),
     predictions: (predictionsResult.data as PredictionRow[]).map(mapPrediction),
+    groups: (groupsResult.data as GroupRow[]).map(mapGroup),
+    groupPredictions: (groupPredictionsResult.data as GroupPredictionRow[]).map(mapGroupPrediction),
   };
 }
 
@@ -180,6 +237,35 @@ function mapPrediction(row: PredictionRow): Prediction {
     points: row.points,
     exactHit: row.exact_hit,
     outcomeHit: row.outcome_hit,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapGroup(row: GroupRow): Group {
+  return {
+    groupLabel: row.group_label,
+    locksAt: row.locks_at,
+    firstTeamId: row.first_team_id,
+    secondTeamId: row.second_team_id,
+    thirdTeamId: row.third_team_id,
+    fourthTeamId: row.fourth_team_id,
+    resultFinalizedAt: row.result_finalized_at,
+    resultFinalizedBy: row.result_finalized_by,
+  };
+}
+
+function mapGroupPrediction(row: GroupPredictionRow): GroupPrediction {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    groupLabel: row.group_label,
+    firstTeamId: row.first_team_id,
+    secondTeamId: row.second_team_id,
+    thirdTeamId: row.third_team_id,
+    fourthTeamId: row.fourth_team_id,
+    points: row.points,
+    exactPositions: row.exact_positions,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -2,10 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { parseMatchCsv } from "@/lib/csv";
-import { canSavePrediction, scorePrediction } from "@/lib/scoring";
+import {
+  canSaveGroupPrediction,
+  canSavePrediction,
+  scoreGroupPrediction,
+  scorePrediction,
+} from "@/lib/scoring";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { inferWinner } from "@/lib/tournament";
-import type { Match, MatchLifecycleStatus, Prediction, Profile, Stage } from "@/lib/types";
+import type {
+  Group,
+  GroupPrediction,
+  Match,
+  MatchLifecycleStatus,
+  Prediction,
+  Profile,
+  Stage,
+} from "@/lib/types";
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
 
@@ -44,6 +57,27 @@ type CreateMatchInput = {
 
 type ImportMatchesCsvInput = {
   csv: string;
+};
+
+type SaveGroupPredictionInput = {
+  groupLabel: string;
+  firstTeamId: string;
+  secondTeamId: string;
+  thirdTeamId: string;
+  fourthTeamId: string;
+};
+
+type FinalizeGroupResultInput = {
+  groupLabel: string;
+  firstTeamId: string;
+  secondTeamId: string;
+  thirdTeamId: string;
+  fourthTeamId: string;
+};
+
+type UpdateGroupLocksInput = {
+  groupLabel: string;
+  locksAt: string | null;
 };
 
 export async function savePredictionAction(input: SavePredictionInput) {
@@ -98,6 +132,126 @@ export async function savePredictionAction(input: SavePredictionInput) {
 
   revalidatePath("/");
   return { ok: true, message: "Pronóstico guardado." };
+}
+
+export async function saveGroupPredictionAction(input: SaveGroupPredictionInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const user = await getCurrentUserId(supabase);
+  if (!user.ok) return user;
+
+  const [profileResult, groupResult, stagesResult] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.userId).single(),
+    supabase.from("groups").select("*").eq("group_label", input.groupLabel).single(),
+    supabase.from("stages").select("stage, open").eq("open", true),
+  ]);
+
+  if (profileResult.error) return { ok: false, message: profileResult.error.message };
+  if (groupResult.error) return { ok: false, message: groupResult.error.message };
+  if (stagesResult.error) return { ok: false, message: stagesResult.error.message };
+
+  const profile = mapProfile(profileResult.data);
+  const group = mapGroup(groupResult.data);
+  const draft = {
+    order: [
+      input.firstTeamId,
+      input.secondTeamId,
+      input.thirdTeamId,
+      input.fourthTeamId,
+    ] as [string | null, string | null, string | null, string | null],
+  };
+
+  const permission = canSaveGroupPrediction({
+    group,
+    draft,
+    profile,
+    openStages: new Set((stagesResult.data as Array<{ stage: Stage }>).map((stage) => stage.stage)),
+  });
+
+  if (!permission.ok) return { ok: false, message: permission.reason };
+
+  const { error } = await supabase.from("group_predictions").upsert(
+    {
+      user_id: user.userId,
+      group_label: input.groupLabel,
+      first_team_id: input.firstTeamId,
+      second_team_id: input.secondTeamId,
+      third_team_id: input.thirdTeamId,
+      fourth_team_id: input.fourthTeamId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,group_label" },
+  );
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/");
+  return { ok: true, message: "Pronóstico guardado." };
+}
+
+export async function finalizeGroupResultAction(input: FinalizeGroupResultInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  const order = [input.firstTeamId, input.secondTeamId, input.thirdTeamId, input.fourthTeamId];
+  if (order.some((teamId) => !teamId)) {
+    return { ok: false, message: "Ordená los cuatro equipos." };
+  }
+  if (new Set(order).size !== 4) {
+    return { ok: false, message: "No repitas equipos." };
+  }
+
+  const { data: groupRow, error: updateError } = await supabase
+    .from("groups")
+    .update({
+      first_team_id: input.firstTeamId,
+      second_team_id: input.secondTeamId,
+      third_team_id: input.thirdTeamId,
+      fourth_team_id: input.fourthTeamId,
+      result_finalized_at: new Date().toISOString(),
+      result_finalized_by: admin.userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("group_label", input.groupLabel)
+    .select("*")
+    .single();
+
+  if (updateError) return { ok: false, message: updateError.message };
+
+  const recalculation = await recalculateGroupPredictionsForGroups(supabase, [mapGroup(groupRow)]);
+  if (!recalculation.ok) return recalculation;
+
+  revalidatePath("/");
+  return { ok: true, message: "Resultado del grupo finalizado." };
+}
+
+export async function updateGroupLocksAtAction(input: UpdateGroupLocksInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  let locksAt: string | null = null;
+  if (input.locksAt) {
+    const parsed = new Date(input.locksAt);
+    if (Number.isNaN(parsed.getTime())) return { ok: false, message: "La fecha de cierre no es válida." };
+    locksAt = parsed.toISOString();
+  }
+
+  const { error } = await supabase
+    .from("groups")
+    .update({ locks_at: locksAt, updated_at: new Date().toISOString() })
+    .eq("group_label", input.groupLabel);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/");
+  return { ok: true, message: "Cierre del grupo actualizado." };
 }
 
 export async function approveProfileAction(profileId: string) {
@@ -224,37 +378,67 @@ export async function importMatchesCsvAction(input: ImportMatchesCsvInput) {
 
   if (rows.length === 0) return { ok: false, message: "El CSV no tiene partidos para importar." };
 
-  const { error } = await supabase.from("matches").upsert(
-    rows.map((row) => ({
-      match_no: row.matchNo,
-      stage: row.stage,
-      group_label: row.stage === "groups" ? row.groupLabel : null,
-      home_team_id: row.homeTeamId,
-      away_team_id: row.awayTeamId,
-      home_seed: row.homeTeamId ? null : row.homeSeed,
-      away_seed: row.awayTeamId ? null : row.awaySeed,
-      kickoff_utc: row.kickoffUtc,
-      venue: row.venue,
-      city: row.city,
-      status: row.status,
-      home_score: row.homeScore,
-      away_score: row.awayScore,
-      winner_team_id: row.winnerTeamId,
-      finalized_at: row.status === "finalized" ? new Date().toISOString() : null,
-      finalized_by: row.status === "finalized" ? admin.userId : null,
-      updated_at: new Date().toISOString(),
-      updated_by: admin.userId,
-    })),
-    { onConflict: "match_no" },
-  );
+  // Group matches are no longer stored as fixtures; their rows only seed the
+  // per-group lock time (the earliest kickoff of the group).
+  const groupRows = rows.filter((row) => row.stage === "groups" && row.groupLabel);
+  const matchRows = rows.filter((row) => row.stage !== "groups");
 
-  if (error) return { ok: false, message: error.message };
+  if (matchRows.length > 0) {
+    const { error } = await supabase.from("matches").upsert(
+      matchRows.map((row) => ({
+        match_no: row.matchNo,
+        stage: row.stage,
+        group_label: null,
+        home_team_id: row.homeTeamId,
+        away_team_id: row.awayTeamId,
+        home_seed: row.homeTeamId ? null : row.homeSeed,
+        away_seed: row.awayTeamId ? null : row.awaySeed,
+        kickoff_utc: row.kickoffUtc,
+        venue: row.venue,
+        city: row.city,
+        status: row.status,
+        home_score: row.homeScore,
+        away_score: row.awayScore,
+        winner_team_id: row.winnerTeamId,
+        finalized_at: row.status === "finalized" ? new Date().toISOString() : null,
+        finalized_by: row.status === "finalized" ? admin.userId : null,
+        updated_at: new Date().toISOString(),
+        updated_by: admin.userId,
+      })),
+      { onConflict: "match_no" },
+    );
+
+    if (error) return { ok: false, message: error.message };
+  }
+
+  if (groupRows.length > 0) {
+    const locksByGroup = new Map<string, string>();
+    for (const row of groupRows) {
+      const groupLabel = row.groupLabel as string;
+      const current = locksByGroup.get(groupLabel);
+      if (!current || row.kickoffUtc < current) locksByGroup.set(groupLabel, row.kickoffUtc);
+    }
+
+    const { error } = await supabase.from("groups").upsert(
+      Array.from(locksByGroup.entries()).map(([groupLabel, locksAt]) => ({
+        group_label: groupLabel,
+        locks_at: locksAt,
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "group_label" },
+    );
+
+    if (error) return { ok: false, message: error.message };
+  }
 
   const recalculation = await recalculateAllPoints(supabase);
   if (!recalculation.ok) return recalculation;
 
   revalidatePath("/");
-  return { ok: true, message: `${rows.length} partidos importados. ${recalculation.updated} puntajes recalculados.` };
+  return {
+    ok: true,
+    message: `${matchRows.length} cruces importados, ${groupRows.length} filas de grupos usadas para fechas de cierre. ${recalculation.updated} puntajes recalculados.`,
+  };
 }
 
 export async function recalculatePointsAction() {
@@ -330,13 +514,70 @@ export async function finalizeMatchAction(input: FinalizeMatchInput) {
 }
 
 async function recalculateAllPoints(supabase: SupabaseServerClient) {
-  const { data: matchRows, error: matchError } = await supabase
-    .from("matches")
-    .select("*");
+  const [matchesResult, groupsResult] = await Promise.all([
+    supabase.from("matches").select("*"),
+    supabase.from("groups").select("*"),
+  ]);
 
-  if (matchError) return { ok: false as const, message: matchError.message };
+  if (matchesResult.error) return { ok: false as const, message: matchesResult.error.message };
+  if (groupsResult.error) return { ok: false as const, message: groupsResult.error.message };
 
-  return recalculatePredictionsForMatches(supabase, matchRows.map(mapMatch));
+  const matchRecalc = await recalculatePredictionsForMatches(
+    supabase,
+    matchesResult.data.map(mapMatch),
+  );
+  if (!matchRecalc.ok) return matchRecalc;
+
+  const groupRecalc = await recalculateGroupPredictionsForGroups(
+    supabase,
+    groupsResult.data.map(mapGroup),
+  );
+  if (!groupRecalc.ok) return groupRecalc;
+
+  return { ok: true as const, updated: matchRecalc.updated + groupRecalc.updated };
+}
+
+async function recalculateGroupPredictionsForGroups(
+  supabase: SupabaseServerClient,
+  groups: Group[],
+) {
+  if (groups.length === 0) return { ok: true as const, updated: 0 };
+
+  const { data: predictionRows, error: predictionError } = await supabase
+    .from("group_predictions")
+    .select("*")
+    .in("group_label", groups.map((group) => group.groupLabel));
+
+  if (predictionError) return { ok: false as const, message: predictionError.message };
+
+  const groupByLabel = new Map(groups.map((group) => [group.groupLabel, group]));
+  const updatedAt = new Date().toISOString();
+  const updates = predictionRows
+    .map((predictionRow) => {
+      const prediction = mapGroupPrediction(predictionRow);
+      const group = groupByLabel.get(prediction.groupLabel);
+      if (!group) return null;
+
+      const score = group.resultFinalizedAt
+        ? scoreGroupPrediction(group, prediction)
+        : { points: null, exactPositions: 0 };
+
+      return supabase
+        .from("group_predictions")
+        .update({
+          points: score.points,
+          exact_positions: score.exactPositions,
+          updated_at: updatedAt,
+        })
+        .eq("id", prediction.id);
+    })
+    .filter((update): update is NonNullable<typeof update> => update !== null);
+
+  const results = await Promise.all(updates);
+  const error = results.find((result) => result.error)?.error;
+  if (error) return { ok: false as const, message: error.message };
+
+  return { ok: true as const, updated: updates.length };
 }
 
 async function recalculatePredictionsForMatches(supabase: SupabaseServerClient, matches: Match[]) {
@@ -480,6 +721,56 @@ function mapPrediction(row: {
     points: row.points,
     exactHit: row.exact_hit,
     outcomeHit: row.outcome_hit,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapGroup(row: {
+  group_label: string;
+  locks_at: string | null;
+  first_team_id: string | null;
+  second_team_id: string | null;
+  third_team_id: string | null;
+  fourth_team_id: string | null;
+  result_finalized_at: string | null;
+  result_finalized_by: string | null;
+}): Group {
+  return {
+    groupLabel: row.group_label,
+    locksAt: row.locks_at,
+    firstTeamId: row.first_team_id,
+    secondTeamId: row.second_team_id,
+    thirdTeamId: row.third_team_id,
+    fourthTeamId: row.fourth_team_id,
+    resultFinalizedAt: row.result_finalized_at,
+    resultFinalizedBy: row.result_finalized_by,
+  };
+}
+
+function mapGroupPrediction(row: {
+  id: string;
+  user_id: string;
+  group_label: string;
+  first_team_id: string;
+  second_team_id: string;
+  third_team_id: string;
+  fourth_team_id: string;
+  points: number | null;
+  exact_positions: number;
+  created_at: string;
+  updated_at: string;
+}): GroupPrediction {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    groupLabel: row.group_label,
+    firstTeamId: row.first_team_id,
+    secondTeamId: row.second_team_id,
+    thirdTeamId: row.third_team_id,
+    fourthTeamId: row.fourth_team_id,
+    points: row.points,
+    exactPositions: row.exact_positions,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
