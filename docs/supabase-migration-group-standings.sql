@@ -26,10 +26,11 @@ create table if not exists public.group_predictions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   group_label text not null references public.groups(group_label) on delete cascade,
-  first_team_id text not null references public.teams(id),
-  second_team_id text not null references public.teams(id),
-  third_team_id text not null references public.teams(id),
-  fourth_team_id text not null references public.teams(id),
+  -- Nullable so partial predictions can be saved slot by slot.
+  first_team_id text references public.teams(id),
+  second_team_id text references public.teams(id),
+  third_team_id text references public.teams(id),
+  fourth_team_id text references public.teams(id),
   points integer,
   exact_positions integer not null default 0,
   created_at timestamptz not null default now(),
@@ -123,6 +124,23 @@ for update
 to authenticated
 using (user_id = auth.uid() and public.is_approved())
 with check (
+  user_id = auth.uid()
+  and public.is_approved()
+  and exists (
+    select 1
+    from public.groups g
+    join public.stages s on s.stage = 'groups'
+    where g.group_label = group_predictions.group_label
+      and s.open = true
+      and (g.locks_at is null or g.locks_at > now())
+  )
+);
+
+create policy "group_predictions_delete_own_open"
+on public.group_predictions
+for delete
+to authenticated
+using (
   user_id = auth.uid()
   and public.is_approved()
   and exists (
