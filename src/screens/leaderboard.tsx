@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -26,13 +27,26 @@ export function LeaderboardScreen() {
     <Card className={cn(ui.panel, "p-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-lg font-black">Tabla general</h2>
-        <Tabs>
-          <TabsList className="max-w-full gap-1.5 overflow-x-auto rounded-xl border border-app-line bg-app-panel p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Select defaultValue={stageOrder[0]}>
+          <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Etapa">
+            <span className={ui.label}>Etapa</span>
+            <SelectValue className={ui.controlValue}>{stageLabels[stageOrder[0]]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {stageOrder.map((stage) => (
+              <SelectItem key={stage} value={stage}>
+                {stageLabels[stage]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Tabs className="hidden min-w-0 sm:block">
+          <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
             {stageOrder.map((stage) => (
               <TabsTrigger
                 key={stage}
                 value={stage}
-                className="h-9 min-w-24 rounded-lg px-4 text-sm font-extrabold text-app-muted data-active:bg-app-surface data-active:text-app-text data-active:shadow-sm"
+                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
               >
                 {stageLabels[stage]}
               </TabsTrigger>

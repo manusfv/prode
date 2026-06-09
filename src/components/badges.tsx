@@ -4,9 +4,11 @@ import { Check, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stageLabels, stageOrder } from "@/lib/tournament";
 import type { MatchStatus, Stage, StageState } from "@/lib/types";
+import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 export function StageBadge({ stage, group }: { stage: Stage; group?: string }) {
@@ -47,22 +49,43 @@ export function StageTabs({
   const openStageSet = new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
 
   return (
-    <Tabs value={activeStage} onValueChange={(value) => onChange?.(value as Stage)}>
-      <TabsList className="max-w-full gap-1.5 overflow-x-auto rounded-xl border border-app-line bg-app-panel p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {stageOrder.map((stage) => (
-          <TabsTrigger
-            key={stage}
-            value={stage}
-            disabled={showDisabled ? !openStageSet.has(stage) : false}
-            className={cn(
-              "h-9 min-w-24 shrink-0 rounded-md px-4 text-sm font-extrabold text-app-muted transition-colors hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted max-sm:min-w-20 max-sm:px-3",
-            )}
-          >
-            {stageLabels[stage]}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+    <>
+      <Select value={activeStage} onValueChange={(value) => onChange?.(value as Stage)}>
+        <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Etapa">
+          <span className={ui.label}>Etapa</span>
+          <SelectValue className={ui.controlValue}>{stageLabels[activeStage]}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {stageOrder.map((stage) => (
+            <SelectItem
+              key={stage}
+              value={stage}
+              disabled={showDisabled ? !openStageSet.has(stage) : false}
+            >
+              {stageLabels[stage]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Tabs
+        value={activeStage}
+        onValueChange={(value) => onChange?.(value as Stage)}
+        className="hidden min-w-0 sm:block"
+      >
+        <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
+          {stageOrder.map((stage) => (
+            <TabsTrigger
+              key={stage}
+              value={stage}
+              disabled={showDisabled ? !openStageSet.has(stage) : false}
+              className="!h-9 shrink-0 rounded-md px-3 text-sm font-extrabold text-app-muted transition-colors hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:min-w-20 sm:px-4"
+            >
+              {stageLabels[stage]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </>
   );
 }
 
