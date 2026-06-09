@@ -316,7 +316,7 @@ function MatchCard({
   return (
     <Card className={cn(
       ui.panel,
-      "p-3.5",
+      "@container p-3.5",
       status === "locked" && "border-app-amber/45",
       status === "finalized" && "border-app-green/45",
     )}>
@@ -328,22 +328,22 @@ function MatchCard({
         />
       </div>
 
-      <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto_28px_auto_minmax(0,1fr)] items-center gap-2.5 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-3">
-        <TeamBlock className="max-sm:col-start-1 max-sm:row-start-1" teamId={match.homeTeamId} seed={match.homeSeed} teams={teams} />
+      <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto_20px_auto_minmax(0,1fr)] items-center gap-2 @max-xl:grid-cols-[minmax(0,1fr)_auto] @max-xl:gap-3">
+        <TeamBlock className="@max-xl:col-start-1 @max-xl:row-start-1" teamId={match.homeTeamId} seed={match.homeSeed} teams={teams} />
         <ScoreControl
-          className="max-sm:col-start-2 max-sm:row-start-1"
+          className="@max-xl:col-start-2 @max-xl:row-start-1"
           value={draft.homeScore}
           disabled={!isOpen}
           onChange={(value) => onChange(match, { homeScore: value })}
         />
-        <span className="text-center text-xs font-black uppercase text-app-muted max-sm:hidden">vs</span>
+        <span className="text-center text-xs font-black uppercase text-app-muted @max-xl:hidden">vs</span>
         <ScoreControl
-          className="max-sm:col-start-2 max-sm:row-start-2"
+          className="@max-xl:col-start-2 @max-xl:row-start-2"
           value={draft.awayScore}
           disabled={!isOpen}
           onChange={(value) => onChange(match, { awayScore: value })}
         />
-        <TeamBlock className="max-sm:col-start-1 max-sm:row-start-2" teamId={match.awayTeamId} seed={match.awaySeed} align="right" teams={teams} />
+        <TeamBlock className="@max-xl:col-start-1 @max-xl:row-start-2" teamId={match.awayTeamId} seed={match.awaySeed} align="right" teams={teams} />
       </div>
 
       {showAdvancer && (
@@ -364,7 +364,7 @@ function MatchCard({
         </div>
       )}
 
-      <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted max-lg:flex-col max-lg:items-start">
+      <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted @max-md:flex-col @max-md:items-start">
         <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
         <span>{match.city ?? "Sede por definir"}</span>
         {status !== "open" && (
@@ -395,21 +395,21 @@ function TeamBlock({
     <div className={cn(
       "grid min-w-0 items-center gap-x-2.5",
       align === "right"
-        ? "grid-cols-[minmax(0,1fr)_36px] text-right max-sm:grid-cols-[36px_minmax(0,1fr)] max-sm:text-left"
+        ? "grid-cols-[minmax(0,1fr)_36px] text-right @max-xl:grid-cols-[36px_minmax(0,1fr)] @max-xl:text-left"
         : "grid-cols-[36px_minmax(0,1fr)]",
       className,
     )}>
       <span className={cn(
-        "grid size-9 place-items-center rounded-md border border-app-line bg-app-surface-2 text-lg",
-        align === "right" && "col-start-2 max-sm:col-start-1",
+        "row-span-2 grid size-9 place-items-center rounded-md border border-app-line bg-app-surface-2 text-lg",
+        align === "right" && "col-start-2 @max-xl:col-start-1",
       )}>{getTeamFlag(teamId, teams)}</span>
       <strong className={cn(
-        "truncate text-base font-black",
-        align === "right" && "col-start-1 max-sm:col-start-2",
+        "truncate text-sm font-black",
+        align === "right" && "col-start-1 @max-xl:col-start-2",
       )}>{getTeamLabel(teamId, teams, seed)}</strong>
       <small className={cn(
         "truncate text-xs font-bold text-app-muted",
-        align === "right" ? "col-start-1 max-sm:col-start-2" : "col-start-2",
+        align === "right" ? "col-start-1 @max-xl:col-start-2" : "col-start-2",
       )}>{teamId ? teams.find((team) => team.id === teamId)?.shortName : seed}</small>
     </div>
   );
@@ -417,11 +417,11 @@ function TeamBlock({
 
 function ScoreControl({ value, disabled, className, onChange }: { value: number; disabled: boolean; className?: string; onChange: (value: number) => void }) {
   return (
-    <div className={cn("grid grid-cols-[32px_44px_32px] items-center gap-1 max-sm:grid-cols-[28px_40px_28px]", className)}>
+    <div className={cn("grid grid-cols-[28px_40px_28px] items-center gap-1", className)}>
       <Button variant="outline" size="icon-sm" disabled={disabled || value <= 0} onClick={() => onChange(Math.max(0, value - 1))} aria-label="Restar gol">
         <Minus size={15} />
       </Button>
-      <Input className="h-9 w-11 border-app-line-strong bg-app-surface text-center text-lg font-black max-sm:w-10" disabled={disabled} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} inputMode="numeric" />
+      <Input className="h-9 w-10 border-app-line-strong bg-app-surface text-center text-lg font-black" disabled={disabled} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} inputMode="numeric" />
       <Button variant="outline" size="icon-sm" disabled={disabled} onClick={() => onChange(value + 1)} aria-label="Sumar gol">
         <Plus size={15} />
       </Button>
