@@ -52,6 +52,16 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-context";
 import { SaveStatus, StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
+function isGroupPredictionComplete(prediction?: GroupPrediction): boolean {
+  return Boolean(
+    prediction &&
+      prediction.firstTeamId &&
+      prediction.secondTeamId &&
+      prediction.thirdTeamId &&
+      prediction.fourthTeamId,
+  );
+}
+
 export function PredictionsScreen() {
   const {
     currentUser,
@@ -107,7 +117,10 @@ export function PredictionsScreen() {
   const visibleGroups = useMemo(() => {
     return groups
       .filter((group) => selectedGroups.length === 0 || selectedGroups.includes(group.groupLabel))
-      .filter((group) => !missingOnly || !currentGroupPredictionMap.has(group.groupLabel))
+      .filter(
+        (group) =>
+          !missingOnly || !isGroupPredictionComplete(currentGroupPredictionMap.get(group.groupLabel)),
+      )
       .sort((a, b) => compareGroups(a.groupLabel, b.groupLabel));
   }, [currentGroupPredictionMap, groups, missingOnly, selectedGroups]);
 
@@ -128,7 +141,7 @@ export function PredictionsScreen() {
     (group) =>
       getGroupStatus(group, now) === "open" &&
       openStages.has("groups") &&
-      !currentGroupPredictionMap.has(group.groupLabel),
+      !isGroupPredictionComplete(currentGroupPredictionMap.get(group.groupLabel)),
   ).length;
   const missingCount = missingMatches + missingGroups;
 
@@ -309,7 +322,7 @@ function toGroupOrder(prediction?: GroupPrediction): (string | null)[] {
   ];
 }
 
-function groupOrderTeams(prediction: GroupPrediction): string[] {
+function groupOrderTeams(prediction: GroupPrediction): (string | null)[] {
   return [
     prediction.firstTeamId,
     prediction.secondTeamId,
@@ -336,7 +349,7 @@ function GroupStandingsCard({
   profiles: Profile[];
   now: Date;
   stageOpen: boolean;
-  onChange: (groupLabel: string, order: [string, string, string, string]) => void;
+  onChange: (groupLabel: string, order: (string | null)[]) => void;
   onOpenDrawer: (group: Group) => void;
 }) {
   const status = getGroupStatus(group, now);
@@ -346,8 +359,9 @@ function GroupStandingsCard({
   const [order, setOrder] = useState<(string | null)[]>(() => toGroupOrder(prediction));
   const savedKey = prediction ? groupOrderTeams(prediction).join("-") : "";
   useEffect(() => {
-    setOrder(toGroupOrder(prediction));
-    // Re-seed only when the saved prediction actually changes (e.g. after a refresh).
+    // Re-seed from a saved prediction when it changes (e.g. after a refresh),
+    // but keep the in-progress order when the prediction is cleared/removed.
+    if (prediction) setOrder(toGroupOrder(prediction));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedKey]);
 
@@ -363,9 +377,9 @@ function GroupStandingsCard({
     }
     next[index] = teamId;
     setOrder(next);
-    if (next.every((slot): slot is string => Boolean(slot)) && new Set(next).size === 4) {
-      onChange(group.groupLabel, next as [string, string, string, string]);
-    }
+    // Persist on every change: complete orders are saved, incomplete ones
+    // (a cleared slot) remove the stored prediction.
+    onChange(group.groupLabel, next);
   };
 
   const submittedCount = allPredictions.length;
@@ -743,7 +757,9 @@ function GroupDrawer({
                     <strong className="truncate text-sm font-black">{profile.displayName}</strong>
                     {prediction ? (
                       <span className="text-sm font-bold">
-                        {groupOrderTeams(prediction).map(shortName).join(" · ")}
+                        {groupOrderTeams(prediction)
+                          .map((teamId) => (teamId ? shortName(teamId) : "—"))
+                          .join(" · ")}
                         {group.resultFinalizedAt ? ` · ${prediction.points ?? 0} pts` : ""}
                       </span>
                     ) : (

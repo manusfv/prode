@@ -32,10 +32,7 @@ export type AppContextValue = {
   dataMessage: string;
   openStages: Set<Stage>;
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
-  updateGroupPrediction: (
-    groupLabel: string,
-    order: [string, string, string, string],
-  ) => void;
+  updateGroupPrediction: (groupLabel: string, order: (string | null)[]) => void;
   openPredictionDrawer: (match: Match) => void;
   refreshSupabaseData: () => Promise<void> | void;
   signOut: () => Promise<void> | void;

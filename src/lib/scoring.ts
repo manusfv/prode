@@ -156,12 +156,9 @@ export function canSaveGroupPrediction({
     return { ok: false, reason: "El grupo ya está cerrado." };
   }
 
-  if (draft.order.some((teamId) => !teamId)) {
-    return { ok: false, reason: "Ordená los cuatro equipos." };
-  }
-
+  // Partial orders are allowed (saved slot by slot); only reject duplicates.
   const filled = draft.order.filter((teamId): teamId is string => Boolean(teamId));
-  if (new Set(filled).size !== 4) {
+  if (new Set(filled).size !== filled.length) {
     return { ok: false, reason: "No repitas equipos." };
   }
 

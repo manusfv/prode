@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveProfileAction,
   createMatchAction,
+  deleteGroupPredictionAction,
   deleteMatchAction,
   finalizeGroupResultAction,
   finalizeMatchAction,
@@ -349,23 +350,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function updateGroupPrediction(groupLabel: string, order: [string, string, string, string]) {
+  function updateGroupPrediction(groupLabel: string, order: (string | null)[]) {
     if (!currentUser) return;
-    setSaveState("saving");
 
     const existing = groupPredictions.find(
       (prediction) => prediction.userId === currentUser.id && prediction.groupLabel === groupLabel,
     );
 
+    // When nothing is picked, persist the cleared state by removing the row.
+    if (order.every((slot) => !slot)) {
+      if (!existing) return;
+      setGroupPredictions((items) =>
+        items.filter(
+          (prediction) =>
+            !(prediction.userId === currentUser.id && prediction.groupLabel === groupLabel),
+        ),
+      );
+      if (supabaseEnabled) {
+        setSaveState("saving");
+        void deleteGroupPredictionAction({ groupLabel }).then((result) => {
+          if (!result.ok) {
+            setDataMessage(result.message);
+            setSaveState("error");
+            return;
+          }
+          setSaveState("saved");
+        });
+      } else {
+        setSaveState("saved");
+      }
+      return;
+    }
+
+    // Otherwise save whatever is filled so far (partial orders are allowed).
+    setSaveState("saving");
     const [firstTeamId, secondTeamId, thirdTeamId, fourthTeamId] = order;
     const nextPrediction: GroupPrediction = {
       id: existing?.id ?? `gp-${groupLabel}-${currentUser.id}`,
       userId: currentUser.id,
       groupLabel,
-      firstTeamId,
-      secondTeamId,
-      thirdTeamId,
-      fourthTeamId,
+      firstTeamId: firstTeamId ?? null,
+      secondTeamId: secondTeamId ?? null,
+      thirdTeamId: thirdTeamId ?? null,
+      fourthTeamId: fourthTeamId ?? null,
       points: existing?.points ?? null,
       exactPositions: existing?.exactPositions ?? 0,
       createdAt: existing?.createdAt ?? new Date().toISOString(),

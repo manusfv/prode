@@ -61,10 +61,10 @@ type ImportMatchesCsvInput = {
 
 type SaveGroupPredictionInput = {
   groupLabel: string;
-  firstTeamId: string;
-  secondTeamId: string;
-  thirdTeamId: string;
-  fourthTeamId: string;
+  firstTeamId: string | null;
+  secondTeamId: string | null;
+  thirdTeamId: string | null;
+  fourthTeamId: string | null;
 };
 
 type FinalizeGroupResultInput = {
@@ -188,6 +188,25 @@ export async function saveGroupPredictionAction(input: SaveGroupPredictionInput)
 
   revalidatePath("/");
   return { ok: true, message: "Pronóstico guardado." };
+}
+
+export async function deleteGroupPredictionAction(input: { groupLabel: string }) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const user = await getCurrentUserId(supabase);
+  if (!user.ok) return user;
+
+  const { error } = await supabase
+    .from("group_predictions")
+    .delete()
+    .eq("user_id", user.userId)
+    .eq("group_label", input.groupLabel);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/");
+  return { ok: true, message: "Pronóstico borrado." };
 }
 
 export async function finalizeGroupResultAction(input: FinalizeGroupResultInput) {
@@ -752,10 +771,10 @@ function mapGroupPrediction(row: {
   id: string;
   user_id: string;
   group_label: string;
-  first_team_id: string;
-  second_team_id: string;
-  third_team_id: string;
-  fourth_team_id: string;
+  first_team_id: string | null;
+  second_team_id: string | null;
+  third_team_id: string | null;
+  fourth_team_id: string | null;
   points: number | null;
   exact_positions: number;
   created_at: string;

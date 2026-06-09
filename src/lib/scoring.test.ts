@@ -207,7 +207,7 @@ describe("canSaveGroupPrediction", () => {
     resultFinalizedBy: null,
   };
 
-  it("rejects an incomplete order", () => {
+  it("accepts a partial order", () => {
     expect(
       canSaveGroupPrediction({
         group: openGroup,
@@ -216,7 +216,7 @@ describe("canSaveGroupPrediction", () => {
         openStages: new Set(["groups"]),
         now: new Date("2026-06-10T00:00:00.000Z"),
       }),
-    ).toEqual({ ok: false, reason: "Ordená los cuatro equipos." });
+    ).toEqual({ ok: true, reason: "Listo para guardar." });
   });
 
   it("rejects repeated teams", () => {

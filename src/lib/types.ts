@@ -92,10 +92,10 @@ export type GroupPrediction = {
   id: string;
   userId: string;
   groupLabel: string;
-  firstTeamId: string;
-  secondTeamId: string;
-  thirdTeamId: string;
-  fourthTeamId: string;
+  firstTeamId: string | null;
+  secondTeamId: string | null;
+  thirdTeamId: string | null;
+  fourthTeamId: string | null;
   points: number | null;
   exactPositions: number;
   createdAt: string;

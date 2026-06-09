@@ -83,10 +83,10 @@ type GroupPredictionRow = {
   id: string;
   user_id: string;
   group_label: string;
-  first_team_id: string;
-  second_team_id: string;
-  third_team_id: string;
-  fourth_team_id: string;
+  first_team_id: string | null;
+  second_team_id: string | null;
+  third_team_id: string | null;
+  fourth_team_id: string | null;
   points: number | null;
   exact_positions: number;
   created_at: string;
