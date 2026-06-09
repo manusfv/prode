@@ -1,10 +1,20 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { createMatchAction } from "@/app/actions";
-import type { Match, Prediction, Profile, Stage, StageState, Team } from "@/lib/types";
+import type { createMatchAction, finalizeGroupResultAction } from "@/app/actions";
+import type {
+  Group,
+  GroupPrediction,
+  Match,
+  Prediction,
+  Profile,
+  Stage,
+  StageState,
+  Team,
+} from "@/lib/types";
 
 export type CreateMatchActionInput = Parameters<typeof createMatchAction>[0];
+export type FinalizeGroupResultInput = Parameters<typeof finalizeGroupResultAction>[0];
 export type SaveState = "saving" | "saved" | "error";
 
 export type AppContextValue = {
@@ -14,16 +24,24 @@ export type AppContextValue = {
   stages: StageState[];
   matches: Match[];
   predictions: Prediction[];
+  groups: Group[];
+  groupPredictions: GroupPrediction[];
   now: Date;
   isAdmin: boolean;
   saveState: SaveState;
   dataMessage: string;
   openStages: Set<Stage>;
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
+  updateGroupPrediction: (
+    groupLabel: string,
+    order: [string, string, string, string],
+  ) => void;
   openPredictionDrawer: (match: Match) => void;
   refreshSupabaseData: () => Promise<void> | void;
   signOut: () => Promise<void> | void;
   finalizeMatch: (match: Match) => Promise<void> | void;
+  finalizeGroupResult: (input: FinalizeGroupResultInput) => Promise<void> | void;
+  updateGroupLocksAt: (groupLabel: string, locksAt: string | null) => Promise<void> | void;
   createMatch: (input: CreateMatchActionInput) => Promise<void> | void;
   deleteMatch: (matchId: string) => Promise<void> | void;
   updateStageOpen: (stage: Stage, open: boolean) => Promise<void> | void;

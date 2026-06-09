@@ -16,18 +16,23 @@ import {
   approveProfileAction,
   createMatchAction,
   deleteMatchAction,
+  finalizeGroupResultAction,
   finalizeMatchAction,
   importMatchesCsvAction,
   recalculatePointsAction,
+  saveGroupPredictionAction,
   savePredictionAction,
+  updateGroupLocksAtAction,
   updateStageOpenAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
-import { scoreAllForMatch } from "@/lib/scoring";
+import { scoreAllForMatch, scoreGroupPrediction } from "@/lib/scoring";
 import {
+  groups as seedGroups,
+  groupPredictions as seedGroupPredictions,
   matches as seedMatches,
   predictions as seedPredictions,
   profiles as seedProfiles,
@@ -36,7 +41,16 @@ import {
 } from "@/lib/seed";
 import { createSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { loadSupabaseAppData } from "@/lib/supabase-data";
-import type { Match, Prediction, Profile, Stage, StageState, Team } from "@/lib/types";
+import type {
+  Group,
+  GroupPrediction,
+  Match,
+  Prediction,
+  Profile,
+  Stage,
+  StageState,
+  Team,
+} from "@/lib/types";
 import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
@@ -46,6 +60,7 @@ import {
   AppContext,
   type AppContextValue,
   type CreateMatchActionInput,
+  type FinalizeGroupResultInput,
   type SaveState,
 } from "./app-context";
 import { AuthScreen, LoadingScreen, ThemePicker } from "./auth-screen";
@@ -76,6 +91,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [matches, setMatches] = useState(seedMatches);
   const [predictions, setPredictions] = useState(seedPredictions);
+  const [groups, setGroups] = useState<Group[]>(seedGroups);
+  const [groupPredictions, setGroupPredictions] = useState<GroupPrediction[]>(seedGroupPredictions);
   const [drawerMatch, setDrawerMatch] = useState<Match | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -124,6 +141,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setStages(appData.stages);
       setMatches(appData.matches);
       setPredictions(appData.predictions);
+      setGroups(appData.groups);
+      setGroupPredictions(appData.groupPredictions);
       setCurrentUser(appData.profile);
 
       if (!appData.profile.approved) {
@@ -188,6 +207,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setStages([]);
     setMatches([]);
     setPredictions([]);
+    setGroups([]);
+    setGroupPredictions([]);
     setDataMessage("Sesión cerrada.");
   }
 
@@ -328,6 +349,103 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
+  function updateGroupPrediction(groupLabel: string, order: [string, string, string, string]) {
+    if (!currentUser) return;
+    setSaveState("saving");
+
+    const existing = groupPredictions.find(
+      (prediction) => prediction.userId === currentUser.id && prediction.groupLabel === groupLabel,
+    );
+
+    const [firstTeamId, secondTeamId, thirdTeamId, fourthTeamId] = order;
+    const nextPrediction: GroupPrediction = {
+      id: existing?.id ?? `gp-${groupLabel}-${currentUser.id}`,
+      userId: currentUser.id,
+      groupLabel,
+      firstTeamId,
+      secondTeamId,
+      thirdTeamId,
+      fourthTeamId,
+      points: existing?.points ?? null,
+      exactPositions: existing?.exactPositions ?? 0,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setGroupPredictions((items) => {
+      const without = items.filter(
+        (prediction) =>
+          !(prediction.userId === currentUser.id && prediction.groupLabel === groupLabel),
+      );
+      return [...without, nextPrediction];
+    });
+
+    if (supabaseEnabled) {
+      void saveGroupPredictionAction({
+        groupLabel,
+        firstTeamId,
+        secondTeamId,
+        thirdTeamId,
+        fourthTeamId,
+      }).then((result) => {
+        if (!result.ok) {
+          setDataMessage(result.message);
+          setSaveState("error");
+          return;
+        }
+        setSaveState("saved");
+      });
+    } else {
+      setSaveState("saved");
+    }
+  }
+
+  async function finalizeGroupResult(input: FinalizeGroupResultInput) {
+    if (supabaseEnabled) {
+      const result = await finalizeGroupResultAction(input);
+      setDataMessage(result.message);
+      if (result.ok) await refreshSupabaseData();
+      return;
+    }
+
+    if (!currentUser) return;
+
+    const finalized: Group = {
+      groupLabel: input.groupLabel,
+      locksAt: groups.find((group) => group.groupLabel === input.groupLabel)?.locksAt ?? null,
+      firstTeamId: input.firstTeamId,
+      secondTeamId: input.secondTeamId,
+      thirdTeamId: input.thirdTeamId,
+      fourthTeamId: input.fourthTeamId,
+      resultFinalizedAt: new Date().toISOString(),
+      resultFinalizedBy: currentUser.id,
+    };
+
+    setGroups((items) =>
+      items.map((group) => (group.groupLabel === input.groupLabel ? finalized : group)),
+    );
+    setGroupPredictions((items) =>
+      items.map((prediction) => {
+        if (prediction.groupLabel !== input.groupLabel) return prediction;
+        const score = scoreGroupPrediction(finalized, prediction);
+        return { ...prediction, points: score.points, exactPositions: score.exactPositions };
+      }),
+    );
+  }
+
+  async function updateGroupLocksAt(groupLabel: string, locksAt: string | null) {
+    if (supabaseEnabled) {
+      const result = await updateGroupLocksAtAction({ groupLabel, locksAt });
+      setDataMessage(result.message);
+      if (result.ok) await refreshSupabaseData();
+      return;
+    }
+
+    setGroups((items) =>
+      items.map((group) => (group.groupLabel === groupLabel ? { ...group, locksAt } : group)),
+    );
+  }
+
   if (!authReady) {
     return <LoadingScreen />;
   }
@@ -408,16 +526,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     stages,
     matches,
     predictions,
+    groups,
+    groupPredictions,
     now,
     isAdmin,
     saveState,
     dataMessage,
     openStages,
     updatePrediction,
+    updateGroupPrediction,
     openPredictionDrawer: setDrawerMatch,
     refreshSupabaseData,
     signOut,
     finalizeMatch,
+    finalizeGroupResult,
+    updateGroupLocksAt,
     createMatch,
     deleteMatch,
     updateStageOpen,
