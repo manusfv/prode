@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import {
   CalendarClock,
   CircleDot,
@@ -52,7 +53,7 @@ import type {
   StageState,
   Team,
 } from "@/lib/types";
-import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
+import { getLeaderboard, pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const openStages = useMemo(() => {
     return new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
   }, [stages]);
+
+  const me = useMemo(
+    () =>
+      getLeaderboard(predictions, profiles, groupPredictions).find(
+        (row) => row.user.id === currentUser?.id,
+      ),
+    [predictions, profiles, groupPredictions, currentUser],
+  );
 
   const refreshSupabaseData = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -591,6 +600,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} />
             </span>
             <strong className="text-base leading-none">Prode Carbia</strong>
+            {me && (
+              <Link
+                href={tabRoutes.leaderboard}
+                aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
+                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
+              >
+                <span className="text-app-muted">#{me.rank}</span>
+                <span className="text-app-green">{me.points} pts</span>
+              </Link>
+            )}
           </div>
 
           <header className="mb-7">
