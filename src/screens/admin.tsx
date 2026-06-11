@@ -97,6 +97,9 @@ export function AdminScreen() {
     createMatch,
     deleteMatch,
     updateStageOpen,
+    standingsVisible,
+    resultsVisible,
+    updateTabVisibility,
     approveProfile,
   } = useApp();
 
@@ -420,6 +423,37 @@ export function AdminScreen() {
                   </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={cn(ui.panel, "p-4")}>
+          <CardHeader>
+            <CardTitle>Pestañas visibles</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="stage-admin-list">
+              {(
+                [
+                  { key: "standings", label: "Tabla", visible: standingsVisible },
+                  { key: "results", label: "Resultados", visible: resultsVisible },
+                ] as const
+              ).map(({ key, label, visible }) => (
+                <div className="stage-admin-row" key={key}>
+                  <div>
+                    <strong>{label}</strong>
+                    <small>{visible ? "Visible para todos" : "Tab deshabilitado"}</small>
+                  </div>
+                  <Button
+                    variant={visible ? "outline" : "default"}
+                    size="sm"
+                    disabled={Boolean(pendingAdminAction)}
+                    onClick={() => runAdminAction(`tab-${key}`, () => updateTabVisibility(key, !visible))}
+                  >
+                    <LoadingLabel loading={pendingAdminAction === `tab-${key}`} label={visible ? "Deshabilitar" : "Habilitar"} />
+                  </Button>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

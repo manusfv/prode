@@ -11,6 +11,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { inferWinner } from "@/lib/tournament";
 import type {
+  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
@@ -40,6 +41,11 @@ type FinalizeMatchInput = {
 type UpdateStageInput = {
   stage: Stage;
   open: boolean;
+};
+
+type UpdateTabVisibilityInput = {
+  key: AppSettingKey;
+  enabled: boolean;
 };
 
 type CreateMatchInput = {
@@ -311,6 +317,31 @@ export async function updateStageOpenAction(input: UpdateStageInput) {
 
   revalidatePath("/");
   return { ok: true, message: input.open ? "Etapa habilitada." : "Etapa deshabilitada." };
+}
+
+export async function updateTabVisibilityAction(input: UpdateTabVisibilityInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      {
+        key: input.key,
+        enabled: input.enabled,
+        updated_at: new Date().toISOString(),
+        updated_by: admin.userId,
+      },
+      { onConflict: "key" },
+    );
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/");
+  return { ok: true, message: input.enabled ? "Pestaña habilitada." : "Pestaña deshabilitada." };
 }
 
 export async function createMatchAction(input: CreateMatchInput) {

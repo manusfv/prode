@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 import type { createMatchAction, finalizeGroupResultAction } from "@/app/actions";
 import type {
+  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
@@ -31,6 +32,8 @@ export type AppContextValue = {
   saveState: SaveState;
   dataMessage: string;
   openStages: Set<Stage>;
+  standingsVisible: boolean;
+  resultsVisible: boolean;
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
   updateGroupPrediction: (groupLabel: string, order: (string | null)[]) => void;
   openPredictionDrawer: (match: Match) => void;
@@ -42,6 +45,7 @@ export type AppContextValue = {
   createMatch: (input: CreateMatchActionInput) => Promise<void> | void;
   deleteMatch: (matchId: string) => Promise<void> | void;
   updateStageOpen: (stage: Stage, open: boolean) => Promise<void> | void;
+  updateTabVisibility: (key: AppSettingKey, enabled: boolean) => Promise<void> | void;
   approveProfile: (profileId: string) => Promise<void> | void;
   importMatchesCsv: (file: File | null) => Promise<void> | void;
   exportMatchesCsv: () => void;

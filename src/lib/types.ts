@@ -106,3 +106,10 @@ export type GroupPrediction = {
 export type GroupPredictionDraft = {
   order: [string | null, string | null, string | null, string | null];
 };
+
+export type AppSettingKey = "standings" | "results";
+
+export type AppSetting = {
+  key: AppSettingKey;
+  enabled: boolean;
+};

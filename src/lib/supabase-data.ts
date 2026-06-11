@@ -1,4 +1,6 @@
 import type {
+  AppSetting,
+  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
@@ -30,6 +32,11 @@ type StageRow = {
   stage: Stage;
   label: string;
   open: boolean;
+};
+
+type AppSettingRow = {
+  key: AppSettingKey;
+  enabled: boolean;
 };
 
 type MatchRow = {
@@ -98,6 +105,7 @@ export type SupabaseAppData = {
   profiles: Profile[];
   teams: Team[];
   stages: StageState[];
+  appSettings: AppSetting[];
   matches: Match[];
   predictions: Prediction[];
   groups: Group[];
@@ -130,6 +138,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     profilesResult,
     teamsResult,
     stagesResult,
+    appSettingsResult,
     matchesResult,
     predictionsResult,
     groupsResult,
@@ -138,6 +147,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     table(client, "profiles").select("*").order("display_name", { ascending: true }),
     table(client, "teams").select("*").order("name", { ascending: true }),
     table(client, "stages").select("*").order("stage", { ascending: true }),
+    table(client, "app_settings").select("*").order("key", { ascending: true }),
     table(client, "matches").select("*").order("kickoff_utc", { ascending: true }),
     table(client, "predictions").select("*").order("updated_at", { ascending: true }),
     table(client, "groups").select("*").order("group_label", { ascending: true }),
@@ -148,6 +158,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     profilesResult,
     teamsResult,
     stagesResult,
+    appSettingsResult,
     matchesResult,
     predictionsResult,
     groupsResult,
@@ -163,6 +174,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     profiles,
     teams: (teamsResult.data as TeamRow[]).map(mapTeam),
     stages: (stagesResult.data as StageRow[]).map(mapStage),
+    appSettings: (appSettingsResult.data as AppSettingRow[]).map(mapAppSetting),
     matches: (matchesResult.data as MatchRow[]).map(mapMatch),
     predictions: (predictionsResult.data as PredictionRow[]).map(mapPrediction),
     groups: (groupsResult.data as GroupRow[]).map(mapGroup),
@@ -199,6 +211,13 @@ function mapStage(row: StageRow): StageState {
     stage: row.stage,
     label: row.label,
     open: row.open,
+  };
+}
+
+function mapAppSetting(row: AppSettingRow): AppSetting {
+  return {
+    key: row.key,
+    enabled: row.enabled,
   };
 }
 

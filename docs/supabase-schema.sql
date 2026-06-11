@@ -27,6 +27,13 @@ create table public.stages (
   opened_by uuid references public.profiles(id)
 );
 
+create table public.app_settings (
+  key text primary key,
+  enabled boolean not null default true,
+  updated_at timestamptz,
+  updated_by uuid references public.profiles(id)
+);
+
 create table public.matches (
   id uuid primary key default gen_random_uuid(),
   match_no integer not null unique,
@@ -71,6 +78,7 @@ create table public.predictions (
 alter table public.profiles enable row level security;
 alter table public.teams enable row level security;
 alter table public.stages enable row level security;
+alter table public.app_settings enable row level security;
 alter table public.matches enable row level security;
 alter table public.predictions enable row level security;
 
@@ -183,6 +191,24 @@ for all
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+create policy "app_settings_select_approved"
+on public.app_settings
+for select
+to authenticated
+using (public.is_approved());
+
+create policy "app_settings_admin_all"
+on public.app_settings
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+insert into public.app_settings (key, enabled) values
+  ('standings', true),
+  ('results', true)
+on conflict (key) do nothing;
 
 create policy "matches_select_approved"
 on public.matches
