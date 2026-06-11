@@ -2,7 +2,7 @@
 
 import { CalendarClock, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -41,6 +41,15 @@ export function ResultsScreen() {
     if (resultsStages.has(preferred)) return preferred;
     return stageOrder.find((stage) => resultsStages.has(stage)) ?? preferred;
   });
+
+  // If the active stage stops being revealed (admin toggled off results_open),
+  // fall back to a still-revealed stage so a hidden stage's results aren't shown.
+  useEffect(() => {
+    if (resultsStages.size > 0 && !resultsStages.has(activeStage)) {
+      const fallback = stageOrder.find((stage) => resultsStages.has(stage));
+      if (fallback) setActiveStage(fallback);
+    }
+  }, [resultsStages, activeStage]);
 
   const approvedProfiles = useMemo(
     () => profiles.filter((profile) => profile.approved),
