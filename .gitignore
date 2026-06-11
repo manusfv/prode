@@ -13,3 +13,4 @@ pnpm-debug.log*
 # build / editor artifacts
 tsconfig.tsbuildinfo
 .claude
+.superpowers
