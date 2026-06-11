@@ -1,4 +1,4 @@
-import type { Group, GroupPrediction, Match, Prediction, Profile, StageState, Team } from "./types";
+import type { AppSetting, Group, GroupPrediction, Match, Prediction, Profile, StageState, Team } from "./types";
 
 export const teams: Team[] = [
   { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷", group: "A" },
@@ -27,6 +27,11 @@ export const stages: StageState[] = [
   { stage: "semi", label: "Semis", open: false },
   { stage: "third", label: "3er puesto", open: false },
   { stage: "final", label: "Final", open: false },
+];
+
+export const appSettings: AppSetting[] = [
+  { key: "standings", enabled: true },
+  { key: "results", enabled: true },
 ];
 
 // Group A is still open; Group B has already locked and been finalized.
