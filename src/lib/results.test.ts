@@ -69,6 +69,19 @@ describe("getDefaultResultStage", () => {
   it("falls back to 'groups' when there is no content at all", () => {
     expect(getDefaultResultStage([], [], now)).toBe("groups");
   });
+
+  it("prefers the latest finalized stage when groups are also finalized", () => {
+    const finalizedRound16: Match = {
+      ...baseMatch,
+      id: "m-r16",
+      stage: "round16",
+      homeScore: 2,
+      awayScore: 1,
+      finalizedAt: "2026-07-01T20:00:00.000Z",
+    };
+    const finalizedGroup: Group = { ...baseGroup, resultFinalizedAt: "2026-06-28T00:00:00.000Z" };
+    expect(getDefaultResultStage([finalizedRound16], [finalizedGroup], now)).toBe("round16");
+  });
 });
 
 describe("getStagesWithContent", () => {

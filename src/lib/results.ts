@@ -58,17 +58,19 @@ export function sortComparison<P>(
   }));
 
   return entries.sort((a, b) => {
-    const aHas = a.prediction !== undefined;
-    const bHas = b.prediction !== undefined;
+    const aPrediction = a.prediction;
+    const bPrediction = b.prediction;
+    const aHas = aPrediction !== undefined;
+    const bHas = bPrediction !== undefined;
     if (aHas !== bHas) {
       return aHas ? -1 : 1;
     }
-    if (aHas && bHas && options.finalized) {
-      const pointsDiff = options.pointsOf(b.prediction as P) - options.pointsOf(a.prediction as P);
+    if (aPrediction !== undefined && bPrediction !== undefined && options.finalized) {
+      const pointsDiff = options.pointsOf(bPrediction) - options.pointsOf(aPrediction);
       if (pointsDiff !== 0) {
         return pointsDiff;
       }
-      const exactDiff = options.exactOf(b.prediction as P) - options.exactOf(a.prediction as P);
+      const exactDiff = options.exactOf(bPrediction) - options.exactOf(aPrediction);
       if (exactDiff !== 0) {
         return exactDiff;
       }
