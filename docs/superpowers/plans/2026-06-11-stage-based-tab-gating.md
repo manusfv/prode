@@ -1028,6 +1028,7 @@ git commit -m "feat(tabla): Acumulado + per-stage standings views"
 **Files:**
 - Modify: `docs/supabase-schema.sql`
 - Create: `docs/supabase-migration-stage-results-standings.sql`
+- Delete: `docs/supabase-migration-tab-visibility.sql` (the app_settings migration — never applied to the live DB, so it is removed outright rather than reverted)
 
 - [ ] **Step 1: Update the `stages` table in the canonical schema**
 
@@ -1052,6 +1053,8 @@ In `docs/supabase-schema.sql`, change every `s.open = true` to `s.predictions_op
 - [ ] **Step 3: Remove the `app_settings` block from the canonical schema**
 
 Delete the `app_settings` `create table`, its `alter table ... enable row level security`, its two policies (`app_settings_select_approved`, `app_settings_admin_all`), and its seed `insert` (all added by the previous feature).
+
+Also delete the now-superseded incremental migration `docs/supabase-migration-tab-visibility.sql` (`git rm docs/supabase-migration-tab-visibility.sql`). It was never applied to the live DB, so there is nothing to revert. The `drop table if exists public.app_settings cascade;` in the new migration (Step 4) is therefore purely defensive — it cleans up any local/dev DB that happened to apply the old migration; on the live DB it is a no-op.
 
 - [ ] **Step 4: Create the migration file**
 
@@ -1198,6 +1201,7 @@ drop table if exists public.app_settings cascade;
 - [ ] **Step 5: Commit**
 
 ```bash
+git rm docs/supabase-migration-tab-visibility.sql
 git add docs/supabase-schema.sql docs/supabase-migration-stage-results-standings.sql
 git commit -m "feat(db): per-stage results/standings flags; drop app_settings"
 ```
