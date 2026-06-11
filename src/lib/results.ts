@@ -1,4 +1,4 @@
-import type { Group, Match, Stage } from "./types";
+import type { Group, Match, Profile, Stage } from "./types";
 import { getMatchStatus, stageOrder } from "./tournament";
 
 export function getDefaultResultStage(matches: Match[], groups: Group[], now: Date): Stage {
@@ -37,4 +37,42 @@ export function getStagesWithContent(matches: Match[], groups: Group[]): Set<Sta
     set.add("groups");
   }
   return set;
+}
+
+export type ComparisonEntry<P> = { profile: Profile; prediction: P | undefined };
+
+export function sortComparison<P>(
+  profiles: Profile[],
+  predictions: P[],
+  options: {
+    userIdOf: (prediction: P) => string;
+    pointsOf: (prediction: P) => number;
+    exactOf: (prediction: P) => number;
+    finalized: boolean;
+  },
+): ComparisonEntry<P>[] {
+  const byUser = new Map(predictions.map((prediction) => [options.userIdOf(prediction), prediction]));
+  const entries: ComparisonEntry<P>[] = profiles.map((profile) => ({
+    profile,
+    prediction: byUser.get(profile.id),
+  }));
+
+  return entries.sort((a, b) => {
+    const aHas = a.prediction !== undefined;
+    const bHas = b.prediction !== undefined;
+    if (aHas !== bHas) {
+      return aHas ? -1 : 1;
+    }
+    if (aHas && bHas && options.finalized) {
+      const pointsDiff = options.pointsOf(b.prediction as P) - options.pointsOf(a.prediction as P);
+      if (pointsDiff !== 0) {
+        return pointsDiff;
+      }
+      const exactDiff = options.exactOf(b.prediction as P) - options.exactOf(a.prediction as P);
+      if (exactDiff !== 0) {
+        return exactDiff;
+      }
+    }
+    return a.profile.displayName.localeCompare(b.profile.displayName, "es");
+  });
 }

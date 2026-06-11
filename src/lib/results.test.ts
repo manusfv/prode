@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Group, Match } from "./types";
-import { getDefaultResultStage, getStagesWithContent } from "./results";
+import type { Group, Match, Prediction, Profile } from "./types";
+import { getDefaultResultStage, getStagesWithContent, sortComparison } from "./results";
 
 const baseMatch: Match = {
   id: "m1",
@@ -81,5 +81,71 @@ describe("getStagesWithContent", () => {
   it("marks groups when at least one group exists", () => {
     expect(getStagesWithContent([], [baseGroup]).has("groups")).toBe(true);
     expect(getStagesWithContent([], []).has("groups")).toBe(false);
+  });
+});
+
+const profile = (id: string, displayName: string): Profile => ({
+  id,
+  displayName,
+  email: `${id}@example.com`,
+  approved: true,
+  role: "user",
+});
+
+const matchPrediction = (
+  userId: string,
+  points: number,
+  exactHit: boolean,
+): Prediction => ({
+  id: `p-${userId}`,
+  userId,
+  matchId: "m1",
+  homeScore: 1,
+  awayScore: 0,
+  winnerTeamId: null,
+  points,
+  exactHit,
+  outcomeHit: points > 0,
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-01T00:00:00.000Z",
+});
+
+const matchOptions = {
+  userIdOf: (p: Prediction) => p.userId,
+  pointsOf: (p: Prediction) => p.points ?? 0,
+  exactOf: (p: Prediction) => (p.exactHit ? 1 : 0),
+};
+
+describe("sortComparison", () => {
+  const ana = profile("u-ana", "Ana");
+  const beto = profile("u-beto", "Beto");
+  const caro = profile("u-caro", "Caro");
+
+  it("sorts finalized entries by points desc, then name, with missing last", () => {
+    const entries = sortComparison(
+      [ana, beto, caro],
+      [matchPrediction("u-ana", 1, false), matchPrediction("u-beto", 3, true)],
+      { ...matchOptions, finalized: true },
+    );
+    expect(entries.map((entry) => entry.profile.id)).toEqual(["u-beto", "u-ana", "u-caro"]);
+    expect(entries[2].prediction).toBeUndefined();
+  });
+
+  it("sorts locked entries alphabetically with missing last", () => {
+    const entries = sortComparison(
+      [caro, ana, beto],
+      [matchPrediction("u-caro", 0, false), matchPrediction("u-ana", 0, false)],
+      { ...matchOptions, finalized: false },
+    );
+    expect(entries.map((entry) => entry.profile.id)).toEqual(["u-ana", "u-caro", "u-beto"]);
+  });
+
+  it("breaks finalized point ties by exact count, then name", () => {
+    const entries = sortComparison(
+      [ana, beto],
+      [matchPrediction("u-beto", 3, false), matchPrediction("u-ana", 3, true)],
+      { ...matchOptions, finalized: true },
+    );
+    expect(entries.map((entry) => entry.profile.id)).toEqual(["u-ana", "u-beto"]);
   });
 });
