@@ -1,4 +1,4 @@
-import type { AppSetting, Group, GroupPrediction, Match, Prediction, Profile, StageState, Team } from "./types";
+import type { Group, GroupPrediction, Match, Prediction, Profile, StageState, Team } from "./types";
 
 export const teams: Team[] = [
   { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷", group: "A" },
@@ -20,18 +20,13 @@ export const profiles: Profile[] = [
 ];
 
 export const stages: StageState[] = [
-  { stage: "groups", label: "Grupos", open: true },
-  { stage: "round32", label: "16avos", open: false },
-  { stage: "round16", label: "Octavos", open: false },
-  { stage: "quarter", label: "Cuartos", open: false },
-  { stage: "semi", label: "Semis", open: false },
-  { stage: "third", label: "3er puesto", open: false },
-  { stage: "final", label: "Final", open: false },
-];
-
-export const appSettings: AppSetting[] = [
-  { key: "standings", enabled: true },
-  { key: "results", enabled: true },
+  { stage: "groups", label: "Grupos", predictionsOpen: true, resultsOpen: true, standingsOpen: true },
+  { stage: "round32", label: "16avos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "round16", label: "Octavos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "quarter", label: "Cuartos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "semi", label: "Semis", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "third", label: "3er puesto", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "final", label: "Final", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
 ];
 
 // Group A is still open; Group B has already locked and been finalized.
