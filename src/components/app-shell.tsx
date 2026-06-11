@@ -117,8 +117,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const openStages = useMemo(() => getPredictionsStages(stages), [stages]);
   const resultsStages = useMemo(() => getResultsStages(stages, matches, groups), [stages, matches, groups]);
   const standingsStages = useMemo(() => getStandingsStages(stages), [stages]);
-  const standingsTabVisible = standingsStages.size > 0;
-  const resultsTabVisible = resultsStages.size > 0;
 
   const me = useMemo(
     () =>
@@ -182,16 +180,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!currentUser) return;
     if (activeTab === "admin" && !isAdmin) {
       router.replace(tabRoutes.predictions);
-      return;
     }
-    if (activeTab === "leaderboard" && !standingsTabVisible) {
-      router.replace(tabRoutes.predictions);
-      return;
-    }
-    if (activeTab === "results" && !resultsTabVisible) {
-      router.replace(tabRoutes.predictions);
-    }
-  }, [activeTab, currentUser, isAdmin, standingsTabVisible, resultsTabVisible, router]);
+  }, [activeTab, currentUser, isAdmin, router]);
 
   async function submitAuth() {
     const supabase = createSupabaseBrowserClient();
@@ -606,7 +596,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block">
-        <Sidebar activeTab={activeTab} isAdmin={isAdmin} standingsTabVisible={standingsTabVisible} resultsTabVisible={resultsTabVisible} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
+        <Sidebar activeTab={activeTab} isAdmin={isAdmin} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
 
         <section className="mx-auto w-full max-w-screen-2xl min-w-0 overflow-x-clip p-5 max-lg:p-3.5 max-sm:p-2.5">
           <div className="sticky top-0 z-20 -mx-3.5 mb-5 flex items-center gap-3 border-b border-app-line bg-app-bg/90 px-3.5 py-2.5 backdrop-blur-lg lg:hidden max-sm:-mx-2.5 max-sm:px-2.5">
@@ -617,28 +607,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} />
             </span>
             <strong className="text-base leading-none">Prode Carbia</strong>
-            {me && (() => {
-              const pillClass = cn(
-                "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black",
-                !standingsTabVisible && "opacity-60",
-              );
-              const pillContent = (
-                <>
-                  <span className="text-app-muted">#{me.rank}</span>
-                  <span className="text-app-green">{me.points} pts</span>
-                </>
-              );
-              const pillLabel = `Tu posición: puesto ${me.rank}, ${me.points} puntos`;
-              return standingsTabVisible ? (
-                <Link href={tabRoutes.leaderboard} aria-label={pillLabel} className={pillClass}>
-                  {pillContent}
-                </Link>
-              ) : (
-                <span aria-label={pillLabel} className={pillClass}>
-                  {pillContent}
-                </span>
-              );
-            })()}
+            {me && (
+              <Link
+                href={tabRoutes.leaderboard}
+                aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
+                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
+              >
+                <span className="text-app-muted">#{me.rank}</span>
+                <span className="text-app-green">{me.points} pts</span>
+              </Link>
+            )}
           </div>
 
           <header className="mb-7">
@@ -657,8 +635,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarContent
               activeTab={activeTab}
               isAdmin={isAdmin}
-              standingsTabVisible={standingsTabVisible}
-              resultsTabVisible={resultsTabVisible}
               currentUser={currentUser}
               theme={theme}
               onThemeChange={setTheme}
@@ -690,8 +666,6 @@ function Sidebar(props: SidebarContentProps) {
 type SidebarContentProps = {
   activeTab: AppRoute;
   isAdmin: boolean;
-  standingsTabVisible: boolean;
-  resultsTabVisible: boolean;
   currentUser: Profile;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -702,8 +676,6 @@ type SidebarContentProps = {
 function SidebarContent({
   activeTab,
   isAdmin,
-  standingsTabVisible,
-  resultsTabVisible,
   currentUser,
   theme,
   onThemeChange,
@@ -723,8 +695,8 @@ function SidebarContent({
       </div>
       <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} disabled={!standingsTabVisible} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} disabled={!resultsTabVisible} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
@@ -733,12 +705,11 @@ function SidebarContent({
   );
 }
 
-function NavLink({ href, icon, label, active, disabled, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; disabled?: boolean; onNavigate?: () => void }) {
+function NavLink({ href, icon, label, active, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; onNavigate?: () => void }) {
   const router = useRouter();
   return (
     <Button
       variant={active ? "default" : "ghost"}
-      disabled={disabled}
       className={cn(
         "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold",
         active ? "bg-app-solid text-app-solid-fg" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text",
