@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stageLabels, stageOrder } from "@/lib/tournament";
 import type { Stage } from "@/lib/types";
@@ -58,6 +58,7 @@ export function LeaderboardScreen() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="overall">Acumulado</SelectItem>
+            <SelectSeparator />
             {stageOrder.map((stage) => (
               <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
                 {stageLabels[stage]}
@@ -73,6 +74,7 @@ export function LeaderboardScreen() {
             >
               Acumulado
             </TabsTrigger>
+            <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
             {stageOrder.map((stage) => (
               <TabsTrigger
                 key={stage}
