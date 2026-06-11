@@ -27,13 +27,8 @@ export function LeaderboardScreen() {
   const { predictions, profiles, groupPredictions, matches, standingsStages, currentUser } = useApp();
   const [view, setView] = useState<StandingsView>("overall");
 
-  const stageTabs = useMemo(
-    () => stageOrder.filter((stage) => standingsStages.has(stage)),
-    [standingsStages],
-  );
-
   // If the selected stage stops being revealed (admin toggled it off), fall back
-  // to the accumulated view so the tab strip never shows a stale, missing tab.
+  // to the accumulated view so a hidden stage's standings aren't shown.
   useEffect(() => {
     if (view !== "overall" && !standingsStages.has(view)) {
       setView("overall");
@@ -63,8 +58,8 @@ export function LeaderboardScreen() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="overall">Acumulado</SelectItem>
-            {stageTabs.map((stage) => (
-              <SelectItem key={stage} value={stage}>
+            {stageOrder.map((stage) => (
+              <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
                 {stageLabels[stage]}
               </SelectItem>
             ))}
@@ -78,11 +73,12 @@ export function LeaderboardScreen() {
             >
               Acumulado
             </TabsTrigger>
-            {stageTabs.map((stage) => (
+            {stageOrder.map((stage) => (
               <TabsTrigger
                 key={stage}
                 value={stage}
-                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
+                disabled={!standingsStages.has(stage)}
+                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
               >
                 {stageLabels[stage]}
               </TabsTrigger>
