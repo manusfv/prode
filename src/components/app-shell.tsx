@@ -635,26 +635,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Image className="size-full object-contain" src="/favicon.svg" alt="" width={455} height={701} />
             </span>
             <strong className="text-base leading-none">Prode Carbia</strong>
-            {me && (
-              standingsVisible ? (
-                <Link
-                  href={tabRoutes.leaderboard}
-                  aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
-                >
+            {me && (() => {
+              const pillClass = cn(
+                "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black",
+                !standingsVisible && "opacity-60",
+              );
+              const pillContent = (
+                <>
                   <span className="text-app-muted">#{me.rank}</span>
                   <span className="text-app-green">{me.points} pts</span>
+                </>
+              );
+              const pillLabel = `Tu posición: puesto ${me.rank}, ${me.points} puntos`;
+              return standingsVisible ? (
+                <Link href={tabRoutes.leaderboard} aria-label={pillLabel} className={pillClass}>
+                  {pillContent}
                 </Link>
               ) : (
-                <span
-                  aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black opacity-60"
-                >
-                  <span className="text-app-muted">#{me.rank}</span>
-                  <span className="text-app-green">{me.points} pts</span>
+                <span aria-label={pillLabel} className={pillClass}>
+                  {pillContent}
                 </span>
-              )
-            )}
+              );
+            })()}
           </div>
 
           <header className="mb-7">
@@ -758,10 +760,8 @@ function NavLink({ href, icon, label, active, disabled, onNavigate }: { href: st
       className={cn(
         "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold",
         active ? "bg-app-solid text-app-solid-fg" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text",
-        disabled && "pointer-events-none opacity-50",
       )}
       onClick={() => {
-        if (disabled) return;
         router.push(href);
         onNavigate?.();
       }}
