@@ -26,6 +26,7 @@ import {
   savePredictionAction,
   updateGroupLocksAtAction,
   updateStageOpenAction,
+  updateTabVisibilityAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,11 +40,14 @@ import {
   predictions as seedPredictions,
   profiles as seedProfiles,
   stages as seedStages,
+  appSettings as seedAppSettings,
   teams as seedTeams,
 } from "@/lib/seed";
 import { createSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { loadSupabaseAppData } from "@/lib/supabase-data";
 import type {
+  AppSetting,
+  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
@@ -54,6 +58,7 @@ import type {
   Team,
 } from "@/lib/types";
 import { getLeaderboard, pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
+import { getTabVisibility } from "@/lib/tab-visibility";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
@@ -90,6 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [teams, setTeams] = useState<Team[]>(seedTeams);
   const [profiles, setProfiles] = useState<Profile[]>(seedProfiles);
   const [stages, setStages] = useState<StageState[]>(seedStages);
+  const [appSettings, setAppSettings] = useState<AppSetting[]>(seedAppSettings);
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [matches, setMatches] = useState(seedMatches);
   const [predictions, setPredictions] = useState(seedPredictions);
@@ -114,6 +120,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const openStages = useMemo(() => {
     return new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
   }, [stages]);
+
+  const { standingsVisible, resultsVisible } = useMemo(
+    () => getTabVisibility(appSettings),
+    [appSettings],
+  );
 
   const me = useMemo(
     () =>
@@ -149,6 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setProfiles(appData.profiles);
       setTeams(appData.teams);
       setStages(appData.stages);
+      setAppSettings(appData.appSettings);
       setMatches(appData.matches);
       setPredictions(appData.predictions);
       setGroups(appData.groups);
@@ -174,10 +186,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [refreshSupabaseData, supabaseEnabled]);
 
   useEffect(() => {
-    if (activeTab === "admin" && currentUser && !isAdmin) {
+    if (!currentUser) return;
+    if (activeTab === "admin" && !isAdmin) {
+      router.replace(tabRoutes.predictions);
+      return;
+    }
+    if (activeTab === "leaderboard" && !standingsVisible) {
+      router.replace(tabRoutes.predictions);
+      return;
+    }
+    if (activeTab === "results" && !resultsVisible) {
       router.replace(tabRoutes.predictions);
     }
-  }, [activeTab, currentUser, isAdmin, router]);
+  }, [activeTab, currentUser, isAdmin, standingsVisible, resultsVisible, router]);
 
   async function submitAuth() {
     const supabase = createSupabaseBrowserClient();
@@ -215,6 +236,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setProfiles([]);
     setTeams([]);
     setStages([]);
+    setAppSettings([]);
     setMatches([]);
     setPredictions([]);
     setGroups([]);
@@ -266,6 +288,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   async function updateStageOpen(stage: Stage, open: boolean) {
     setStages((current) => current.map((item) => (item.stage === stage ? { ...item, open } : item)));
     const result = await updateStageOpenAction({ stage, open });
+    setDataMessage(result.message);
+    if (result.ok) await refreshSupabaseData();
+  }
+
+  async function updateTabVisibility(key: AppSettingKey, enabled: boolean) {
+    setAppSettings((current) => {
+      const without = current.filter((item) => item.key !== key);
+      return [...without, { key, enabled }];
+    });
+    const result = await updateTabVisibilityAction({ key, enabled });
     setDataMessage(result.message);
     if (result.ok) await refreshSupabaseData();
   }
@@ -569,6 +601,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveState,
     dataMessage,
     openStages,
+    standingsVisible,
+    resultsVisible,
     updatePrediction,
     updateGroupPrediction,
     openPredictionDrawer: setDrawerMatch,
@@ -580,6 +614,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     createMatch,
     deleteMatch,
     updateStageOpen,
+    updateTabVisibility,
     approveProfile,
     importMatchesCsv,
     exportMatchesCsv,
@@ -589,7 +624,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block">
-        <Sidebar activeTab={activeTab} isAdmin={isAdmin} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
+        <Sidebar activeTab={activeTab} isAdmin={isAdmin} standingsVisible={standingsVisible} resultsVisible={resultsVisible} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
 
         <section className="mx-auto w-full max-w-screen-2xl min-w-0 overflow-x-clip p-5 max-lg:p-3.5 max-sm:p-2.5">
           <div className="sticky top-0 z-20 -mx-3.5 mb-5 flex items-center gap-3 border-b border-app-line bg-app-bg/90 px-3.5 py-2.5 backdrop-blur-lg lg:hidden max-sm:-mx-2.5 max-sm:px-2.5">
@@ -601,14 +636,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
             <strong className="text-base leading-none">Prode Carbia</strong>
             {me && (
-              <Link
-                href={tabRoutes.leaderboard}
-                aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
-                className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
-              >
-                <span className="text-app-muted">#{me.rank}</span>
-                <span className="text-app-green">{me.points} pts</span>
-              </Link>
+              standingsVisible ? (
+                <Link
+                  href={tabRoutes.leaderboard}
+                  aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
+                >
+                  <span className="text-app-muted">#{me.rank}</span>
+                  <span className="text-app-green">{me.points} pts</span>
+                </Link>
+              ) : (
+                <span
+                  aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black opacity-60"
+                >
+                  <span className="text-app-muted">#{me.rank}</span>
+                  <span className="text-app-green">{me.points} pts</span>
+                </span>
+              )
             )}
           </div>
 
@@ -628,6 +673,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarContent
               activeTab={activeTab}
               isAdmin={isAdmin}
+              standingsVisible={standingsVisible}
+              resultsVisible={resultsVisible}
               currentUser={currentUser}
               theme={theme}
               onThemeChange={setTheme}
@@ -659,6 +706,8 @@ function Sidebar(props: SidebarContentProps) {
 type SidebarContentProps = {
   activeTab: AppRoute;
   isAdmin: boolean;
+  standingsVisible: boolean;
+  resultsVisible: boolean;
   currentUser: Profile;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -669,6 +718,8 @@ type SidebarContentProps = {
 function SidebarContent({
   activeTab,
   isAdmin,
+  standingsVisible,
+  resultsVisible,
   currentUser,
   theme,
   onThemeChange,
@@ -688,8 +739,8 @@ function SidebarContent({
       </div>
       <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} disabled={!standingsVisible} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} disabled={!resultsVisible} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
@@ -698,16 +749,19 @@ function SidebarContent({
   );
 }
 
-function NavLink({ href, icon, label, active, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; onNavigate?: () => void }) {
+function NavLink({ href, icon, label, active, disabled, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; disabled?: boolean; onNavigate?: () => void }) {
   const router = useRouter();
   return (
     <Button
       variant={active ? "default" : "ghost"}
+      disabled={disabled}
       className={cn(
         "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold",
         active ? "bg-app-solid text-app-solid-fg" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text",
+        disabled && "pointer-events-none opacity-50",
       )}
       onClick={() => {
+        if (disabled) return;
         router.push(href);
         onNavigate?.();
       }}
