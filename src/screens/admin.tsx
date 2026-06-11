@@ -96,10 +96,7 @@ export function AdminScreen() {
     recalculatePoints,
     createMatch,
     deleteMatch,
-    updateStageOpen,
-    standingsVisible,
-    resultsVisible,
-    updateTabVisibility,
+    updateStageFlag,
     approveProfile,
   } = useApp();
 
@@ -409,51 +406,36 @@ export function AdminScreen() {
             <div className="stage-admin-list">
               {stageOrder.map((stage) => {
                 const stageState = stages.find((item) => item.stage === stage);
-                const isOpen = Boolean(stageState?.open);
+                const flags = [
+                  { flag: "predictions" as const, label: "Predicciones", value: Boolean(stageState?.predictionsOpen) },
+                  { flag: "results" as const, label: "Resultados", value: Boolean(stageState?.resultsOpen) },
+                  { flag: "standings" as const, label: "Standings", value: Boolean(stageState?.standingsOpen) },
+                ];
 
                 return (
                   <div className="stage-admin-row" key={stage}>
                     <div>
                       <strong>{stageLabels[stage]}</strong>
-                      <small>{isOpen ? "Visible para pronosticar" : "Tab deshabilitado"}</small>
                     </div>
-                    <Button variant={isOpen ? "outline" : "default"} size="sm" disabled={Boolean(pendingAdminAction)} onClick={() => runAdminAction(`stage-${stage}`, () => updateStageOpen(stage, !isOpen))}>
-                      <LoadingLabel loading={pendingAdminAction === `stage-${stage}`} label={isOpen ? "Deshabilitar" : "Habilitar"} />
-                    </Button>
+                    <div className="flex flex-wrap gap-1.5">
+                      {flags.map(({ flag, label, value }) => {
+                        const key = `stage-${stage}-${flag}`;
+                        return (
+                          <Button
+                            key={flag}
+                            variant={value ? "default" : "outline"}
+                            size="sm"
+                            disabled={Boolean(pendingAdminAction)}
+                            onClick={() => runAdminAction(key, () => updateStageFlag(stage, flag, !value))}
+                          >
+                            <LoadingLabel loading={pendingAdminAction === key} label={label} />
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={cn(ui.panel, "p-4")}>
-          <CardHeader>
-            <CardTitle>Pestañas visibles</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="stage-admin-list">
-              {(
-                [
-                  { key: "standings", label: "Tabla", visible: standingsVisible },
-                  { key: "results", label: "Resultados", visible: resultsVisible },
-                ] as const
-              ).map(({ key, label, visible }) => (
-                <div className="stage-admin-row" key={key}>
-                  <div>
-                    <strong>{label}</strong>
-                    <small>{visible ? "Visible para todos" : "Tab deshabilitado"}</small>
-                  </div>
-                  <Button
-                    variant={visible ? "outline" : "default"}
-                    size="sm"
-                    disabled={Boolean(pendingAdminAction)}
-                    onClick={() => runAdminAction(`tab-${key}`, () => updateTabVisibility(key, !visible))}
-                  >
-                    <LoadingLabel loading={pendingAdminAction === `tab-${key}`} label={visible ? "Deshabilitar" : "Habilitar"} />
-                  </Button>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
