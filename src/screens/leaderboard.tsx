@@ -21,8 +21,11 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-context";
 
 export function LeaderboardScreen() {
-  const { predictions, profiles, currentUser } = useApp();
-  const rows = useMemo(() => getLeaderboard(predictions, profiles), [predictions, profiles]);
+  const { predictions, profiles, groupPredictions, currentUser } = useApp();
+  const rows = useMemo(
+    () => getLeaderboard(predictions, profiles, groupPredictions),
+    [predictions, profiles, groupPredictions],
+  );
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
 
