@@ -200,7 +200,7 @@ export function PredictionsScreen() {
               ))}
         </div>
       </div>
-      <aside className="sticky top-5 grid gap-2.5 max-lg:static">
+      <aside className="sticky top-5 grid gap-2.5 max-lg:hidden">
         <SummaryPanel points={me?.points ?? 0} rank={me?.rank ?? 1} missingCount={missingCount} />
         <LeaderboardPreview rows={leaderboard.slice(0, 4)} onOpen={() => router.push("/tabla")} />
       </aside>
