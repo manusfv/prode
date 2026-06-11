@@ -100,8 +100,8 @@ function PodiumSpot({ row, isMe }: { row: LeaderboardRow; isMe: boolean }) {
         isMe && "ring-2 ring-app-brand",
       )}
     >
-      <span className="text-xl leading-none">{medalByRank[row.rank]}</span>
-      <span className={cn("grid size-9 place-items-center rounded-full text-sm font-black", avatarToneByRank[row.rank])}>
+      <span className="text-xl leading-none">{medalByRank[row.rank] ?? "•"}</span>
+      <span className={cn("grid size-9 place-items-center rounded-full text-sm font-black", avatarToneByRank[row.rank] ?? "bg-app-muted text-app-bg")}>
         {getInitials(row.user.displayName)}
       </span>
       <strong className="mt-1 max-w-full truncate text-sm font-black">{row.user.displayName}</strong>
@@ -140,7 +140,7 @@ function StandingsTable({ rows, currentUserId }: { rows: LeaderboardRow[]; curre
                   {row.rank}
                 </TableCell>
                 <TableCell>
-                  <strong className="font-black">{row.user.displayName}</strong>
+                  <strong className="block max-w-full truncate font-black">{row.user.displayName}</strong>
                   <span className="block text-xs font-bold text-app-muted sm:hidden">
                     {row.exactHits} ex · {row.outcomeHits} ac
                   </span>
