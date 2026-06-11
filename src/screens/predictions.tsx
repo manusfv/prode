@@ -46,7 +46,8 @@ import type {
   Stage,
   Team,
 } from "@/lib/types";
-import { compareGroups, getLeaderboard, type LeaderboardRow, ui } from "@/lib/ui-tokens";
+import { compareGroups, ui } from "@/lib/ui-tokens";
+import { getLeaderboard, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
@@ -70,11 +71,11 @@ export function PredictionsScreen() {
     groups,
     groupPredictions,
     profiles,
-    stages,
     teams,
     now,
     saveState,
     openStages,
+    standingsStages,
     updatePrediction,
     updateGroupPrediction,
     openPredictionDrawer,
@@ -125,8 +126,8 @@ export function PredictionsScreen() {
   }, [currentGroupPredictionMap, groups, missingOnly, selectedGroups]);
 
   const leaderboard = useMemo(
-    () => getLeaderboard(predictions, profiles, groupPredictions),
-    [predictions, profiles, groupPredictions],
+    () => getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }),
+    [predictions, profiles, groupPredictions, matches, standingsStages],
   );
   const me = leaderboard.find((row) => row.user.id === currentUser.id);
   const missingMatches = matches.filter(
@@ -149,7 +150,7 @@ export function PredictionsScreen() {
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
       <div className="min-w-0">
         <div className="mb-6 grid gap-3">
-          <StageTabs activeStage={activeStage} stages={stages} onChange={setActiveStage} />
+          <StageTabs activeStage={activeStage} enabledStages={openStages} onChange={setActiveStage} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
               {activeStage === "groups" && (
