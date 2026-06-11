@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import {
   CalendarClock,
   CircleDot,
@@ -600,15 +601,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
             <strong className="text-base leading-none">Prode Carbia</strong>
             {me && (
-              <button
-                type="button"
-                onClick={() => router.push(tabRoutes.leaderboard)}
+              <Link
+                href={tabRoutes.leaderboard}
                 aria-label={`Tu posición: puesto ${me.rank}, ${me.points} puntos`}
                 className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black"
               >
                 <span className="text-app-muted">#{me.rank}</span>
                 <span className="text-app-green">{me.points} pts</span>
-              </button>
+              </Link>
             )}
           </div>
 
