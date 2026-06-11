@@ -25,8 +25,7 @@ import {
   saveGroupPredictionAction,
   savePredictionAction,
   updateGroupLocksAtAction,
-  updateStageOpenAction,
-  updateTabVisibilityAction,
+  updateStageFlagAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,25 +39,24 @@ import {
   predictions as seedPredictions,
   profiles as seedProfiles,
   stages as seedStages,
-  appSettings as seedAppSettings,
   teams as seedTeams,
 } from "@/lib/seed";
 import { createSupabaseBrowserClient, hasSupabaseConfig } from "@/lib/supabase";
 import { loadSupabaseAppData } from "@/lib/supabase-data";
 import type {
-  AppSetting,
-  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
   Prediction,
   Profile,
   Stage,
+  StageFlag,
   StageState,
   Team,
 } from "@/lib/types";
-import { getLeaderboard, pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
-import { getTabVisibility } from "@/lib/tab-visibility";
+import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
+import { getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
+import { getLeaderboard } from "@/lib/standings";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
@@ -95,7 +93,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [teams, setTeams] = useState<Team[]>(seedTeams);
   const [profiles, setProfiles] = useState<Profile[]>(seedProfiles);
   const [stages, setStages] = useState<StageState[]>(seedStages);
-  const [appSettings, setAppSettings] = useState<AppSetting[]>(seedAppSettings);
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [matches, setMatches] = useState(seedMatches);
   const [predictions, setPredictions] = useState(seedPredictions);
@@ -117,21 +114,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const supabaseEnabled = hasSupabaseConfig();
 
   const isAdmin = currentUser?.role === "admin";
-  const openStages = useMemo(() => {
-    return new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
-  }, [stages]);
-
-  const { standingsVisible, resultsVisible } = useMemo(
-    () => getTabVisibility(appSettings),
-    [appSettings],
-  );
+  const openStages = useMemo(() => getPredictionsStages(stages), [stages]);
+  const resultsStages = useMemo(() => getResultsStages(stages, matches, groups), [stages, matches, groups]);
+  const standingsStages = useMemo(() => getStandingsStages(stages), [stages]);
+  const standingsTabVisible = standingsStages.size > 0;
+  const resultsTabVisible = resultsStages.size > 0;
 
   const me = useMemo(
     () =>
-      getLeaderboard(predictions, profiles, groupPredictions).find(
+      getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }).find(
         (row) => row.user.id === currentUser?.id,
       ),
-    [predictions, profiles, groupPredictions, currentUser],
+    [predictions, profiles, groupPredictions, matches, standingsStages, currentUser],
   );
 
   const refreshSupabaseData = useCallback(async () => {
@@ -160,7 +154,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setProfiles(appData.profiles);
       setTeams(appData.teams);
       setStages(appData.stages);
-      setAppSettings(appData.appSettings);
       setMatches(appData.matches);
       setPredictions(appData.predictions);
       setGroups(appData.groups);
@@ -191,14 +184,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace(tabRoutes.predictions);
       return;
     }
-    if (activeTab === "leaderboard" && !standingsVisible) {
+    if (activeTab === "leaderboard" && !standingsTabVisible) {
       router.replace(tabRoutes.predictions);
       return;
     }
-    if (activeTab === "results" && !resultsVisible) {
+    if (activeTab === "results" && !resultsTabVisible) {
       router.replace(tabRoutes.predictions);
     }
-  }, [activeTab, currentUser, isAdmin, standingsVisible, resultsVisible, router]);
+  }, [activeTab, currentUser, isAdmin, standingsTabVisible, resultsTabVisible, router]);
 
   async function submitAuth() {
     const supabase = createSupabaseBrowserClient();
@@ -236,7 +229,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setProfiles([]);
     setTeams([]);
     setStages([]);
-    setAppSettings([]);
     setMatches([]);
     setPredictions([]);
     setGroups([]);
@@ -285,19 +277,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (result.ok) await refreshSupabaseData();
   }
 
-  async function updateStageOpen(stage: Stage, open: boolean) {
-    setStages((current) => current.map((item) => (item.stage === stage ? { ...item, open } : item)));
-    const result = await updateStageOpenAction({ stage, open });
-    setDataMessage(result.message);
-    if (result.ok) await refreshSupabaseData();
-  }
-
-  async function updateTabVisibility(key: AppSettingKey, enabled: boolean) {
-    setAppSettings((current) => {
-      const without = current.filter((item) => item.key !== key);
-      return [...without, { key, enabled }];
-    });
-    const result = await updateTabVisibilityAction({ key, enabled });
+  async function updateStageFlag(stage: Stage, flag: StageFlag, value: boolean) {
+    const column = flag === "predictions" ? "predictionsOpen" : flag === "results" ? "resultsOpen" : "standingsOpen";
+    setStages((current) => current.map((item) => (item.stage === stage ? { ...item, [column]: value } : item)));
+    const result = await updateStageFlagAction({ stage, flag, value });
     setDataMessage(result.message);
     if (result.ok) await refreshSupabaseData();
   }
@@ -601,8 +584,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveState,
     dataMessage,
     openStages,
-    standingsVisible,
-    resultsVisible,
+    resultsStages,
+    standingsStages,
     updatePrediction,
     updateGroupPrediction,
     openPredictionDrawer: setDrawerMatch,
@@ -613,8 +596,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     updateGroupLocksAt,
     createMatch,
     deleteMatch,
-    updateStageOpen,
-    updateTabVisibility,
+    updateStageFlag,
     approveProfile,
     importMatchesCsv,
     exportMatchesCsv,
@@ -624,7 +606,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       <main className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-app-bg text-app-text max-lg:block">
-        <Sidebar activeTab={activeTab} isAdmin={isAdmin} standingsVisible={standingsVisible} resultsVisible={resultsVisible} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
+        <Sidebar activeTab={activeTab} isAdmin={isAdmin} standingsTabVisible={standingsTabVisible} resultsTabVisible={resultsTabVisible} currentUser={currentUser} theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
 
         <section className="mx-auto w-full max-w-screen-2xl min-w-0 overflow-x-clip p-5 max-lg:p-3.5 max-sm:p-2.5">
           <div className="sticky top-0 z-20 -mx-3.5 mb-5 flex items-center gap-3 border-b border-app-line bg-app-bg/90 px-3.5 py-2.5 backdrop-blur-lg lg:hidden max-sm:-mx-2.5 max-sm:px-2.5">
@@ -638,7 +620,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {me && (() => {
               const pillClass = cn(
                 "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-app-line bg-app-surface px-3 py-1.5 text-xs font-black",
-                !standingsVisible && "opacity-60",
+                !standingsTabVisible && "opacity-60",
               );
               const pillContent = (
                 <>
@@ -647,7 +629,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </>
               );
               const pillLabel = `Tu posición: puesto ${me.rank}, ${me.points} puntos`;
-              return standingsVisible ? (
+              return standingsTabVisible ? (
                 <Link href={tabRoutes.leaderboard} aria-label={pillLabel} className={pillClass}>
                   {pillContent}
                 </Link>
@@ -675,8 +657,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarContent
               activeTab={activeTab}
               isAdmin={isAdmin}
-              standingsVisible={standingsVisible}
-              resultsVisible={resultsVisible}
+              standingsTabVisible={standingsTabVisible}
+              resultsTabVisible={resultsTabVisible}
               currentUser={currentUser}
               theme={theme}
               onThemeChange={setTheme}
@@ -708,8 +690,8 @@ function Sidebar(props: SidebarContentProps) {
 type SidebarContentProps = {
   activeTab: AppRoute;
   isAdmin: boolean;
-  standingsVisible: boolean;
-  resultsVisible: boolean;
+  standingsTabVisible: boolean;
+  resultsTabVisible: boolean;
   currentUser: Profile;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -720,8 +702,8 @@ type SidebarContentProps = {
 function SidebarContent({
   activeTab,
   isAdmin,
-  standingsVisible,
-  resultsVisible,
+  standingsTabVisible,
+  resultsTabVisible,
   currentUser,
   theme,
   onThemeChange,
@@ -741,8 +723,8 @@ function SidebarContent({
       </div>
       <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} disabled={!standingsVisible} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} disabled={!resultsVisible} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} disabled={!standingsTabVisible} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} disabled={!resultsTabVisible} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
