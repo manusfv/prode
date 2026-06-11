@@ -22,16 +22,11 @@ create table public.teams (
 create table public.stages (
   stage public.stage_key primary key,
   label text not null,
-  open boolean not null default false,
+  predictions_open boolean not null default false,
+  results_open boolean not null default false,
+  standings_open boolean not null default false,
   opened_at timestamptz,
   opened_by uuid references public.profiles(id)
-);
-
-create table public.app_settings (
-  key text primary key,
-  enabled boolean not null default true,
-  updated_at timestamptz,
-  updated_by uuid references public.profiles(id)
 );
 
 create table public.matches (
@@ -78,7 +73,6 @@ create table public.predictions (
 alter table public.profiles enable row level security;
 alter table public.teams enable row level security;
 alter table public.stages enable row level security;
-alter table public.app_settings enable row level security;
 alter table public.matches enable row level security;
 alter table public.predictions enable row level security;
 
@@ -192,24 +186,6 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
-create policy "app_settings_select_approved"
-on public.app_settings
-for select
-to authenticated
-using (public.is_approved());
-
-create policy "app_settings_admin_all"
-on public.app_settings
-for all
-to authenticated
-using (public.is_admin())
-with check (public.is_admin());
-
-insert into public.app_settings (key, enabled) values
-  ('standings', true),
-  ('results', true)
-on conflict (key) do nothing;
-
 create policy "matches_select_approved"
 on public.matches
 for select
@@ -262,7 +238,7 @@ with check (
     from public.matches m
     join public.stages s on s.stage = m.stage
     where m.id = match_id
-      and s.open = true
+      and s.predictions_open = true
       and m.status = 'open'
       and m.finalized_at is null
       and (
@@ -295,7 +271,7 @@ with check (
     from public.matches m
     join public.stages s on s.stage = m.stage
     where m.id = match_id
-      and s.open = true
+      and s.predictions_open = true
       and m.status = 'open'
       and m.finalized_at is null
       and (
@@ -415,7 +391,7 @@ with check (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.open = true
+      and s.predictions_open = true
       and (g.locks_at is null or g.locks_at > now())
   )
 );
@@ -433,7 +409,7 @@ with check (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.open = true
+      and s.predictions_open = true
       and (g.locks_at is null or g.locks_at > now())
   )
 );
@@ -450,7 +426,7 @@ using (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.open = true
+      and s.predictions_open = true
       and (g.locks_at is null or g.locks_at > now())
   )
 );

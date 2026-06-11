@@ -1,6 +1,67 @@
 import { describe, expect, it } from "vitest";
 
-import { getInitials, podiumOrder } from "./standings";
+import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder } from "./standings";
+import type { GroupPrediction, Match, Prediction, Profile } from "./types";
+
+const profiles: Profile[] = [
+  { id: "u1", displayName: "Ana", email: "a@x.com", approved: true, role: "user" },
+  { id: "u2", displayName: "Beto", email: "b@x.com", approved: true, role: "user" },
+  { id: "u3", displayName: "Cata", email: "c@x.com", approved: false, role: "user" },
+];
+
+const matches: Match[] = [
+  { id: "m1", matchNo: 1, stage: "round32", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-01T00:00:00.000Z", homeScore: 1, awayScore: 0, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null },
+  { id: "m2", matchNo: 2, stage: "round16", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-02T00:00:00.000Z", homeScore: 2, awayScore: 1, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null },
+];
+
+function pred(id: string, userId: string, matchId: string, points: number, exact = false): Prediction {
+  return { id, userId, matchId, homeScore: 0, awayScore: 0, winnerTeamId: null, points, exactHit: exact, outcomeHit: !exact, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" };
+}
+
+const predictions: Prediction[] = [
+  pred("p1", "u1", "m1", 10, true), // round32
+  pred("p2", "u1", "m2", 5), // round16
+  pred("p3", "u2", "m1", 3), // round32
+];
+
+const groupPredictions: GroupPrediction[] = [
+  { id: "g1", userId: "u1", groupLabel: "A", firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", points: 8, exactPositions: 2, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-05-01T00:00:00.000Z" },
+];
+
+describe("getLeaderboard (revealed-scoped)", () => {
+  it("sums only revealed stages and excludes groups when not revealed", () => {
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32"]) });
+    const u1 = rows.find((r) => r.user.id === "u1")!;
+    const u2 = rows.find((r) => r.user.id === "u2")!;
+    expect(u1.points).toBe(10); // round32 only, no round16, no groups
+    expect(u2.points).toBe(3);
+    expect(rows.some((r) => r.user.id === "u3")).toBe(false); // unapproved excluded
+  });
+
+  it("includes groups points only when groups is revealed", () => {
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32", "groups"]) });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(18); // 10 + 8 groups
+  });
+
+  it("ranks by points then exact hits", () => {
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32", "round16"]) });
+    expect(rows[0].user.id).toBe("u1"); // 15 > 3
+    expect(rows[0].rank).toBe(1);
+  });
+});
+
+describe("getStageLeaderboard", () => {
+  it("returns only that stage's match points", () => {
+    const rows = getStageLeaderboard("round16", { predictions, profiles, groupPredictions, matches });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(5);
+    expect(rows.find((r) => r.user.id === "u2")!.points).toBe(0);
+  });
+
+  it("uses group predictions for the groups stage", () => {
+    const rows = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(8);
+  });
+});
 
 describe("getInitials", () => {
   it("uppercases the first letter of a single-word name", () => {

@@ -11,7 +11,6 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { inferWinner } from "@/lib/tournament";
 import type {
-  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
@@ -19,6 +18,7 @@ import type {
   Prediction,
   Profile,
   Stage,
+  StageFlag,
 } from "@/lib/types";
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
@@ -36,16 +36,6 @@ type FinalizeMatchInput = {
   homeScore: number;
   awayScore: number;
   winnerTeamId: string | null;
-};
-
-type UpdateStageInput = {
-  stage: Stage;
-  open: boolean;
-};
-
-type UpdateTabVisibilityInput = {
-  key: AppSettingKey;
-  enabled: boolean;
 };
 
 type CreateMatchInput = {
@@ -96,7 +86,7 @@ export async function savePredictionAction(input: SavePredictionInput) {
   const [profileResult, matchResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("matches").select("*").eq("id", input.matchId).single(),
-    supabase.from("stages").select("stage, open").eq("open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -150,7 +140,7 @@ export async function saveGroupPredictionAction(input: SaveGroupPredictionInput)
   const [profileResult, groupResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("groups").select("*").eq("group_label", input.groupLabel).single(),
-    supabase.from("stages").select("stage, open").eq("open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -297,51 +287,37 @@ export async function approveProfileAction(profileId: string) {
   return { ok: true, message: "Usuario aprobado." };
 }
 
-export async function updateStageOpenAction(input: UpdateStageInput) {
+type UpdateStageFlagInput = {
+  stage: Stage;
+  flag: StageFlag;
+  value: boolean;
+};
+
+const STAGE_FLAG_COLUMN: Record<StageFlag, "predictions_open" | "results_open" | "standings_open"> = {
+  predictions: "predictions_open",
+  results: "results_open",
+  standings: "standings_open",
+};
+
+export async function updateStageFlagAction(input: UpdateStageFlagInput) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Supabase no está configurado." };
 
   const admin = await requireAdmin(supabase);
   if (!admin.ok) return admin;
 
-  const { error } = await supabase
-    .from("stages")
-    .update({
-      open: input.open,
-      opened_at: input.open ? new Date().toISOString() : null,
-      opened_by: input.open ? admin.userId : null,
-    })
-    .eq("stage", input.stage);
+  const column = STAGE_FLAG_COLUMN[input.flag];
+  const update: Record<string, unknown> = { [column]: input.value };
+  if (input.flag === "predictions") {
+    update.opened_at = input.value ? new Date().toISOString() : null;
+    update.opened_by = input.value ? admin.userId : null;
+  }
 
+  const { error } = await supabase.from("stages").update(update).eq("stage", input.stage);
   if (error) return { ok: false, message: error.message };
 
   revalidatePath("/");
-  return { ok: true, message: input.open ? "Etapa habilitada." : "Etapa deshabilitada." };
-}
-
-export async function updateTabVisibilityAction(input: UpdateTabVisibilityInput) {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
-
-  const admin = await requireAdmin(supabase);
-  if (!admin.ok) return admin;
-
-  const { error } = await supabase
-    .from("app_settings")
-    .upsert(
-      {
-        key: input.key,
-        enabled: input.enabled,
-        updated_at: new Date().toISOString(),
-        updated_by: admin.userId,
-      },
-      { onConflict: "key" },
-    );
-
-  if (error) return { ok: false, message: error.message };
-
-  revalidatePath("/");
-  return { ok: true, message: input.enabled ? "Pestaña habilitada." : "Pestaña deshabilitada." };
+  return { ok: true, message: input.value ? "Etapa habilitada." : "Etapa deshabilitada." };
 }
 
 export async function createMatchAction(input: CreateMatchInput) {

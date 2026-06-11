@@ -1,10 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -13,42 +11,74 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stageLabels, stageOrder } from "@/lib/tournament";
-import { getLeaderboard, type LeaderboardRow, ui } from "@/lib/ui-tokens";
-import { getInitials, podiumOrder } from "@/lib/standings";
+import type { Stage } from "@/lib/types";
+import { ui } from "@/lib/ui-tokens";
+import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
 
+type StandingsView = "overall" | Stage;
+
 export function LeaderboardScreen() {
-  const { predictions, profiles, groupPredictions, currentUser } = useApp();
-  const rows = useMemo(
-    () => getLeaderboard(predictions, profiles, groupPredictions),
-    [predictions, profiles, groupPredictions],
+  const { predictions, profiles, groupPredictions, matches, standingsStages, currentUser } = useApp();
+  const [view, setView] = useState<StandingsView>("overall");
+
+  const stageTabs = useMemo(
+    () => stageOrder.filter((stage) => standingsStages.has(stage)),
+    [standingsStages],
   );
+
+  // If the selected stage stops being revealed (admin toggled it off), fall back
+  // to the accumulated view so the tab strip never shows a stale, missing tab.
+  useEffect(() => {
+    if (view !== "overall" && !standingsStages.has(view)) {
+      setView("overall");
+    }
+  }, [view, standingsStages]);
+
+  const rows = useMemo(() => {
+    if (view === "overall") {
+      return getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages });
+    }
+    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches });
+  }, [view, predictions, profiles, groupPredictions, matches, standingsStages]);
+
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
+
+  const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
 
   return (
     <Card className={cn(ui.panel, "p-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-lg font-black">Tabla general</h2>
-        <Select defaultValue={stageOrder[0]}>
-          <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Etapa">
-            <span className={ui.label}>Etapa</span>
-            <SelectValue className={ui.controlValue}>{stageLabels[stageOrder[0]]}</SelectValue>
+        <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
+          <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Vista">
+            <span className={ui.label}>Vista</span>
+            <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {stageOrder.map((stage) => (
+            <SelectItem value="overall">Acumulado</SelectItem>
+            {stageTabs.map((stage) => (
               <SelectItem key={stage} value={stage}>
                 {stageLabels[stage]}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Tabs className="hidden min-w-0 sm:block">
+        <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block">
           <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
-            {stageOrder.map((stage) => (
+            <TabsTrigger
+              value="overall"
+              className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
+            >
+              Acumulado
+            </TabsTrigger>
+            {stageTabs.map((stage) => (
               <TabsTrigger
                 key={stage}
                 value={stage}

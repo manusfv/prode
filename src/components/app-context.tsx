@@ -3,13 +3,13 @@
 import { createContext, useContext } from "react";
 import type { createMatchAction, finalizeGroupResultAction } from "@/app/actions";
 import type {
-  AppSettingKey,
   Group,
   GroupPrediction,
   Match,
   Prediction,
   Profile,
   Stage,
+  StageFlag,
   StageState,
   Team,
 } from "@/lib/types";
@@ -32,8 +32,8 @@ export type AppContextValue = {
   saveState: SaveState;
   dataMessage: string;
   openStages: Set<Stage>;
-  standingsVisible: boolean;
-  resultsVisible: boolean;
+  resultsStages: Set<Stage>;
+  standingsStages: Set<Stage>;
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
   updateGroupPrediction: (groupLabel: string, order: (string | null)[]) => void;
   openPredictionDrawer: (match: Match) => void;
@@ -44,8 +44,7 @@ export type AppContextValue = {
   updateGroupLocksAt: (groupLabel: string, locksAt: string | null) => Promise<void> | void;
   createMatch: (input: CreateMatchActionInput) => Promise<void> | void;
   deleteMatch: (matchId: string) => Promise<void> | void;
-  updateStageOpen: (stage: Stage, open: boolean) => Promise<void> | void;
-  updateTabVisibility: (key: AppSettingKey, enabled: boolean) => Promise<void> | void;
+  updateStageFlag: (stage: Stage, flag: StageFlag, value: boolean) => Promise<void> | void;
   approveProfile: (profileId: string) => Promise<void> | void;
   importMatchesCsv: (file: File | null) => Promise<void> | void;
   exportMatchesCsv: () => void;

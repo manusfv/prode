@@ -68,8 +68,12 @@ export type Prediction = {
 export type StageState = {
   stage: Stage;
   label: string;
-  open: boolean;
+  predictionsOpen: boolean;
+  resultsOpen: boolean;
+  standingsOpen: boolean;
 };
+
+export type StageFlag = "predictions" | "results" | "standings";
 
 export type PredictionDraft = {
   homeScore: number | null;
@@ -105,11 +109,4 @@ export type GroupPrediction = {
 // Ordered slots for positions 1°-4°; null until the user picks a team.
 export type GroupPredictionDraft = {
   order: [string | null, string | null, string | null, string | null];
-};
-
-export type AppSettingKey = "standings" | "results";
-
-export type AppSetting = {
-  key: AppSettingKey;
-  enabled: boolean;
 };

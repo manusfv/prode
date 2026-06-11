@@ -2,7 +2,7 @@
 
 import { CalendarClock, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,12 +12,10 @@ import {
   getMatchStatus,
   getTeamFlag,
   getTeamLabel,
-  stageLabels,
   stageOrder,
 } from "@/lib/tournament";
 import {
   getDefaultResultStage,
-  getStagesWithContent,
   sortComparison,
 } from "@/lib/results";
 import type {
@@ -27,7 +25,6 @@ import type {
   Prediction,
   Profile,
   Stage,
-  StageState,
   Team,
 } from "@/lib/types";
 import { compareGroups, ui } from "@/lib/ui-tokens";
@@ -37,20 +34,22 @@ import { useApp } from "@/components/app-context";
 import { StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
 export function ResultsScreen() {
-  const { matches, predictions, groups, groupPredictions, profiles, teams, now, currentUser } = useApp();
+  const { matches, predictions, groups, groupPredictions, profiles, teams, now, currentUser, resultsStages } = useApp();
 
-  const stageContent = useMemo(() => getStagesWithContent(matches, groups), [matches, groups]);
-  const [activeStage, setActiveStage] = useState<Stage>(() => getDefaultResultStage(matches, groups, now));
+  const [activeStage, setActiveStage] = useState<Stage>(() => {
+    const preferred = getDefaultResultStage(matches, groups, now);
+    if (resultsStages.has(preferred)) return preferred;
+    return stageOrder.find((stage) => resultsStages.has(stage)) ?? preferred;
+  });
 
-  const stageTabsState: StageState[] = useMemo(
-    () =>
-      stageOrder.map((stage) => ({
-        stage,
-        label: stageLabels[stage],
-        open: stageContent.has(stage),
-      })),
-    [stageContent],
-  );
+  // If the active stage stops being revealed (admin toggled off results_open),
+  // fall back to a still-revealed stage so a hidden stage's results aren't shown.
+  useEffect(() => {
+    if (resultsStages.size > 0 && !resultsStages.has(activeStage)) {
+      const fallback = stageOrder.find((stage) => resultsStages.has(stage));
+      if (fallback) setActiveStage(fallback);
+    }
+  }, [resultsStages, activeStage]);
 
   const approvedProfiles = useMemo(
     () => profiles.filter((profile) => profile.approved),
@@ -75,7 +74,7 @@ export function ResultsScreen() {
 
   return (
     <section className="grid gap-3.5">
-      <StageTabs activeStage={activeStage} stages={stageTabsState} onChange={setActiveStage} />
+      <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={setActiveStage} />
 
       <div className={cn(ui.panel, "flex items-end justify-between gap-3 p-4 max-lg:flex-col max-lg:items-start")}>
         <div>

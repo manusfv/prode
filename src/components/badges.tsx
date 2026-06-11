@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stageLabels, stageOrder } from "@/lib/tournament";
-import type { MatchStatus, Stage, StageState } from "@/lib/types";
+import type { MatchStatus, Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
@@ -37,17 +37,15 @@ export function StatusChip({ status, label }: { status: MatchStatus; label: stri
 
 export function StageTabs({
   activeStage,
-  stages,
+  enabledStages,
   onChange,
   showDisabled = true,
 }: {
   activeStage: Stage;
-  stages: StageState[];
+  enabledStages: Set<Stage>;
   onChange?: (stage: Stage) => void;
   showDisabled?: boolean;
 }) {
-  const openStageSet = new Set(stages.filter((stage) => stage.open).map((stage) => stage.stage));
-
   return (
     <>
       <Select value={activeStage} onValueChange={(value) => onChange?.(value as Stage)}>
@@ -60,7 +58,7 @@ export function StageTabs({
             <SelectItem
               key={stage}
               value={stage}
-              disabled={showDisabled ? !openStageSet.has(stage) : false}
+              disabled={showDisabled ? !enabledStages.has(stage) : false}
             >
               {stageLabels[stage]}
             </SelectItem>
@@ -77,7 +75,7 @@ export function StageTabs({
             <TabsTrigger
               key={stage}
               value={stage}
-              disabled={showDisabled ? !openStageSet.has(stage) : false}
+              disabled={showDisabled ? !enabledStages.has(stage) : false}
               className="!h-9 shrink-0 rounded-md px-3 text-sm font-extrabold text-app-muted transition-colors hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:min-w-20 sm:px-4"
             >
               {stageLabels[stage]}
