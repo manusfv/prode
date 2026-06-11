@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import {
@@ -31,6 +31,14 @@ export function LeaderboardScreen() {
     () => stageOrder.filter((stage) => standingsStages.has(stage)),
     [standingsStages],
   );
+
+  // If the selected stage stops being revealed (admin toggled it off), fall back
+  // to the accumulated view so the tab strip never shows a stale, missing tab.
+  useEffect(() => {
+    if (view !== "overall" && !standingsStages.has(view)) {
+      setView("overall");
+    }
+  }, [view, standingsStages]);
 
   const rows = useMemo(() => {
     if (view === "overall") {
