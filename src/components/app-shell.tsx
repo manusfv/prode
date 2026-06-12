@@ -68,6 +68,8 @@ import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
 
+import { LoadingScreen } from "@/components/auth/loading-screen";
+import { PendingApproval } from "@/components/auth/pending-approval";
 import {
   AppContext,
   type AppContextValue,
@@ -75,8 +77,6 @@ import {
   type FinalizeGroupResultInput,
   type SaveState,
 } from "./app-context";
-import { LoadingScreen } from "@/components/auth/loading-screen";
-import { PendingApproval } from "@/components/auth/pending-approval";
 import { PredictionDrawer } from "@/screens/predictions";
 import {
   DropdownMenu,
