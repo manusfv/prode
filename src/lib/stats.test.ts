@@ -187,17 +187,41 @@ describe("team loyalty facts", () => {
     gp("u1", "A", "arg"), gp("u2", "A", "arg"), // arg backed twice
     gp("u1", "B", "bra"),                        // bra backed once -> oveja negra
   ];
+  const noMatches = { preds: [] as Prediction[], matches: [] as Match[], revealed: new Set<string>() };
+  const loyalty = (over?: Partial<typeof noMatches>) => {
+    const { preds, matches, revealed } = { ...noMatches, ...over };
+    return buildTeamLoyaltyFacts(profiles, gps, preds, matches, teams, revealedGroups, revealed);
+  };
 
   it("termometro counts 1st-place backers and finds the family favorite", () => {
-    const { favoritoFamilia, termometro } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
+    const { favoritoFamilia, termometro } = loyalty();
     expect(favoritoFamilia.headline).toContain("Argentina");
     expect(termometro.find((t) => t.teamId === "arg")?.count).toBe(2);
   });
 
   it("oveja negra is a team backed by exactly one person", () => {
-    const { ovejaNegra } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
+    const { ovejaNegra } = loyalty();
     expect(ovejaNegra.available).toBe(true);
     expect(ovejaNegra.headline).toContain("Brasil");
+  });
+
+  it("mas-querido and mas-odiado rank teams by predicted wins and losses", () => {
+    const matchAB = match("m1", { homeTeamId: "arg", awayTeamId: "bra" });
+    const preds = [pred("u1", "m1", 2, 1), pred("u2", "m1", 3, 0)]; // both predict arg to win
+    const { masQuerido, masOdiado } = loyalty({ preds, matches: [matchAB], revealed: new Set(["m1"]) });
+    expect(masQuerido.headline).toContain("Argentina");
+    expect(masQuerido.teamSeries?.find((t) => t.teamId === "arg")?.count).toBe(2);
+    expect(masOdiado.headline).toContain("Brasil");
+    expect(masOdiado.teamSeries?.find((t) => t.teamId === "bra")?.count).toBe(2);
+  });
+
+  it("apuesta-audaz highlights each person's loneliest 1st-place pick", () => {
+    const { apuestaAudaz } = loyalty();
+    expect(apuestaAudaz.available).toBe(true);
+    // u1 picked bra 1st in group B alone; u2 shared arg with u1 in A
+    expect(apuestaAudaz.winner?.user.displayName).toBe("Ana");
+    expect(apuestaAudaz.winner?.displayValue).toContain("Brasil");
+    expect(apuestaAudaz.series).toHaveLength(2);
   });
 });
 

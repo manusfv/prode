@@ -10,7 +10,7 @@ export type FactId =
   | "optimista" | "candado" | "scoreline-favorito" | "sin-empates"
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
-  | "favorito-familia" | "oveja-negra" | "equipo-cabecera"
+  | "favorito-familia" | "oveja-negra" | "mas-querido" | "mas-odiado" | "apuesta-audaz"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 export type PersonValue = {
@@ -34,6 +34,7 @@ export type Fact = {
   series: PersonValue[];    // per-person data (empty when unavailable)
   unitSuffix?: string;
   headline?: string;        // overrides the winner's name in the card (e.g. a team, not a person)
+  teamSeries?: TeamTally[]; // team-based chart data (for thermometer-style facts)
 };
 
 export type StatsInput = {
@@ -304,27 +305,32 @@ export type TeamTally = { teamId: string; name: string; flag: string; count: num
 export function buildTeamLoyaltyFacts(
   profiles: Profile[],
   groupPredictions: GroupPrediction[],
+  predictions: Prediction[],
+  matches: Match[],
   teams: Team[],
   revealedGroups: Set<string>,
+  revealedMatches: Set<string>,
 ) {
   const approved = approvedProfiles(profiles);
   const approvedIds = new Set(approved.map((p) => p.id));
   const teamById = new Map(teams.map((t) => [t.id, t]));
+  const toTally = (counts: Map<string, number>): TeamTally[] =>
+    [...counts.entries()]
+      .map(([teamId, count]) => ({
+        teamId,
+        name: teamById.get(teamId)?.name ?? teamId,
+        flag: teamById.get(teamId)?.flag ?? "🏳️",
+        count,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
   const revealed = groupPredictions.filter(
     (g) => revealedGroups.has(g.groupLabel) && approvedIds.has(g.userId) && g.firstTeamId,
   );
 
   const counts = new Map<string, number>();
   for (const g of revealed) counts.set(g.firstTeamId!, (counts.get(g.firstTeamId!) ?? 0) + 1);
-
-  const termometro: TeamTally[] = [...counts.entries()]
-    .map(([teamId, count]) => ({
-      teamId,
-      name: teamById.get(teamId)?.name ?? teamId,
-      flag: teamById.get(teamId)?.flag ?? "🏳️",
-      count,
-    }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const termometro = toTally(counts);
 
   const available = termometro.length > 0;
   const hint = "Se revela cuando cierren los grupos";
@@ -338,7 +344,7 @@ export function buildTeamLoyaltyFacts(
     winner: top
       ? { user: approved[0]!, value: top.count, displayValue: `${top.count} ${top.count === 1 ? "voto" : "votos"}` }
       : undefined,
-    coWinners: [], series: [],
+    coWinners: [], series: [], teamSeries: termometro,
   };
 
   const lone = [...termometro].reverse().find((t) => t.count === 1);
@@ -350,28 +356,85 @@ export function buildTeamLoyaltyFacts(
     winner: lone
       ? { user: approved[0]!, value: 1, displayValue: "La banca una sola persona" }
       : undefined,
-    coWinners: [], series: [],
+    coWinners: [], series: [], teamSeries: termometro,
   };
 
-  // equipo-cabecera: per person, the team they most often place 1st.
-  const cabecera: PersonValue[] = [];
+  // mas-querido / mas-odiado: across revealed match predictions, count how many
+  // times each team was predicted to win vs. lose.
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+  const wins = new Map<string, number>();
+  const losses = new Map<string, number>();
+  for (const p of predictions) {
+    if (!revealedMatches.has(p.matchId) || !approvedIds.has(p.userId)) continue;
+    const m = matchById.get(p.matchId);
+    if (!m || !m.homeTeamId || !m.awayTeamId) continue;
+    const outcome = predictedOutcome(p.homeScore, p.awayScore);
+    if (outcome === "home") {
+      wins.set(m.homeTeamId, (wins.get(m.homeTeamId) ?? 0) + 1);
+      losses.set(m.awayTeamId, (losses.get(m.awayTeamId) ?? 0) + 1);
+    } else if (outcome === "away") {
+      wins.set(m.awayTeamId, (wins.get(m.awayTeamId) ?? 0) + 1);
+      losses.set(m.homeTeamId, (losses.get(m.homeTeamId) ?? 0) + 1);
+    }
+  }
+  const lovedTeams = toTally(wins);
+  const hatedTeams = toTally(losses);
+  const matchHint = "Se revela cuando cierren los partidos";
+
+  const loved = lovedTeams[0];
+  const masQuerido: Fact = {
+    id: "mas-querido", category: "fidelidad", title: "El más querido", emoji: "💚",
+    blurb: "El equipo que más veces pronosticaron como ganador", requires: "predictions",
+    available: Boolean(loved), unavailableHint: matchHint, chartKind: "thermometer", unitSuffix: "triunfos",
+    headline: loved ? `${loved.flag} ${loved.name}` : undefined,
+    winner: loved
+      ? { user: approved[0]!, value: loved.count, displayValue: `${loved.count} ${loved.count === 1 ? "victoria" : "victorias"} pronosticadas` }
+      : undefined,
+    coWinners: [], series: [], teamSeries: lovedTeams,
+  };
+
+  const hated = hatedTeams[0];
+  const masOdiado: Fact = {
+    id: "mas-odiado", category: "fidelidad", title: "El más odiado", emoji: "💔",
+    blurb: "El equipo que más veces pronosticaron como perdedor", requires: "predictions",
+    available: Boolean(hated), unavailableHint: matchHint, chartKind: "thermometer", unitSuffix: "derrotas",
+    headline: hated ? `${hated.flag} ${hated.name}` : undefined,
+    winner: hated
+      ? { user: approved[0]!, value: hated.count, displayValue: `${hated.count} ${hated.count === 1 ? "derrota" : "derrotas"} pronosticadas` }
+      : undefined,
+    coWinners: [], series: [], teamSeries: hatedTeams,
+  };
+
+  // apuesta-audaz: per person, their 1st-place group pick that the fewest others share.
+  const audaz: PersonValue[] = [];
   for (const user of approved) {
     const mine = revealed.filter((g) => g.userId === user.id);
     if (mine.length === 0) continue;
-    const tally = new Map<string, number>();
-    for (const g of mine) tally.set(g.firstTeamId!, (tally.get(g.firstTeamId!) ?? 0) + 1);
-    const [teamId, count] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]!;
-    const t = teamById.get(teamId);
-    cabecera.push({ user, value: count, displayValue: `${t?.flag ?? ""} ${t?.name ?? teamId}` });
+    let best: { teamId: string; others: number } | null = null;
+    for (const g of mine) {
+      const others = revealed.filter(
+        (o) => o.groupLabel === g.groupLabel && o.userId !== user.id && o.firstTeamId === g.firstTeamId,
+      ).length;
+      if (best === null || others < best.others) best = { teamId: g.firstTeamId!, others };
+    }
+    if (!best) continue;
+    const t = teamById.get(best.teamId);
+    const boldness = (approved.length - 1) - best.others; // alone with the pick => max
+    const shareText = best.others === 0
+      ? "nadie más la eligió"
+      : `${best.others} ${best.others === 1 ? "más la eligió" : "más la eligieron"}`;
+    audaz.push({ user, value: boldness, displayValue: `${t?.flag ?? ""} ${t?.name ?? best.teamId} · ${shareText}` });
   }
-  const equipoCabecera: Fact = {
-    id: "equipo-cabecera", category: "fidelidad", title: "Tu equipo de cabecera", emoji: "❤️",
-    blurb: "El equipo que cada uno banca para salir 1º", requires: "predictions",
-    available: cabecera.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
-    winner: undefined, coWinners: [], series: cabecera,
+  audaz.sort((a, b) => b.value - a.value);
+  const boldest = audaz[0];
+  const apuestaAudaz: Fact = {
+    id: "apuesta-audaz", category: "fidelidad", title: "La apuesta más audaz", emoji: "🎲",
+    blurb: "El pronóstico de 1º de grupo que menos gente comparte", requires: "predictions",
+    available: audaz.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+    winner: boldest, coWinners: [], series: audaz,
   };
 
-  return { favoritoFamilia, ovejaNegra, equipoCabecera, termometro };
+  return { favoritoFamilia, ovejaNegra, masQuerido, masOdiado, apuestaAudaz, termometro };
 }
 
 export function buildBehaviorFacts(
@@ -538,7 +601,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const optimism = buildOptimismFacts(profiles, predictions, revealed);
   const consensus = buildConsensusFacts(profiles, predictions, revealed);
   const accuracy = buildAccuracyFacts(profiles, predictions, matches, finalized);
-  const loyalty = buildTeamLoyaltyFacts(profiles, groupPredictions, teams, revealedGroups);
+  const loyalty = buildTeamLoyaltyFacts(profiles, groupPredictions, predictions, matches, teams, revealedGroups, revealed);
   const behavior = buildBehaviorFacts(profiles, predictions, matches, revealed);
   const scoreline = buildScorelineHistogram(predictions, revealed);
   const similarity = buildSimilarityMatrix(profiles, predictions, revealed);
@@ -557,7 +620,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     },
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
     accuracy.francotirador, accuracy.racha, accuracy.trampa,
-    loyalty.favoritoFamilia, loyalty.ovejaNegra, loyalty.equipoCabecera,
+    loyalty.favoritoFamilia, loyalty.ovejaNegra, loyalty.masQuerido, loyalty.masOdiado, loyalty.apuestaAudaz,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
   ];
 

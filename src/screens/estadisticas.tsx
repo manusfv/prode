@@ -49,7 +49,7 @@ export function EstadisticasScreen() {
       return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={fact.winner?.user.id} />;
     }
     if (fact.chartKind === "histogram") return <Histogram bins={bundle.scoreline.bins} />;
-    if (fact.chartKind === "thermometer") return <TeamThermometer teams={bundle.termometro} />;
+    if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} />;
     if (fact.chartKind === "matchSplit") {
       const matchId = fact.id === "trampa" ? bundle.trampaMatchId : bundle.dividedMatchId;
       const match = matchId ? matchById.get(matchId) : undefined;
