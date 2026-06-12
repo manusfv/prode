@@ -3,7 +3,7 @@ import type {
 } from "./types";
 import { getGroupStatus, getMatchStatus } from "./tournament";
 
-export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit";
+export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit" | "thermometer";
 export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento";
 
 export type FactId =
@@ -332,7 +332,7 @@ export function buildTeamLoyaltyFacts(
   const favoritoFamilia: Fact = {
     id: "favorito-familia", category: "fidelidad", title: "El favorito de la familia", emoji: "👑",
     blurb: "El equipo que más veces sale 1º en los pronósticos", requires: "predictions",
-    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "votos",
+    available, unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
     winner: top
       ? { user: approved[0]!, value: top.count, displayValue: `${top.flag} ${top.name} · ${top.count} votos` }
       : undefined,
@@ -343,7 +343,7 @@ export function buildTeamLoyaltyFacts(
   const ovejaNegra: Fact = {
     id: "oveja-negra", category: "fidelidad", title: "La oveja negra", emoji: "🐐",
     blurb: "Un equipo en el que cree una sola persona", requires: "predictions",
-    available: Boolean(lone), unavailableHint: hint, chartKind: "bar", unitSuffix: "votos",
+    available: Boolean(lone), unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
     winner: lone
       ? { user: approved[0]!, value: 1, displayValue: `${lone.flag} ${lone.name}` }
       : undefined,
