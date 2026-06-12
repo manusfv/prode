@@ -79,6 +79,7 @@ const routeTabs: Record<string, AppRoute> = {
   "/resultados": "results",
   "/reglas": "rules",
   "/admin": "admin",
+  "/cuenta": "account",
 };
 
 function activeTabFromPath(pathname: string): AppRoute {

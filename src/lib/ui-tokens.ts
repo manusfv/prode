@@ -28,6 +28,7 @@ export const tabRoutes = {
   results: "/resultados",
   rules: "/reglas",
   admin: "/admin",
+  account: "/cuenta",
 } as const;
 
 export type AppRoute = keyof typeof tabRoutes;
@@ -38,4 +39,5 @@ export const pageTitles: Record<AppRoute, string> = {
   results: "Resultados",
   rules: "Reglas",
   admin: "Panel admin",
+  account: "Mi cuenta",
 };
