@@ -51,6 +51,7 @@ import { compareGroups, ui } from "@/lib/ui-tokens";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
+import { StatsTeaser } from "@/components/stats/stats-teaser";
 import { useApp } from "@/components/app-context";
 import { SaveStatus, StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
@@ -230,6 +231,7 @@ export function PredictionsScreen() {
       <aside className="sticky top-5 grid gap-2.5 max-lg:hidden">
         <SummaryPanel points={me?.points ?? 0} rank={me?.rank ?? 1} missingCount={missingCount} />
         <LeaderboardPreview rows={leaderboard.slice(0, 4)} onOpen={() => router.push("/tabla")} />
+        <StatsTeaser />
       </aside>
       <GroupDrawer
         group={drawerGroup}
