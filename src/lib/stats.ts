@@ -108,7 +108,7 @@ export function buildOptimismFacts(
   }
 
   const available = avgGoals.length > 0;
-  const hint = "Se revela cuando cierren los partidos";
+  const hint = "Se revela cuando arranca cada partido";
   const sortDesc = (s: PersonValue[]) => [...s].sort((a, b) => b.value - a.value);
   const sortAsc = (s: PersonValue[]) => [...s].sort((a, b) => a.value - b.value);
 
@@ -202,7 +202,7 @@ export function buildConsensusFacts(
   }
 
   const available = contrarianRate.length > 0;
-  const hint = "Se revela cuando cierren los partidos";
+  const hint = "Se revela cuando arranca cada partido";
   const reb = pickWinner(contrarianRate, (a, b) => a > b);
   const mon = pickWinner(contrarianRate, (a, b) => a < b);
 
@@ -273,7 +273,7 @@ export function buildAccuracyFacts(
   }
 
   const available = exactPct.length > 0;
-  const hint = "Se revela cuando haya resultados cargados";
+  const hint = "Se revela a medida que se cargan los resultados";
   const fr = pickWinner(exactPct, (a, b) => a > b);
   const ra = pickWinner(streak, (a, b) => a > b);
 
@@ -334,7 +334,7 @@ export function buildTeamLoyaltyFacts(
   const termometro = toTally(counts);
 
   const available = termometro.length > 0;
-  const hint = "Se revela cuando cierren los grupos";
+  const hint = "Se revela cuando cierra el grupo";
 
   const top = termometro[0];
   const favoritoFamilia: Fact = {
@@ -380,7 +380,7 @@ export function buildTeamLoyaltyFacts(
   }
   const lovedTeams = toTally(wins);
   const hatedTeams = toTally(losses);
-  const matchHint = "Se revela cuando cierren los partidos";
+  const matchHint = "Se revela cuando arranca cada partido";
 
   const loved = lovedTeams[0];
   const masQuerido: Fact = {
@@ -468,7 +468,7 @@ export function buildBehaviorFacts(
   }
 
   const available = leadHours.length > 0;
-  const hint = "Se revela cuando cierren los partidos";
+  const hint = "Se revela cuando arranca cada partido";
   const mad = pickWinner(leadHours, (a, b) => a > b);
   const last = pickWinner(leadHours, (a, b) => a < b);
   const ind = pickWinner(edits, (a, b) => a > b);
@@ -669,7 +669,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     {
       id: "scoreline-favorito", category: "optimismo", title: "Scoreline favorito", emoji: "📊",
       blurb: "El resultado más pronosticado por la familia", requires: "predictions",
-      available: scoreline.total > 0, unavailableHint: "Se revela cuando cierren los partidos",
+      available: scoreline.total > 0, unavailableHint: "Se revela cuando arranca cada partido",
       chartKind: "histogram",
       winner: scoreline.mode
         ? { user: profiles[0]!, value: scoreline.mode.count, displayValue: `${scoreline.mode.label} (${scoreline.mode.count}x)` }

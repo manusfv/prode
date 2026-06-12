@@ -89,33 +89,35 @@ export function EstadisticasScreen() {
             <p className="mb-3 text-xs font-bold text-app-muted">Puntos acumulados por fecha</p>
             {bundle.pointsRace.data.length > 0
               ? <LineStat data={bundle.pointsRace.data} series={raceSeries} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando se finalicen los partidos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela a medida que se cargan los resultados.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Tabla de puntos</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Puntaje total acumulado de cada uno</p>
             {bundle.pointsTotals.some((p) => p.value > 0)
               ? <BarStat series={bundle.pointsTotals} suffix="pts" highlightId={currentUser.id} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando se finalicen los partidos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela a medida que se cargan los resultados.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">¿Quién piensa igual?</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Coincidencia de pronósticos entre la familia</p>
-            <SimilarityGrid matrix={bundle.similarity} />
+            {bundle.hero.predictionsLoaded > 0
+              ? <SimilarityGrid matrix={bundle.similarity} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
             {bundle.termometro.length > 0
               ? <TeamThermometer teams={bundle.termometro} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los grupos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se muestra a medida que cierran los grupos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
             {bundle.scoreline.total > 0
               ? <Histogram bins={bundle.scoreline.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los partidos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
           </Card>
         </div>
       </section>
