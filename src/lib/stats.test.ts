@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
@@ -197,5 +197,34 @@ describe("team loyalty facts", () => {
     const { ovejaNegra } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
     expect(ovejaNegra.available).toBe(true);
     expect(ovejaNegra.winner?.displayValue).toContain("Brasil");
+  });
+});
+
+describe("behavior facts", () => {
+  function tpred(userId: string, matchId: string, created: string, updated: string): Prediction {
+    return { ...pred(userId, matchId, 1, 0), createdAt: created, updatedAt: updated };
+  }
+  function kmatch(id: string, kickoff: string): Match {
+    return { ...({} as Match), id, matchNo: 1, stage: "round16", homeTeamId: "arg", awayTeamId: "fra",
+      kickoffUtc: kickoff, status: "open", homeScore: null, awayScore: null, winnerTeamId: null,
+      finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null };
+  }
+  const matches = [kmatch("m1", "2026-06-10T00:00:00.000Z")];
+  const revealed = new Set(["m1"]);
+  // Ana updated 2 days early; Beto updated 1h before kickoff. Beto edited (created != updated).
+  const preds = [
+    tpred("u1", "m1", "2026-06-08T00:00:00.000Z", "2026-06-08T00:00:00.000Z"),
+    tpred("u2", "m1", "2026-06-01T00:00:00.000Z", "2026-06-09T23:00:00.000Z"),
+  ];
+
+  it("madrugador has the largest average lead time", () => {
+    const { madrugador } = buildBehaviorFacts(profiles, preds, matches, revealed);
+    expect(madrugador.winner?.user.id).toBe("u1");
+  });
+
+  it("indeciso counts edited predictions", () => {
+    const { indeciso } = buildBehaviorFacts(profiles, preds, matches, revealed);
+    expect(indeciso.winner?.user.id).toBe("u2");
+    expect(indeciso.winner?.value).toBe(1);
   });
 });

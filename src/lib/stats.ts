@@ -371,6 +371,66 @@ export function buildTeamLoyaltyFacts(
   return { favoritoFamilia, ovejaNegra, equipoCabecera, termometro };
 }
 
+export function buildBehaviorFacts(
+  profiles: Profile[],
+  predictions: Prediction[],
+  matches: Match[],
+  revealed: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
+
+  const leadHours: PersonValue[] = [];
+  const edits: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions.filter((p) => p.userId === user.id && revealed.has(p.matchId));
+    if (mine.length === 0) continue;
+    let totalLead = 0;
+    let edited = 0;
+    for (const p of mine) {
+      const kickoff = kickoffById.get(p.matchId);
+      if (kickoff) {
+        const hrs = (new Date(kickoff).getTime() - new Date(p.updatedAt).getTime()) / 3_600_000;
+        totalLead += hrs;
+      }
+      if (new Date(p.updatedAt).getTime() > new Date(p.createdAt).getTime()) edited += 1;
+    }
+    const avgLead = Math.round(totalLead / mine.length);
+    leadHours.push({ user, value: avgLead, displayValue: `${avgLead} h de anticipación` });
+    edits.push({ user, value: edited, displayValue: `${edited} ediciones` });
+  }
+
+  const available = leadHours.length > 0;
+  const hint = "Se revela cuando cierren los partidos";
+  const mad = pickWinner(leadHours, (a, b) => a > b);
+  const last = pickWinner(leadHours, (a, b) => a < b);
+  const ind = pickWinner(edits, (a, b) => a > b);
+
+  const madrugador: Fact = {
+    id: "madrugador", category: "comportamiento", title: "El madrugador", emoji: "🌅",
+    blurb: "Carga sus pronósticos con más anticipación", requires: "predictions",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "h",
+    winner: mad.winner, coWinners: mad.coWinners,
+    series: [...leadHours].sort((a, b) => b.value - a.value),
+  };
+  const ultimoMinuto: Fact = {
+    id: "ultimo-minuto", category: "comportamiento", title: "El del último minuto", emoji: "⏰",
+    blurb: "Carga sobre la hora del cierre", requires: "predictions",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "h",
+    winner: last.winner, coWinners: last.coWinners,
+    series: [...leadHours].sort((a, b) => a.value - b.value),
+  };
+  const indeciso: Fact = {
+    id: "indeciso", category: "comportamiento", title: "El indeciso", emoji: "🤔",
+    blurb: "El que más veces cambió de opinión", requires: "predictions",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+    winner: ind.winner, coWinners: ind.coWinners,
+    series: [...edits].sort((a, b) => b.value - a.value),
+  };
+
+  return { madrugador, ultimoMinuto, indeciso };
+}
+
 export type HistogramBin = { label: string; count: number };
 
 export function buildScorelineHistogram(predictions: Prediction[], revealed: Set<string>) {
