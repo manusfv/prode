@@ -219,8 +219,12 @@ chart.
   - histogram bucketing,
   - **privacy filter**: open matches excluded from group facts but included in
     the personal card; finalized-only gating for accuracy facts.
-- A render smoke test for `EstadisticasScreen` with seed data (renders without
-  crashing, shows locked teasers when nothing is finalized).
+- **UI verification:** the codebase tests pure logic only (vitest `node`
+  environment, `src/**/*.test.ts`); there are no component render tests. The
+  React screen and chart components are therefore verified via `npm run build`,
+  `npm run lint`, and manual check against seed data — not a render test (which
+  the current vitest config would not pick up). All non-trivial derivation lives
+  in `stats.ts` so it is covered by `.test.ts` units.
 
 ## Open implementation notes
 
