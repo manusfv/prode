@@ -213,6 +213,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     await refreshSupabaseData();
   }
 
+  async function sendPasswordReset() {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase || !authEmail) {
+      setAuthMessage("Ingresá tu email para recuperar la contraseña.");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/restablecer`,
+    });
+    if (error) {
+      setAuthMessage(error.message);
+      return;
+    }
+    setAuthMessage("Si el email existe, te enviamos un enlace para restablecer la contraseña.");
+  }
+
   async function signOut() {
     const supabase = createSupabaseBrowserClient();
     await supabase?.auth.signOut();
@@ -510,6 +526,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onThemeChange={setTheme}
         onModeChange={setAuthMode}
         onSubmitAuth={submitAuth}
+        onRecoverPassword={sendPasswordReset}
       />
     );
   }
@@ -532,6 +549,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onThemeChange={setTheme}
         onModeChange={setAuthMode}
         onSubmitAuth={submitAuth}
+        onRecoverPassword={sendPasswordReset}
       />
     );
   }

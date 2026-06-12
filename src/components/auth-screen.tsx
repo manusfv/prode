@@ -83,6 +83,7 @@ export function AuthScreen({
   onThemeChange,
   onModeChange,
   onSubmitAuth,
+  onRecoverPassword,
   onRefresh,
   onSignOut,
 }: {
@@ -102,6 +103,7 @@ export function AuthScreen({
   onThemeChange: (theme: Theme) => void;
   onModeChange: (value: "login" | "signup") => void;
   onSubmitAuth: () => Promise<void> | void;
+  onRecoverPassword?: () => Promise<void> | void;
   onRefresh?: () => Promise<void> | void;
   onSignOut?: () => Promise<void> | void;
 }) {
@@ -220,6 +222,16 @@ export function AuthScreen({
                 <Button className="mt-2 min-h-12 rounded-lg bg-app-brand text-app-brand-fg text-base font-black shadow-lg hover:bg-app-brand" disabled={Boolean(pendingAction)} onClick={() => runAuthAction("submit", onSubmitAuth)}>
                   <LoadingLabel loading={pendingAction === "submit"} label={authMode === "login" ? "Entrar" : "Crear cuenta"} />
                 </Button>
+                {authMode === "login" && onRecoverPassword && (
+                  <button
+                    type="button"
+                    className="mt-1 justify-self-start text-left text-xs font-bold text-app-brand hover:underline"
+                    disabled={Boolean(pendingAction)}
+                    onClick={() => onRecoverPassword()}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
               </div>
 
               {authMessage && <small className="auth-message">{authMessage}</small>}
