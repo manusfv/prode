@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BarChart3,
   CalendarClock,
   ChevronRight,
   ChevronsUpDown,
@@ -96,6 +97,7 @@ const routeTabs: Record<string, AppRoute> = {
   "/pronosticos": "predictions",
   "/tabla": "leaderboard",
   "/resultados": "results",
+  "/estadisticas": "stats",
   "/reglas": "rules",
   "/admin": "admin",
   "/cuenta": "account",
@@ -668,6 +670,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
