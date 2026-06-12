@@ -2,6 +2,7 @@ import type {
   Group, GroupPrediction, Match, Prediction, Profile, Stage, Team,
 } from "./types";
 import { getGroupStatus, getMatchStatus } from "./tournament";
+import { getLeaderboard } from "./standings";
 
 export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit" | "thermometer";
 export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento";
@@ -581,6 +582,58 @@ function buildPersonalCard(
   return { hasData: true, favoriteScoreline, avgGoals, groupAvgGoals, exactPct };
 }
 
+const ES_MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+/** "2026-06-10" -> "10 Jun" (locale-independent). */
+function formatDayLabel(isoDate: string): string {
+  const [, m, d] = isoDate.split("-");
+  return `${Number(d)} ${ES_MONTHS[Number(m) - 1] ?? m}`;
+}
+
+export type PointsRace = {
+  data: Array<Record<string, number | string>>;
+  keys: string[]; // one line per approved person (display name)
+};
+
+/** Cumulative match points per person across the dates matches were played. */
+export function buildPointsRace(
+  profiles: Profile[],
+  predictions: Prediction[],
+  matches: Match[],
+  finalized: Set<string>,
+): PointsRace {
+  const approved = approvedProfiles(profiles);
+  const finalMatches = matches
+    .filter((m) => finalized.has(m.id))
+    .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
+  if (finalMatches.length === 0 || approved.length === 0) return { data: [], keys: [] };
+
+  const dateKeys: string[] = [];
+  const byDate = new Map<string, Match[]>();
+  for (const m of finalMatches) {
+    const key = m.kickoffUtc.slice(0, 10);
+    if (!byDate.has(key)) { byDate.set(key, []); dateKeys.push(key); }
+    byDate.get(key)!.push(m);
+  }
+
+  const pointsByUserMatch = new Map<string, number>();
+  for (const p of predictions) pointsByUserMatch.set(`${p.userId}:${p.matchId}`, p.points ?? 0);
+
+  const cumulative = new Map<string, number>(approved.map((u) => [u.id, 0]));
+  const data = dateKeys.map((key) => {
+    for (const m of byDate.get(key)!) {
+      for (const u of approved) {
+        cumulative.set(u.id, cumulative.get(u.id)! + (pointsByUserMatch.get(`${u.id}:${m.id}`) ?? 0));
+      }
+    }
+    const row: Record<string, number | string> = { stage: formatDayLabel(key) };
+    for (const u of approved) row[u.displayName] = cumulative.get(u.id)!;
+    return row;
+  });
+
+  return { data, keys: approved.map((u) => u.displayName) };
+}
+
 export type StatsBundle = {
   hero: { goalsDreamed: number; predictionsLoaded: number; groupExactPct: number; dividedMatchId?: string };
   personal: PersonalCard;
@@ -588,12 +641,14 @@ export type StatsBundle = {
   termometro: TeamTally[];
   scoreline: ReturnType<typeof buildScorelineHistogram>;
   similarity: SimilarityMatrix;
+  pointsRace: PointsRace;
+  pointsTotals: PersonValue[];
   dividedMatchId?: string;
   trampaMatchId?: string;
 };
 
 export function computeStats(input: StatsInput): StatsBundle {
-  const { profiles, predictions, groupPredictions, matches, groups, teams, currentUserId, now } = input;
+  const { profiles, predictions, groupPredictions, matches, groups, teams, currentUserId, standingsStages, now } = input;
   const revealed = revealedMatchIds(matches, now);
   const finalized = finalizedMatchIds(matches, now);
   const revealedGroups = revealedGroupLabels(groups, now);
@@ -605,6 +660,9 @@ export function computeStats(input: StatsInput): StatsBundle {
   const behavior = buildBehaviorFacts(profiles, predictions, matches, revealed);
   const scoreline = buildScorelineHistogram(predictions, revealed);
   const similarity = buildSimilarityMatrix(profiles, predictions, revealed);
+  const pointsRace = buildPointsRace(profiles, predictions, matches, finalized);
+  const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, standingsStages })
+    .map((row) => ({ user: row.user, value: row.points, displayValue: `${row.points} pts` }));
 
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
@@ -646,6 +704,8 @@ export function computeStats(input: StatsInput): StatsBundle {
     termometro: loyalty.termometro,
     scoreline,
     similarity,
+    pointsRace,
+    pointsTotals,
     dividedMatchId: consensus.dividedMatchId,
     trampaMatchId: accuracy.trampaMatchId,
   };

@@ -4,12 +4,19 @@ import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
-import { BarStat, Histogram, MatchSplit, SimilarityGrid, TeamThermometer } from "@/components/stats/charts";
+import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, TeamThermometer } from "@/components/stats/charts";
+import { chartColors } from "@/components/ui/chart";
 import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
 import { getTeamLabel } from "@/lib/tournament";
 import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
+
+// Distinct line colors for the points race (one per person).
+const RACE_PALETTE = [
+  chartColors.green, chartColors.blue, chartColors.amber, chartColors.brand,
+  "#a855f7", "#ec4899", "#14b8a6", "#ef4444",
+];
 
 const CATEGORY_LABELS: Record<FactCategory, string> = {
   optimismo: "Optimismo y goles",
@@ -67,10 +74,51 @@ export function EstadisticasScreen() {
     return null;
   }
 
+  const raceSeries = bundle.pointsRace.keys.map((key, i) => ({ key, color: RACE_PALETTE[i % RACE_PALETTE.length]! }));
+
   return (
     <div className="grid gap-4">
       <HeroRow bundle={bundle} />
       <PersonalCardView card={bundle.personal} userName={currentUser.displayName} />
+
+      <section className="grid gap-2.5">
+        <h2 className={cn(ui.label, "text-sm")}>Gráficos</h2>
+        <div className="grid gap-2.5 lg:grid-cols-2">
+          <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
+            <h3 className="m-0 text-sm font-black">La carrera</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Puntos acumulados por fecha</p>
+            {bundle.pointsRace.data.length > 0
+              ? <LineStat data={bundle.pointsRace.data} series={raceSeries} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se finalicen los partidos.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">Tabla de puntos</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Puntaje total acumulado de cada uno</p>
+            {bundle.pointsTotals.some((p) => p.value > 0)
+              ? <BarStat series={bundle.pointsTotals} suffix="pts" highlightId={currentUser.id} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se finalicen los partidos.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">¿Quién piensa igual?</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Coincidencia de pronósticos entre la familia</p>
+            <SimilarityGrid matrix={bundle.similarity} />
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
+            {bundle.termometro.length > 0
+              ? <TeamThermometer teams={bundle.termometro} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los grupos.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
+            {bundle.scoreline.total > 0
+              ? <Histogram bins={bundle.scoreline.bins} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los partidos.</p>}
+          </Card>
+        </div>
+      </section>
 
       {CATEGORY_ORDER.map((category) => {
         const facts = factsByCategory.get(category) ?? [];
@@ -84,31 +132,6 @@ export function EstadisticasScreen() {
           </section>
         );
       })}
-
-      <section className="grid gap-2.5">
-        <h2 className={cn(ui.label, "text-sm")}>Gráficos</h2>
-        <div className="grid gap-2.5 lg:grid-cols-2">
-          <Card className={cn(ui.panel, "p-4")}>
-            <h3 className="m-0 text-sm font-black">¿Quién piensa igual?</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Coincidencia de pronósticos entre la familia</p>
-            <SimilarityGrid matrix={bundle.similarity} />
-          </Card>
-          <Card className={cn(ui.panel, "p-4")}>
-            <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
-            {bundle.termometro.length > 0
-              ? <TeamThermometer teams={bundle.termometro} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los grupos.</p>}
-          </Card>
-          <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
-            <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
-            {bundle.scoreline.total > 0
-              ? <Histogram bins={bundle.scoreline.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando cierren los partidos.</p>}
-          </Card>
-        </div>
-      </section>
 
       <StatDrawer fact={activeFact} onClose={() => setActiveFact(null)}>
         {activeFact && (

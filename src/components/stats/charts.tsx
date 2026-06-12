@@ -2,7 +2,7 @@
 
 import {
   Bar, BarChart, Cell, XAxis, YAxis, Tooltip, LabelList,
-  Line, LineChart, CartesianGrid,
+  Line, LineChart, CartesianGrid, Legend,
 } from "recharts";
 
 import { ChartContainer, chartColors } from "@/components/ui/chart";
@@ -140,6 +140,7 @@ export function LineStat({ data, series }: { data: Array<Record<string, number |
         <XAxis dataKey="stage" tick={{ fill: chartColors.muted, fontSize: 11, fontWeight: 700 }} />
         <YAxis tick={{ fill: chartColors.muted, fontSize: 11 }} width={28} />
         <Tooltip contentStyle={tooltipStyle} />
+        <Legend wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 8 }} />
         {series.map((s) => (
           <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} />
         ))}

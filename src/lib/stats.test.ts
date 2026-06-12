@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, computeStats } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, computeStats } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -264,6 +264,29 @@ describe("similarity matrix", () => {
     const { cells } = buildSimilarityMatrix(profiles, preds, revealed);
     const pair = cells.find((c) => c.aId === "u1" && c.bId === "u2");
     expect(pair?.value).toBe(50);
+  });
+});
+
+describe("points race", () => {
+  it("accumulates match points per person across the dates played", () => {
+    const m1 = match("m1", { kickoffUtc: "2026-06-10T18:00:00.000Z", status: "finalized" });
+    const m2 = match("m2", { kickoffUtc: "2026-06-11T18:00:00.000Z", status: "finalized" });
+    const finalized = new Set(["m1", "m2"]);
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 1, 0), points: 3 },
+      { ...pred("u2", "m1", 0, 0), points: 1 },
+      { ...pred("u1", "m2", 2, 1), points: 1 },
+      { ...pred("u2", "m2", 2, 1), points: 5 },
+    ];
+    const race = buildPointsRace(profiles, preds, [m1, m2], finalized);
+    expect(race.keys).toEqual(["Ana", "Beto"]);
+    expect(race.data).toHaveLength(2);
+    expect(race.data[0]).toMatchObject({ stage: "10 Jun", Ana: 3, Beto: 1 });
+    expect(race.data[1]).toMatchObject({ stage: "11 Jun", Ana: 4, Beto: 6 }); // cumulative
+  });
+
+  it("is empty when no matches are finalized", () => {
+    expect(buildPointsRace(profiles, [], [], new Set()).data).toHaveLength(0);
   });
 });
 
