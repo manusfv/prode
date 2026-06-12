@@ -134,3 +134,20 @@ export function buildOptimismFacts(
 
   return { optimista, candado, sinEmpates };
 }
+
+export type HistogramBin = { label: string; count: number };
+
+export function buildScorelineHistogram(predictions: Prediction[], revealed: Set<string>) {
+  const counts = new Map<string, number>();
+  let total = 0;
+  for (const p of predictions) {
+    if (!revealed.has(p.matchId)) continue;
+    const key = `${p.homeScore}-${p.awayScore}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    total += 1;
+  }
+  const bins: HistogramBin[] = [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  return { bins, total, mode: bins[0] };
+}

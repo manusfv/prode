@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram } from "./stats";
 import type { Group, Match, Prediction, Profile } from "./types";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
@@ -86,5 +86,22 @@ describe("optimism facts", () => {
     const { optimista } = buildOptimismFacts(profiles, predictions, new Set());
     expect(optimista.available).toBe(false);
     expect(optimista.series).toEqual([]);
+  });
+});
+
+describe("scoreline favorito", () => {
+  it("counts predicted scorelines and finds the mode", () => {
+    const revealed = new Set(["m1", "m2", "m3"]);
+    const preds = [
+      pred("u1", "m1", 2, 1), pred("u2", "m1", 2, 1),
+      pred("u1", "m2", 2, 1), pred("u2", "m2", 0, 0),
+      pred("u1", "m3", 1, 0), pred("u2", "m3", 2, 1),
+    ];
+    const { bins, mode, total } = buildScorelineHistogram(preds, revealed);
+    expect(total).toBe(6);
+    expect(mode?.label).toBe("2-1");
+    expect(mode?.count).toBe(4);
+    // bins sorted by count desc
+    expect(bins[0]!.label).toBe("2-1");
   });
 });
