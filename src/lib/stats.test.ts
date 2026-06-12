@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome } from "./stats";
 import type { Group, Match, Prediction, Profile } from "./types";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
@@ -103,5 +103,28 @@ describe("scoreline favorito", () => {
     expect(mode?.count).toBe(4);
     // bins sorted by count desc
     expect(bins[0]!.label).toBe("2-1");
+  });
+});
+
+describe("consensus facts", () => {
+  it("classifies outcomes home/away/draw", () => {
+    expect(predictedOutcome(2, 1)).toBe("home");
+    expect(predictedOutcome(0, 3)).toBe("away");
+    expect(predictedOutcome(1, 1)).toBe("draw");
+  });
+
+  it("rebelde is the most contrarian, del-monton the most aligned", () => {
+    const revealed = new Set(["m1", "m2"]);
+    // Crowd: m1 -> home (2 of 3), m2 -> home (2 of 3). u3 always contrarian.
+    const preds = [
+      pred("u1", "m1", 2, 0), pred("u2", "m1", 1, 0), pred("u3", "m1", 0, 2),
+      pred("u1", "m2", 3, 1), pred("u2", "m2", 1, 0), pred("u3", "m2", 0, 1),
+    ];
+    const profiles3 = [...profiles, { id: "u3", displayName: "Caro", email: "c@x.com", approved: true, role: "user" as const }];
+    const { rebelde, delMonton, partidoDividido } = buildConsensusFacts(profiles3, preds, revealed);
+    expect(rebelde.winner?.user.id).toBe("u3");
+    expect(rebelde.winner?.value).toBe(100);
+    expect(delMonton.winner && delMonton.winner.user.id !== "u3").toBe(true);
+    expect(partidoDividido.available).toBe(true);
   });
 });
