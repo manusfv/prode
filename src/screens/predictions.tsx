@@ -26,6 +26,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   formatKickoff,
+  formatRelativeTime,
   getGroupStatus,
   getLockCopy,
   getMatchStatus,
@@ -125,6 +126,24 @@ export function PredictionsScreen() {
       .sort((a, b) => compareGroups(a.groupLabel, b.groupLabel));
   }, [currentGroupPredictionMap, groups, missingOnly, selectedGroups]);
 
+  const lastModifiedAt = useMemo(() => {
+    let latest: string | null = null;
+    const consider = (iso: string) => {
+      if (!latest || new Date(iso).getTime() > new Date(latest).getTime()) latest = iso;
+    };
+    if (activeStage === "groups") {
+      for (const prediction of currentGroupPredictionMap.values()) consider(prediction.updatedAt);
+    } else {
+      const stageMatchIds = new Set(
+        matches.filter((match) => match.stage === activeStage).map((match) => match.id),
+      );
+      for (const prediction of currentPredictionMap.values()) {
+        if (stageMatchIds.has(prediction.matchId)) consider(prediction.updatedAt);
+      }
+    }
+    return latest;
+  }, [activeStage, currentGroupPredictionMap, currentPredictionMap, matches]);
+
   const leaderboard = useMemo(
     () => getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }),
     [predictions, profiles, groupPredictions, matches, standingsStages],
@@ -164,7 +183,14 @@ export function PredictionsScreen() {
                 Faltan ({missingCount})
               </Button>
             </div>
-            <SaveStatus state={saveState} />
+            <div className="flex items-center gap-2.5 max-lg:w-full max-lg:justify-between">
+              {lastModifiedAt && (
+                <span className="text-xs font-bold text-app-muted">
+                  Última modificación: {formatRelativeTime(lastModifiedAt, now)}
+                </span>
+              )}
+              <SaveStatus state={saveState} />
+            </div>
           </div>
         </div>
         <div className="grid gap-3 xl:grid-cols-2">
@@ -666,6 +692,13 @@ function ScoreControl({ value, disabled, className, onChange }: { value: number 
   );
 }
 
+function EarnedPoints({ finalized, points }: { finalized: boolean; points: number | null }) {
+  if (!finalized) {
+    return <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-app-muted">WIP</span>;
+  }
+  return <span className="shrink-0 text-sm font-black text-app-green">{points ?? 0} pts</span>;
+}
+
 export function PredictionDrawer({
   match,
   predictions,
@@ -682,6 +715,9 @@ export function PredictionDrawer({
   const matchPredictions = match
     ? predictions.filter((prediction) => prediction.matchId === match.id)
     : [];
+  const finalized = Boolean(match && (match.status === "finalized" || match.finalizedAt));
+  const shortName = (teamId: string) =>
+    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
 
   return (
     <Sheet open={Boolean(match)} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -696,16 +732,21 @@ export function PredictionDrawer({
                 {getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs {getTeamLabel(match.awayTeamId, teams, match.awaySeed)}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid gap-1.5 px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = matchPredictions.find((item) => item.userId === profile.id);
                 return (
-                  <div key={profile.id} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2">
-                    <strong className="truncate text-sm font-black">{profile.displayName}</strong>
+                  <div key={profile.id} className="flex flex-col gap-0.5 rounded-md bg-app-surface-2 px-2.5 py-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2.5">
+                      <strong className="truncate text-sm font-black">{profile.displayName}</strong>
+                      {prediction && <EarnedPoints finalized={finalized} points={prediction.points} />}
+                    </div>
                     {prediction ? (
-                      <span className="text-sm font-bold">
-                        {prediction.homeScore}-{prediction.awayScore}
-                        {prediction.winnerTeamId ? ` · clasifica ${getTeamLabel(prediction.winnerTeamId, teams)}` : ""}
+                      <span className="text-sm font-bold text-app-muted">
+                        <span className="text-app-text">{prediction.homeScore}-{prediction.awayScore}</span>
+                        {prediction.winnerTeamId
+                          ? ` · clasifica ${getTeamFlag(prediction.winnerTeamId, teams)} ${shortName(prediction.winnerTeamId)}`
+                          : ""}
                       </span>
                     ) : (
                       <span className="text-sm font-bold text-app-muted">Sin pronóstico</span>
@@ -737,6 +778,7 @@ function GroupDrawer({
   const predictions = group
     ? groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel)
     : [];
+  const finalized = Boolean(group?.resultFinalizedAt);
   const shortName = (teamId: string) =>
     teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
 
@@ -753,14 +795,17 @@ function GroupDrawer({
                 Grupo {group.groupLabel}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid gap-1.5 px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = predictions.find((item) => item.userId === profile.id);
                 return (
-                  <div key={profile.id} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2">
-                    <strong className="truncate text-sm font-black">{profile.displayName}</strong>
+                  <div key={profile.id} className="flex flex-col gap-0.5 rounded-md bg-app-surface-2 px-2.5 py-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2.5">
+                      <strong className="truncate text-sm font-black">{profile.displayName}</strong>
+                      {prediction && <EarnedPoints finalized={finalized} points={prediction.points} />}
+                    </div>
                     {prediction ? (
-                      <span className="text-sm font-bold">
+                      <span className="text-sm font-bold text-app-text">
                         {groupOrderTeams(prediction).map((teamId, index) => (
                           <Fragment key={index}>
                             {index > 0 ? " · " : ""}
@@ -773,7 +818,6 @@ function GroupDrawer({
                             )}
                           </Fragment>
                         ))}
-                        {group.resultFinalizedAt ? ` · ${prediction.points ?? 0} pts` : ""}
                       </span>
                     ) : (
                       <span className="text-sm font-bold text-app-muted">Sin pronóstico</span>

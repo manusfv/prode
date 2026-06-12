@@ -67,6 +67,21 @@ export function formatKickoff(isoDate: string, locale = "es-AR") {
   }).format(new Date(isoDate)).replace(/\s+/g, " ");
 }
 
+export function formatRelativeTime(isoDate: string, now = new Date()) {
+  const ms = now.getTime() - new Date(isoDate).getTime();
+  // Future timestamps (clock skew) or stale data fall back to the absolute date.
+  if (ms < 0) return formatKickoff(isoDate);
+
+  const minutes = Math.floor(ms / 1000 / 60);
+  if (minutes < 1) return "recién";
+  if (minutes < 60) return `hace ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+
+  return formatKickoff(isoDate);
+}
+
 export function getLockCopy(isoDate: string, now = new Date()) {
   const ms = new Date(isoDate).getTime() - now.getTime();
   if (ms <= 0) return "cerrado";
