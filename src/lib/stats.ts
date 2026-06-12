@@ -431,6 +431,43 @@ export function buildBehaviorFacts(
   return { madrugador, ultimoMinuto, indeciso };
 }
 
+export type SimilarityCell = { aId: string; bId: string; value: number };
+export type SimilarityMatrix = { users: Profile[]; cells: SimilarityCell[] };
+
+export function buildSimilarityMatrix(
+  profiles: Profile[],
+  predictions: Prediction[],
+  revealed: Set<string>,
+): SimilarityMatrix {
+  const users = approvedProfiles(profiles);
+  const outcomeByUserMatch = new Map<string, Map<string, Outcome>>();
+  for (const p of predictions) {
+    if (!revealed.has(p.matchId)) continue;
+    const m = outcomeByUserMatch.get(p.userId) ?? new Map<string, Outcome>();
+    m.set(p.matchId, predictedOutcome(p.homeScore, p.awayScore));
+    outcomeByUserMatch.set(p.userId, m);
+  }
+  const cells: SimilarityCell[] = [];
+  for (const a of users) {
+    for (const b of users) {
+      if (a.id === b.id) continue;
+      const ma = outcomeByUserMatch.get(a.id);
+      const mb = outcomeByUserMatch.get(b.id);
+      if (!ma || !mb) { cells.push({ aId: a.id, bId: b.id, value: 0 }); continue; }
+      let shared = 0;
+      let agree = 0;
+      for (const [matchId, oa] of ma) {
+        const ob = mb.get(matchId);
+        if (ob === undefined) continue;
+        shared += 1;
+        if (oa === ob) agree += 1;
+      }
+      cells.push({ aId: a.id, bId: b.id, value: shared ? Math.round((agree / shared) * 100) : 0 });
+    }
+  }
+  return { users, cells };
+}
+
 export type HistogramBin = { label: string; count: number };
 
 export function buildScorelineHistogram(predictions: Prediction[], revealed: Set<string>) {
@@ -446,4 +483,104 @@ export function buildScorelineHistogram(predictions: Prediction[], revealed: Set
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   return { bins, total, mode: bins[0] };
+}
+
+export type PersonalCard = {
+  hasData: boolean;
+  favoriteScoreline?: string;
+  avgGoals?: number;
+  groupAvgGoals?: number;
+  exactPct?: number;
+};
+
+function buildPersonalCard(
+  predictions: Prediction[],
+  currentUserId: string,
+  groupAvgGoals: number | undefined,
+  finalized: Set<string>,
+): PersonalCard {
+  const mine = predictions.filter((p) => p.userId === currentUserId);
+  if (mine.length === 0) return { hasData: false };
+  const counts = new Map<string, number>();
+  for (const p of mine) {
+    const key = `${p.homeScore}-${p.awayScore}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const favoriteScoreline = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const avgGoals = round1(mine.reduce((t, p) => t + p.homeScore + p.awayScore, 0) / mine.length);
+  const finals = mine.filter((p) => finalized.has(p.matchId));
+  const exactPct = finals.length
+    ? Math.round((finals.filter((p) => p.exactHit).length / finals.length) * 100)
+    : undefined;
+  return { hasData: true, favoriteScoreline, avgGoals, groupAvgGoals, exactPct };
+}
+
+export type StatsBundle = {
+  hero: { goalsDreamed: number; predictionsLoaded: number; groupExactPct: number; dividedMatchId?: string };
+  personal: PersonalCard;
+  facts: Fact[];
+  termometro: TeamTally[];
+  scoreline: ReturnType<typeof buildScorelineHistogram>;
+  similarity: SimilarityMatrix;
+  dividedMatchId?: string;
+  trampaMatchId?: string;
+};
+
+export function computeStats(input: StatsInput): StatsBundle {
+  const { profiles, predictions, groupPredictions, matches, groups, teams, currentUserId, now } = input;
+  const revealed = revealedMatchIds(matches, now);
+  const finalized = finalizedMatchIds(matches, now);
+  const revealedGroups = revealedGroupLabels(groups, now);
+
+  const optimism = buildOptimismFacts(profiles, predictions, revealed);
+  const consensus = buildConsensusFacts(profiles, predictions, revealed);
+  const accuracy = buildAccuracyFacts(profiles, predictions, matches, finalized);
+  const loyalty = buildTeamLoyaltyFacts(profiles, groupPredictions, teams, revealedGroups);
+  const behavior = buildBehaviorFacts(profiles, predictions, matches, revealed);
+  const scoreline = buildScorelineHistogram(predictions, revealed);
+  const similarity = buildSimilarityMatrix(profiles, predictions, revealed);
+
+  const facts: Fact[] = [
+    optimism.optimista, optimism.candado, optimism.sinEmpates,
+    {
+      id: "scoreline-favorito", category: "optimismo", title: "Scoreline favorito", emoji: "📊",
+      blurb: "El resultado más pronosticado por la familia", requires: "predictions",
+      available: scoreline.total > 0, unavailableHint: "Se revela cuando cierren los partidos",
+      chartKind: "histogram",
+      winner: scoreline.mode
+        ? { user: profiles[0]!, value: scoreline.mode.count, displayValue: `${scoreline.mode.label} (${scoreline.mode.count}x)` }
+        : undefined,
+      coWinners: [], series: [],
+    },
+    consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
+    accuracy.francotirador, accuracy.racha, accuracy.trampa,
+    loyalty.favoritoFamilia, loyalty.ovejaNegra, loyalty.equipoCabecera,
+    behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
+  ];
+
+  const groupAvgGoals = optimism.optimista.series.length
+    ? round1(optimism.optimista.series.reduce((t, s) => t + s.value, 0) / optimism.optimista.series.length)
+    : undefined;
+
+  const revealedPreds = predictions.filter((p) => revealed.has(p.matchId));
+  const finalizedPreds = predictions.filter((p) => finalized.has(p.matchId));
+  const hero = {
+    goalsDreamed: predictions.reduce((t, p) => t + p.homeScore + p.awayScore, 0),
+    predictionsLoaded: revealedPreds.length,
+    groupExactPct: finalizedPreds.length
+      ? Math.round((finalizedPreds.filter((p) => p.exactHit).length / finalizedPreds.length) * 100)
+      : 0,
+    dividedMatchId: consensus.dividedMatchId,
+  };
+
+  return {
+    hero,
+    personal: buildPersonalCard(predictions, currentUserId, groupAvgGoals, finalized),
+    facts,
+    termometro: loyalty.termometro,
+    scoreline,
+    similarity,
+    dividedMatchId: consensus.dividedMatchId,
+    trampaMatchId: accuracy.trampaMatchId,
+  };
 }

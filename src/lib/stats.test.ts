@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, computeStats } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
+import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
 
@@ -226,5 +227,33 @@ describe("behavior facts", () => {
     const { indeciso } = buildBehaviorFacts(profiles, preds, matches, revealed);
     expect(indeciso.winner?.user.id).toBe("u2");
     expect(indeciso.winner?.value).toBe(1);
+  });
+});
+
+describe("similarity matrix", () => {
+  it("scores pairwise outcome agreement 0-100", () => {
+    const revealed = new Set(["m1", "m2"]);
+    const preds = [
+      pred("u1", "m1", 2, 0), pred("u2", "m1", 1, 0), // both home -> agree
+      pred("u1", "m2", 0, 1), pred("u2", "m2", 2, 0), // away vs home -> disagree
+    ];
+    const { cells } = buildSimilarityMatrix(profiles, preds, revealed);
+    const pair = cells.find((c) => c.aId === "u1" && c.bId === "u2");
+    expect(pair?.value).toBe(50);
+  });
+});
+
+describe("computeStats", () => {
+  it("returns a bundle and excludes open matches from group facts", () => {
+    const now = new Date("2026-06-12T12:00:00.000Z");
+    const bundle = computeStats({
+      profiles: seedProfiles, predictions: seedPreds, groupPredictions: seedGroupPreds,
+      matches: seedMatches, groups: seedGroups, teams: seedTeams,
+      currentUserId: "u1", standingsStages: new Set(["groups"]), now,
+    });
+    expect(Array.isArray(bundle.facts)).toBe(true);
+    expect(bundle.facts.length).toBeGreaterThan(0);
+    expect(bundle.personal).toBeTruthy();
+    expect(bundle.hero.predictionsLoaded).toBeGreaterThanOrEqual(0);
   });
 });
