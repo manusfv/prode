@@ -75,7 +75,8 @@ import {
   type FinalizeGroupResultInput,
   type SaveState,
 } from "./app-context";
-import { AuthScreen, LoadingScreen } from "./auth-screen";
+import { LoadingScreen } from "@/components/auth/loading-screen";
+import { PendingApproval } from "@/components/auth/pending-approval";
 import { PredictionDrawer } from "@/screens/predictions";
 import {
   DropdownMenu,
@@ -104,6 +105,12 @@ function activeTabFromPath(pathname: string): AppRoute {
   return routeTabs[pathname] ?? "predictions";
 }
 
+// Paths that render their own standalone card with no app chrome.
+const PUBLIC_AUTH_ROUTES = new Set(["/ingresar", "/crear-cuenta", "/recuperar", "/restablecer"]);
+// Signed-in users are bounced away from these to the app. NOTE: /restablecer is
+// intentionally excluded — the reset email link lands there already signed in.
+const REDIRECT_WHEN_AUTHED = new Set(["/ingresar", "/crear-cuenta", "/recuperar"]);
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -119,12 +126,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [groupPredictions, setGroupPredictions] = useState<GroupPrediction[]>(seedGroupPredictions);
   const [drawerMatch, setDrawerMatch] = useState<Match | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authName, setAuthName] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authConfirmPassword, setAuthConfirmPassword] = useState("");
-  const [authMessage, setAuthMessage] = useState("");
   const [dataMessage, setDataMessage] = useState("");
   const [authReady, setAuthReady] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -196,56 +197,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [refreshSupabaseData, supabaseEnabled]);
 
   useEffect(() => {
+    if (!supabaseEnabled) return;
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        // Defer the data reload out of the callback to avoid Supabase's
+        // "do not await inside onAuthStateChange" deadlock.
+        setTimeout(() => {
+          void refreshSupabaseData();
+        }, 0);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [supabaseEnabled, refreshSupabaseData]);
+
+  useEffect(() => {
     if (!currentUser) return;
     if (activeTab === "admin" && !isAdmin) {
       router.replace(tabRoutes.predictions);
     }
   }, [activeTab, currentUser, isAdmin, router]);
 
-  async function submitAuth() {
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase || !authEmail || !authPassword) return;
-
-    if (authMode === "signup" && authPassword !== authConfirmPassword) {
-      setAuthMessage("Las contraseñas no coinciden.");
-      return;
+  useEffect(() => {
+    if (!authReady) return;
+    const signedIn = supabaseEnabled && Boolean(currentUser);
+    if (!signedIn && !PUBLIC_AUTH_ROUTES.has(pathname)) {
+      router.replace("/ingresar");
+    } else if (signedIn && REDIRECT_WHEN_AUTHED.has(pathname)) {
+      router.replace(tabRoutes.predictions);
     }
-
-    const result =
-      authMode === "login"
-        ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
-        : await supabase.auth.signUp({
-            email: authEmail,
-            password: authPassword,
-            options: { data: { display_name: authName || authEmail.split("@")[0] } },
-          });
-
-    if (result.error) {
-      setAuthMessage(result.error.message);
-      return;
-    }
-
-    setAuthMessage(authMode === "login" ? "" : "Cuenta creada. Te vamos a aprobar para participar.");
-    setAuthPassword("");
-    setAuthConfirmPassword("");
-    await refreshSupabaseData();
-  }
-
-  async function sendPasswordReset() {
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase || !authEmail) {
-      setAuthMessage("Ingresá tu email para recuperar la contraseña.");
-      return;
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/restablecer`,
-    });
-    if (error) {
-      setAuthMessage(error.message);
-      return;
-    }
-    setAuthMessage("Si el email existe, te enviamos un enlace para restablecer la contraseña.");
-  }
+  }, [authReady, supabaseEnabled, currentUser, pathname, router]);
 
   async function signOut() {
     const supabase = createSupabaseBrowserClient();
@@ -522,7 +506,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (pathname === "/restablecer") {
+  // Public auth pages render their own standalone card.
+  if (PUBLIC_AUTH_ROUTES.has(pathname)) {
     return <>{children}</>;
   }
 
@@ -530,71 +515,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <LoadingScreen />;
   }
 
-  if (!supabaseEnabled) {
-    return (
-      <AuthScreen
-        authMode={authMode}
-        authEmail={authEmail}
-        authName={authName}
-        authPassword={authPassword}
-        authConfirmPassword={authConfirmPassword}
-        authMessage="Faltan las variables de Supabase."
-        dataMessage="Configurá NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY."
-        theme={theme}
-        onEmailChange={setAuthEmail}
-        onNameChange={setAuthName}
-        onPasswordChange={setAuthPassword}
-        onConfirmPasswordChange={setAuthConfirmPassword}
-        onThemeChange={setTheme}
-        onModeChange={setAuthMode}
-        onSubmitAuth={submitAuth}
-        onRecoverPassword={sendPasswordReset}
-      />
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <AuthScreen
-        authMode={authMode}
-        authEmail={authEmail}
-        authName={authName}
-        authPassword={authPassword}
-        authConfirmPassword={authConfirmPassword}
-        authMessage={authMessage}
-        dataMessage={dataMessage}
-        theme={theme}
-        onEmailChange={setAuthEmail}
-        onNameChange={setAuthName}
-        onPasswordChange={setAuthPassword}
-        onConfirmPasswordChange={setAuthConfirmPassword}
-        onThemeChange={setTheme}
-        onModeChange={setAuthMode}
-        onSubmitAuth={submitAuth}
-        onRecoverPassword={sendPasswordReset}
-      />
-    );
+  // Not signed in (or Supabase unconfigured): the redirect effect sends the
+  // user to /ingresar; show the loader while it happens.
+  if (!supabaseEnabled || !currentUser) {
+    return <LoadingScreen />;
   }
 
   if (!currentUser.approved) {
     return (
-      <AuthScreen
-        currentUser={currentUser}
-        authMode={authMode}
-        authEmail={authEmail}
-        authName={authName}
-        authPassword={authPassword}
-        authConfirmPassword={authConfirmPassword}
-        authMessage={authMessage}
-        dataMessage={dataMessage || "Tu usuario está pendiente de aprobación."}
-        theme={theme}
-        onEmailChange={setAuthEmail}
-        onNameChange={setAuthName}
-        onPasswordChange={setAuthPassword}
-        onConfirmPasswordChange={setAuthConfirmPassword}
-        onThemeChange={setTheme}
-        onModeChange={setAuthMode}
-        onSubmitAuth={submitAuth}
+      <PendingApproval
+        message={dataMessage || "Tu usuario está pendiente de aprobación."}
         onRefresh={refreshSupabaseData}
         onSignOut={signOut}
       />
