@@ -10,7 +10,7 @@ import {
   PanelRightOpen,
   Plus,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -758,9 +758,18 @@ function GroupDrawer({
                     <strong className="truncate text-sm font-black">{profile.displayName}</strong>
                     {prediction ? (
                       <span className="text-sm font-bold">
-                        {groupOrderTeams(prediction)
-                          .map((teamId) => (teamId ? shortName(teamId) : "—"))
-                          .join(" · ")}
+                        {groupOrderTeams(prediction).map((teamId, index) => (
+                          <Fragment key={index}>
+                            {index > 0 ? " · " : ""}
+                            {teamId ? (
+                              <span title={getTeamLabel(teamId, teams)}>
+                                {getTeamFlag(teamId, teams)} {shortName(teamId)}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </Fragment>
+                        ))}
                         {group.resultFinalizedAt ? ` · ${prediction.points ?? 0} pts` : ""}
                       </span>
                     ) : (
