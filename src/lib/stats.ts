@@ -298,6 +298,79 @@ export function buildAccuracyFacts(
   return { francotirador, racha, trampa, trampaMatchId };
 }
 
+export type TeamTally = { teamId: string; name: string; flag: string; count: number };
+
+export function buildTeamLoyaltyFacts(
+  profiles: Profile[],
+  groupPredictions: GroupPrediction[],
+  teams: Team[],
+  revealedGroups: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const approvedIds = new Set(approved.map((p) => p.id));
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const revealed = groupPredictions.filter(
+    (g) => revealedGroups.has(g.groupLabel) && approvedIds.has(g.userId) && g.firstTeamId,
+  );
+
+  const counts = new Map<string, number>();
+  for (const g of revealed) counts.set(g.firstTeamId!, (counts.get(g.firstTeamId!) ?? 0) + 1);
+
+  const termometro: TeamTally[] = [...counts.entries()]
+    .map(([teamId, count]) => ({
+      teamId,
+      name: teamById.get(teamId)?.name ?? teamId,
+      flag: teamById.get(teamId)?.flag ?? "🏳️",
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const available = termometro.length > 0;
+  const hint = "Se revela cuando cierren los grupos";
+
+  const top = termometro[0];
+  const favoritoFamilia: Fact = {
+    id: "favorito-familia", category: "fidelidad", title: "El favorito de la familia", emoji: "👑",
+    blurb: "El equipo que más veces sale 1º en los pronósticos", requires: "predictions",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "votos",
+    winner: top
+      ? { user: approved[0]!, value: top.count, displayValue: `${top.flag} ${top.name} · ${top.count} votos` }
+      : undefined,
+    coWinners: [], series: [],
+  };
+
+  const lone = [...termometro].reverse().find((t) => t.count === 1);
+  const ovejaNegra: Fact = {
+    id: "oveja-negra", category: "fidelidad", title: "La oveja negra", emoji: "🐐",
+    blurb: "Un equipo en el que cree una sola persona", requires: "predictions",
+    available: Boolean(lone), unavailableHint: hint, chartKind: "bar", unitSuffix: "votos",
+    winner: lone
+      ? { user: approved[0]!, value: 1, displayValue: `${lone.flag} ${lone.name}` }
+      : undefined,
+    coWinners: [], series: [],
+  };
+
+  // equipo-cabecera: per person, the team they most often place 1st.
+  const cabecera: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = revealed.filter((g) => g.userId === user.id);
+    if (mine.length === 0) continue;
+    const tally = new Map<string, number>();
+    for (const g of mine) tally.set(g.firstTeamId!, (tally.get(g.firstTeamId!) ?? 0) + 1);
+    const [teamId, count] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]!;
+    const t = teamById.get(teamId);
+    cabecera.push({ user, value: count, displayValue: `${t?.flag ?? ""} ${t?.name ?? teamId}` });
+  }
+  const equipoCabecera: Fact = {
+    id: "equipo-cabecera", category: "fidelidad", title: "Tu equipo de cabecera", emoji: "❤️",
+    blurb: "El equipo que cada uno banca para salir 1º", requires: "predictions",
+    available: cabecera.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+    winner: undefined, coWinners: [], series: cabecera,
+  };
+
+  return { favoritoFamilia, ovejaNegra, equipoCabecera, termometro };
+}
+
 export type HistogramBin = { label: string; count: number };
 
 export function buildScorelineHistogram(predictions: Prediction[], revealed: Set<string>) {

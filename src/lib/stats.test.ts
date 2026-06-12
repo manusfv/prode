@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts } from "./stats";
-import type { Group, Match, Prediction, Profile } from "./types";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts } from "./stats";
+import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
 
@@ -165,5 +165,37 @@ describe("accuracy facts", () => {
   it("is unavailable with no finalized matches", () => {
     const { francotirador } = buildAccuracyFacts(profiles, preds, matches, new Set());
     expect(francotirador.available).toBe(false);
+  });
+});
+
+describe("team loyalty facts", () => {
+  function gp(userId: string, groupLabel: string, first: string): GroupPrediction {
+    return {
+      id: `${userId}-${groupLabel}`, userId, groupLabel,
+      firstTeamId: first, secondTeamId: null, thirdTeamId: null, fourthTeamId: null,
+      points: null, exactPositions: 0,
+      createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+  }
+  const teams = [
+    { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
+    { id: "bra", name: "Brasil", shortName: "BRA", flag: "🇧🇷" },
+  ];
+  const revealedGroups = new Set(["A", "B"]);
+  const gps = [
+    gp("u1", "A", "arg"), gp("u2", "A", "arg"), // arg backed twice
+    gp("u1", "B", "bra"),                        // bra backed once -> oveja negra
+  ];
+
+  it("termometro counts 1st-place backers and finds the family favorite", () => {
+    const { favoritoFamilia, termometro } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
+    expect(favoritoFamilia.winner?.displayValue).toContain("Argentina");
+    expect(termometro.find((t) => t.teamId === "arg")?.count).toBe(2);
+  });
+
+  it("oveja negra is a team backed by exactly one person", () => {
+    const { ovejaNegra } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
+    expect(ovejaNegra.available).toBe(true);
+    expect(ovejaNegra.winner?.displayValue).toContain("Brasil");
   });
 });
