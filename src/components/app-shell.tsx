@@ -5,10 +5,18 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarClock,
+  ChevronRight,
+  ChevronsUpDown,
   CircleDot,
   Info,
+  LogOut,
   Menu,
+  Monitor,
+  Moon,
+  Palette,
+  Pencil,
   ShieldCheck,
+  Sun,
   Trophy,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,7 +36,6 @@ import {
   updateStageFlagAction,
 } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
 import { scoreAllForMatch, scoreGroupPrediction } from "@/lib/scoring";
@@ -68,9 +75,20 @@ import {
   type FinalizeGroupResultInput,
   type SaveState,
 } from "./app-context";
-import { AuthScreen, LoadingScreen, ThemePicker } from "./auth-screen";
-import { LoadingLabel } from "./badges";
+import { AuthScreen, LoadingScreen } from "./auth-screen";
 import { PredictionDrawer } from "@/screens/predictions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSubmenu,
+  DropdownMenuSubmenuContent,
+  DropdownMenuSubmenuTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const routeTabs: Record<string, AppRoute> = {
   "/": "predictions",
@@ -762,42 +780,63 @@ function AccountPanel({
   onNavigate?: () => void;
 }) {
   const router = useRouter();
-  const [signingOut, setSigningOut] = useState(false);
-
-  async function handleSignOut() {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      await onSignOut();
-    } finally {
-      setSigningOut(false);
-    }
-  }
 
   return (
-    <Card
-      className="mt-3 grid shrink-0 gap-3 rounded-lg border border-app-line bg-app-surface/80 p-3 shadow-app-card"
-      size="sm"
-    >
-      <button
-        type="button"
-        className="grid gap-0.5 rounded-md p-1 text-left transition-colors hover:bg-app-surface-2"
-        onClick={() => {
-          router.push(tabRoutes.account);
-          onNavigate?.();
-        }}
-        aria-label="Editar mi cuenta"
-      >
-        <strong className="block truncate text-sm font-black leading-tight">{currentUser.displayName}</strong>
-        <small className="mt-0.5 block truncate text-xs font-bold text-app-muted">{currentUser.email}</small>
-        <span className="mt-0.5 text-xs font-bold text-app-brand">Editar perfil</span>
-      </button>
-      <div className="grid gap-2">
-        <ThemePicker theme={theme} onChange={onThemeChange} />
-        <Button variant="outline" size="sm" className={ui.control} disabled={signingOut} onClick={handleSignOut}>
-          <LoadingLabel loading={signingOut} label="Salir" />
-        </Button>
-      </div>
-    </Card>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="mt-3 flex w-full shrink-0 items-center gap-2 rounded-lg border border-app-line bg-app-surface/80 p-3 text-left shadow-app-card outline-none transition-colors hover:bg-app-surface-2 data-popup-open:bg-app-surface-2"
+            aria-label="Abrir menú de cuenta"
+          >
+            <div className="min-w-0 flex-1">
+              <strong className="block truncate text-sm font-black leading-tight">{currentUser.displayName}</strong>
+              <small className="mt-0.5 block truncate text-xs font-bold text-app-muted">{currentUser.email}</small>
+            </div>
+            <ChevronsUpDown className="size-4 shrink-0 text-app-muted" />
+          </button>
+        }
+      />
+      <DropdownMenuContent side="top" align="start" className="w-(--anchor-width) min-w-56">
+        <DropdownMenuItem
+          onClick={() => {
+            router.push(tabRoutes.account);
+            onNavigate?.();
+          }}
+        >
+          <Pencil />
+          Editar perfil
+        </DropdownMenuItem>
+        <DropdownMenuSubmenu>
+          <DropdownMenuSubmenuTrigger>
+            <Palette />
+            Tema
+            <ChevronRight className="ml-auto" />
+          </DropdownMenuSubmenuTrigger>
+          <DropdownMenuSubmenuContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={(value) => onThemeChange(value as Theme)}>
+              <DropdownMenuRadioItem value="light">
+                <Sun />
+                Claro
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">
+                <Moon />
+                Oscuro
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="system">
+                <Monitor />
+                Sistema
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubmenuContent>
+        </DropdownMenuSubmenu>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void onSignOut()}>
+          <LogOut />
+          Salir
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
