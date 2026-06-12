@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isValidDisplayName } from "@/lib/account";
 import { parseMatchCsv } from "@/lib/csv";
 import {
   canSaveGroupPrediction,
@@ -285,6 +286,29 @@ export async function approveProfileAction(profileId: string) {
 
   revalidatePath("/");
   return { ok: true, message: "Usuario aprobado." };
+}
+
+export async function updateDisplayNameAction(displayName: string) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const user = await getCurrentUserId(supabase);
+  if (!user.ok) return user;
+
+  if (!isValidDisplayName(displayName)) {
+    return { ok: false, message: "El nombre no puede estar vacío." };
+  }
+
+  const trimmed = displayName.trim();
+
+  const { error: rpcError } = await supabase.rpc("update_my_display_name", { new_name: trimmed });
+  if (rpcError) return { ok: false, message: rpcError.message };
+
+  const { error: metaError } = await supabase.auth.updateUser({ data: { display_name: trimmed } });
+  if (metaError) return { ok: false, message: metaError.message };
+
+  revalidatePath("/");
+  return { ok: true, message: "Nombre actualizado." };
 }
 
 type UpdateStageFlagInput = {
