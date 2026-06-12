@@ -10,9 +10,10 @@ import type { Fact } from "@/lib/stats";
 
 export function FactCard({ fact, onOpen }: { fact: Fact; onOpen: (fact: Fact) => void }) {
   const winnerLabel = fact.winner?.displayValue ?? fact.coWinners.map((c) => c.user.displayName).join(", ");
-  const winnerName = fact.coWinners.length
-    ? fact.coWinners.map((c) => c.user.displayName).join(" + ")
-    : fact.winner?.user.displayName;
+  const winnerName = fact.headline
+    ?? (fact.coWinners.length
+      ? fact.coWinners.map((c) => c.user.displayName).join(" + ")
+      : fact.winner?.user.displayName);
 
   if (!fact.available) {
     return (

@@ -33,6 +33,7 @@ export type Fact = {
   coWinners: PersonValue[]; // [] unless tie
   series: PersonValue[];    // per-person data (empty when unavailable)
   unitSuffix?: string;
+  headline?: string;        // overrides the winner's name in the card (e.g. a team, not a person)
 };
 
 export type StatsInput = {
@@ -333,8 +334,9 @@ export function buildTeamLoyaltyFacts(
     id: "favorito-familia", category: "fidelidad", title: "El favorito de la familia", emoji: "👑",
     blurb: "El equipo que más veces sale 1º en los pronósticos", requires: "predictions",
     available, unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
+    headline: top ? `${top.flag} ${top.name}` : undefined,
     winner: top
-      ? { user: approved[0]!, value: top.count, displayValue: `${top.flag} ${top.name} · ${top.count} votos` }
+      ? { user: approved[0]!, value: top.count, displayValue: `${top.count} ${top.count === 1 ? "voto" : "votos"}` }
       : undefined,
     coWinners: [], series: [],
   };
@@ -344,8 +346,9 @@ export function buildTeamLoyaltyFacts(
     id: "oveja-negra", category: "fidelidad", title: "La oveja negra", emoji: "🐐",
     blurb: "Un equipo en el que cree una sola persona", requires: "predictions",
     available: Boolean(lone), unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
+    headline: lone ? `${lone.flag} ${lone.name}` : undefined,
     winner: lone
-      ? { user: approved[0]!, value: 1, displayValue: `${lone.flag} ${lone.name}` }
+      ? { user: approved[0]!, value: 1, displayValue: "La banca una sola persona" }
       : undefined,
     coWinners: [], series: [],
   };

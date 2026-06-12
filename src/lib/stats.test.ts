@@ -190,14 +190,14 @@ describe("team loyalty facts", () => {
 
   it("termometro counts 1st-place backers and finds the family favorite", () => {
     const { favoritoFamilia, termometro } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
-    expect(favoritoFamilia.winner?.displayValue).toContain("Argentina");
+    expect(favoritoFamilia.headline).toContain("Argentina");
     expect(termometro.find((t) => t.teamId === "arg")?.count).toBe(2);
   });
 
   it("oveja negra is a team backed by exactly one person", () => {
     const { ovejaNegra } = buildTeamLoyaltyFacts(profiles, gps, teams, revealedGroups);
     expect(ovejaNegra.available).toBe(true);
-    expect(ovejaNegra.winner?.displayValue).toContain("Brasil");
+    expect(ovejaNegra.headline).toContain("Brasil");
   });
 });
 

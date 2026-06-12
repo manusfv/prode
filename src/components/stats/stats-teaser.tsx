@@ -33,7 +33,7 @@ export function StatsTeaser() {
       </Button>
       <div className="mt-2.5 rounded-md bg-app-surface-2 px-3 py-2.5">
         <p className="m-0 flex items-center gap-1.5 text-sm font-black">{fact.emoji} {fact.title}</p>
-        <strong className="block truncate text-app-green">{fact.winner!.user.displayName}</strong>
+        <strong className="block truncate text-app-green">{fact.headline ?? fact.winner!.user.displayName}</strong>
         <small className="block truncate text-xs font-bold text-app-muted">{fact.winner!.displayValue}</small>
       </div>
     </Card>
