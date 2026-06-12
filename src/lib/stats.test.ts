@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts } from "./stats";
 import type { Group, Match, Prediction, Profile } from "./types";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
@@ -126,5 +126,44 @@ describe("consensus facts", () => {
     expect(rebelde.winner?.value).toBe(100);
     expect(delMonton.winner && delMonton.winner.user.id !== "u3").toBe(true);
     expect(partidoDividido.available).toBe(true);
+  });
+});
+
+describe("accuracy facts", () => {
+  function fmatch(id: string, kickoff: string): Match {
+    return {
+      id, matchNo: 1, stage: "round16", homeTeamId: "arg", awayTeamId: "fra",
+      kickoffUtc: kickoff, status: "finalized",
+      homeScore: 1, awayScore: 0, winnerTeamId: "arg",
+      finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1",
+      updatedAt: null, updatedBy: null,
+    };
+  }
+  function scored(userId: string, matchId: string, exact: boolean, outcome: boolean): Prediction {
+    return { ...pred(userId, matchId, 1, 0), exactHit: exact, outcomeHit: outcome, points: exact ? 3 : outcome ? 1 : 0 };
+  }
+
+  const matches = [fmatch("m1", "2026-06-08T00:00:00.000Z"), fmatch("m2", "2026-06-09T00:00:00.000Z")];
+  const finalized = new Set(["m1", "m2"]);
+  const preds = [
+    scored("u1", "m1", true, true), scored("u1", "m2", false, true),  // Ana 2/2 outcomes, 1 exact, streak 2
+    scored("u2", "m1", false, false), scored("u2", "m2", false, true), // Beto 1/2 outcomes
+  ];
+
+  it("francotirador ranks by exact-hit percentage", () => {
+    const { francotirador } = buildAccuracyFacts(profiles, preds, matches, finalized);
+    expect(francotirador.winner?.user.id).toBe("u1");
+    expect(francotirador.winner?.value).toBe(50); // 1 of 2 exact
+  });
+
+  it("racha is the longest consecutive outcome-hit streak", () => {
+    const { racha } = buildAccuracyFacts(profiles, preds, matches, finalized);
+    expect(racha.winner?.user.id).toBe("u1");
+    expect(racha.winner?.value).toBe(2);
+  });
+
+  it("is unavailable with no finalized matches", () => {
+    const { francotirador } = buildAccuracyFacts(profiles, preds, matches, new Set());
+    expect(francotirador.available).toBe(false);
   });
 });

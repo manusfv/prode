@@ -227,6 +227,77 @@ export function buildConsensusFacts(
   return { rebelde, delMonton, partidoDividido, dividedMatchId };
 }
 
+export function buildAccuracyFacts(
+  profiles: Profile[],
+  predictions: Prediction[],
+  matches: Match[],
+  finalized: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
+
+  const exactPct: PersonValue[] = [];
+  const streak: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions
+      .filter((p) => p.userId === user.id && finalized.has(p.matchId))
+      .sort((a, b) =>
+        (kickoffById.get(a.matchId) ?? "").localeCompare(kickoffById.get(b.matchId) ?? ""),
+      );
+    if (mine.length === 0) continue;
+    const exact = mine.filter((p) => p.exactHit).length;
+    const pct = Math.round((exact / mine.length) * 100);
+    exactPct.push({ user, value: pct, displayValue: `${pct}% exactos` });
+
+    let best = 0;
+    let run = 0;
+    for (const p of mine) {
+      run = p.outcomeHit ? run + 1 : 0;
+      if (run > best) best = run;
+    }
+    streak.push({ user, value: best, displayValue: `${best} seguidos` });
+  }
+
+  // La trampa: finalized match with lowest share of correct outcomes.
+  let trampaMatchId: string | undefined;
+  let worstShare = 2;
+  for (const matchId of finalized) {
+    const forMatch = predictions.filter((p) => p.matchId === matchId);
+    if (forMatch.length === 0) continue;
+    const correct = forMatch.filter((p) => p.outcomeHit).length;
+    const share = correct / forMatch.length;
+    if (share < worstShare) { worstShare = share; trampaMatchId = matchId; }
+  }
+
+  const available = exactPct.length > 0;
+  const hint = "Se revela cuando haya resultados cargados";
+  const fr = pickWinner(exactPct, (a, b) => a > b);
+  const ra = pickWinner(streak, (a, b) => a > b);
+
+  const francotirador: Fact = {
+    id: "francotirador", category: "punteria", title: "El francotirador", emoji: "🎯",
+    blurb: "Mejor porcentaje de resultados exactos", requires: "results",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "%",
+    winner: fr.winner, coWinners: fr.coWinners,
+    series: [...exactPct].sort((a, b) => b.value - a.value),
+  };
+  const racha: Fact = {
+    id: "racha", category: "punteria", title: "Racha caliente", emoji: "🔥",
+    blurb: "Más aciertos de resultado seguidos", requires: "results",
+    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+    winner: ra.winner, coWinners: ra.coWinners,
+    series: [...streak].sort((a, b) => b.value - a.value),
+  };
+  const trampa: Fact = {
+    id: "trampa", category: "punteria", title: "La trampa", emoji: "🪤",
+    blurb: "El partido que casi todos erraron", requires: "results",
+    available: Boolean(trampaMatchId), unavailableHint: hint, chartKind: "matchSplit",
+    winner: undefined, coWinners: [], series: [],
+  };
+
+  return { francotirador, racha, trampa, trampaMatchId };
+}
+
 export type HistogramBin = { label: string; count: number };
 
 export function buildScorelineHistogram(predictions: Prediction[], revealed: Set<string>) {
