@@ -60,7 +60,7 @@ type FactId =
   | "optimista" | "candado" | "scoreline-favorito" | "sin-empates"
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
-  | "campeon-grupo" | "oveja-negra" | "equipo-cabecera"
+  | "favorito-familia" | "oveja-negra" | "equipo-cabecera"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 type Fact = {
@@ -155,7 +155,7 @@ finalized results.
 | El francotirador | 🔵 | best exact-hit rate | bar: exact-hit % per person |
 | Racha caliente / la sequía | 🔵 | longest run of correct / incorrect outcomes (chronological) | per-person streak bars |
 | La trampa | 🔵 | match the most people got wrong | per-match: % who missed |
-| Campeón del grupo / oveja negra | 🟢 | team most / least backed to win the Cup (final winner pick or top group seed) | termómetro: horizontal team bars |
+| El favorito de la familia / La oveja negra | 🟢 | team most / least backed across everyone's **group-stage 1st-place picks** (available once groups lock; "grupo" here = the family pool, not a tournament group) | termómetro: horizontal team bars |
 | Tu equipo de cabecera | 🟢 | team each person most often backs to advance | bar: top backed team per person |
 | El madrugador / del último minuto | 🟢 | avg lead time between `updatedAt` and kickoff/lock | bar: avg lead time per person |
 | El indeciso | 🟢 | count of predictions where `updatedAt > createdAt` | bar: edit count per person |
@@ -164,7 +164,7 @@ finalized results.
 - **La carrera** 🔵 — accumulated table position over rounds (line/bump).
 - **Mapa de calor** 🔵 — people × stages, colored by points/accuracy.
 - **¿Quién piensa igual?** 🟢 — pairwise prediction-similarity matrix.
-- **Termómetro de favoritos** 🟢 — per team, how many back it to win the Cup.
+- **Termómetro de favoritos** 🟢 — per team, how many family members back it as a group-stage 1st-place pick.
 - **Goles soñados vs. reales** 🔵 — group's predicted goals vs. actual.
 - **Distribución de puntos por partido** 🔵 — how many scored 3 / 1 / 0 each match.
 - **Reloj de pronósticos** 🟢 — when before kickoff people submit (timing histogram).
