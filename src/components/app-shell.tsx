@@ -701,7 +701,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
-      <AccountPanel currentUser={currentUser} theme={theme} onThemeChange={onThemeChange} onSignOut={onSignOut} />
+      <AccountPanel currentUser={currentUser} theme={theme} onThemeChange={onThemeChange} onSignOut={onSignOut} onNavigate={onNavigate} />
     </>
   );
 }
@@ -731,12 +731,15 @@ function AccountPanel({
   theme,
   onThemeChange,
   onSignOut,
+  onNavigate,
 }: {
   currentUser: Profile;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onSignOut: () => Promise<void> | void;
+  onNavigate?: () => void;
 }) {
+  const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
@@ -754,10 +757,19 @@ function AccountPanel({
       className="mt-3 grid shrink-0 gap-3 rounded-lg border border-app-line bg-app-surface/80 p-3 shadow-app-card"
       size="sm"
     >
-      <div>
+      <button
+        type="button"
+        className="grid gap-0.5 rounded-md p-1 text-left transition-colors hover:bg-app-surface-2"
+        onClick={() => {
+          router.push(tabRoutes.account);
+          onNavigate?.();
+        }}
+        aria-label="Editar mi cuenta"
+      >
         <strong className="block truncate text-sm font-black leading-tight">{currentUser.displayName}</strong>
         <small className="mt-0.5 block truncate text-xs font-bold text-app-muted">{currentUser.email}</small>
-      </div>
+        <span className="mt-0.5 text-xs font-bold text-app-brand">Editar perfil</span>
+      </button>
       <div className="grid gap-2">
         <ThemePicker theme={theme} onChange={onThemeChange} />
         <Button variant="outline" size="sm" className={ui.control} disabled={signingOut} onClick={handleSignOut}>
