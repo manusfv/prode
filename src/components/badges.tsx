@@ -4,6 +4,7 @@ import { Check, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { stageLabels, stageOrder } from "@/lib/tournament";
@@ -19,19 +20,49 @@ export function StageBadge({ stage, group }: { stage: Stage; group?: string }) {
   );
 }
 
-export function StatusChip({ status, label }: { status: MatchStatus; label: string }) {
+export function StatusChip({
+  status,
+  label,
+  detail,
+}: {
+  status: MatchStatus;
+  label: string;
+  detail?: string;
+}) {
+  const badgeClassName = cn(
+    "rounded-full px-2.5 py-1 text-xs font-black uppercase",
+    status === "open" && "bg-app-blue/10 text-app-blue",
+    status === "locked" && "bg-app-amber/15 text-app-amber",
+    status === "finalized" && "bg-app-green/10 text-app-green",
+  );
+  const variant = status === "open" ? "secondary" : status === "locked" ? "outline" : "default";
+
+  if (!detail) {
+    return (
+      <Badge variant={variant} className={badgeClassName}>
+        {label}
+      </Badge>
+    );
+  }
+
   return (
-    <Badge
-      variant={status === "open" ? "secondary" : status === "locked" ? "outline" : "default"}
-      className={cn(
-        "rounded-full px-2.5 py-1 text-xs font-black uppercase",
-        status === "open" && "bg-app-blue/10 text-app-blue",
-        status === "locked" && "bg-app-amber/15 text-app-amber",
-        status === "finalized" && "bg-app-green/10 text-app-green",
-      )}
-    >
-      {label}
-    </Badge>
+    <Popover>
+      <PopoverTrigger
+        nativeButton={false}
+        openOnHover
+        delay={150}
+        render={
+          <Badge
+            variant={variant}
+            className={cn(badgeClassName, "cursor-help underline decoration-dotted underline-offset-2")}
+            aria-label={detail}
+          />
+        }
+      >
+        {label}
+      </PopoverTrigger>
+      <PopoverContent>{detail}</PopoverContent>
+    </Popover>
   );
 }
 

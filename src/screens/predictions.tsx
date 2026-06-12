@@ -393,6 +393,8 @@ function GroupStandingsCard({
       : status === "locked"
         ? "Cerrado"
         : "Finalizado";
+  const statusDetail =
+    status === "open" && group.locksAt ? `Cierra el ${formatKickoff(group.locksAt)}` : undefined;
 
   return (
     <Card className={cn(
@@ -403,7 +405,7 @@ function GroupStandingsCard({
     )}>
       <div className="flex items-center justify-between gap-3">
         <StageBadge stage="groups" group={group.groupLabel} />
-        <StatusChip status={status} label={statusLabel} />
+        <StatusChip status={status} label={statusLabel} detail={statusDetail} />
       </div>
 
       <div className="mt-3.5 grid gap-2">
@@ -539,6 +541,7 @@ function MatchCard({
         <StatusChip
           status={status}
           label={status === "open" ? getLockCopy(match.kickoffUtc, now) : status === "locked" ? "Cerrado" : "Finalizado"}
+          detail={status === "open" ? `Cierra el ${formatKickoff(match.kickoffUtc)}` : undefined}
         />
       </div>
 

@@ -63,6 +63,7 @@ export function formatKickoff(isoDate: string, locale = "es-AR") {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   }).format(new Date(isoDate)).replace(/\s+/g, " ");
 }
 
