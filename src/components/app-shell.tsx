@@ -504,6 +504,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (pathname === "/restablecer") {
+    return <>{children}</>;
+  }
+
   if (!authReady) {
     return <LoadingScreen />;
   }
