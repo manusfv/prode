@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function StatsTeaser() {
   const router = useRouter();
-  const { profiles, predictions, groupPredictions, matches, groups, teams, currentUser, standingsStages, now } = useApp();
+  const { profiles, predictions, groupPredictions, matches, groups, teams, currentUser, standingsStages, now, isAdmin } = useApp();
 
   const fact = useMemo(() => {
     const bundle = computeStats({
@@ -23,7 +23,7 @@ export function StatsTeaser() {
     return bundle.facts.find((f) => f.available && f.winner);
   }, [profiles, predictions, groupPredictions, matches, groups, teams, currentUser.id, standingsStages, now]);
 
-  if (!fact) return null;
+  if (!isAdmin || !fact) return null;
 
   return (
     <Card className={cn(ui.panel, "p-4")}>
