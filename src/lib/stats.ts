@@ -860,6 +860,7 @@ export type StatsBundle = {
   accuracyBreakdown: AccuracyBreakdownRow[];
   participation: { rows: PersonValue[]; total: number };
   goalMargin: { bins: HistogramBin[]; total: number };
+  dreamTable: DreamTableRow[];
   dividedMatchId?: string;
   trampaMatchId?: string;
 };
@@ -869,6 +870,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const revealed = revealedMatchIds(matches, now);
   const finalized = finalizedMatchIds(matches, now);
   const revealedGroups = revealedGroupLabels(groups, now);
+  const finalizedGroups = finalizedGroupLabels(groups, now);
 
   const optimism = buildOptimismFacts(profiles, predictions, revealed);
   const consensus = buildConsensusFacts(profiles, predictions, revealed);
@@ -883,12 +885,15 @@ export function computeStats(input: StatsInput): StatsBundle {
   const accuracyBreakdown = buildAccuracyBreakdown(profiles, predictions, finalized);
   const participation = buildParticipation(profiles, predictions, revealed);
   const goalMargin = buildGoalMargin(predictions, revealed);
+  const groupRanking = buildGroupRankingFacts(profiles, groupPredictions, teams, revealedGroups, finalizedGroups);
+  const twinOpposite = pickTwinAndOpposite(similarity, currentUserId);
 
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
     accuracy.francotirador, accuracy.racha, accuracy.trampa,
     loyalty.masQuerido, loyalty.masOdiado, loyalty.apuestaAudaz,
+    groupRanking.grupoMuerte, groupRanking.colista, groupRanking.visionario, groupRanking.profeta,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
   ];
 
@@ -909,7 +914,7 @@ export function computeStats(input: StatsInput): StatsBundle {
 
   return {
     hero,
-    personal: buildPersonalCard(predictions, currentUserId, groupAvgGoals, finalized, groupPredictions, teams),
+    personal: { ...buildPersonalCard(predictions, currentUserId, groupAvgGoals, finalized, groupPredictions, teams), ...twinOpposite },
     facts,
     termometro: loyalty.termometro,
     scoreline,
@@ -919,6 +924,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     accuracyBreakdown,
     participation,
     goalMargin,
+    dreamTable: groupRanking.dreamTable,
     dividedMatchId: consensus.dividedMatchId,
     trampaMatchId: accuracy.trampaMatchId,
   };

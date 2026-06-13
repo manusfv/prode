@@ -459,6 +459,17 @@ describe("computeStats", () => {
     expect(bundle.hero.predictionsLoaded).toBeGreaterThanOrEqual(0);
   });
 
+  it("includes the grupos facts and a dream table in the bundle", () => {
+    const now = new Date("2026-06-12T12:00:00.000Z");
+    const bundle = computeStats({
+      profiles: seedProfiles, predictions: seedPreds, groupPredictions: seedGroupPreds,
+      matches: seedMatches, groups: seedGroups, teams: seedTeams,
+      currentUserId: "u1", standingsStages: new Set(["groups"]), now,
+    });
+    expect(bundle.facts.some((f) => f.category === "grupos")).toBe(true);
+    expect(Array.isArray(bundle.dreamTable)).toBe(true);
+  });
+
   it("surfaces the user's own group champions even with no match predictions and no locks", () => {
     const teams = [
       { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
