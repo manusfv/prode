@@ -734,7 +734,7 @@ export function PredictionDrawer({
                 {getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs {getTeamLabel(match.awayTeamId, teams, match.awaySeed)}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = matchPredictions.find((item) => item.userId === profile.id);
                 return (
@@ -797,7 +797,7 @@ function GroupDrawer({
                 Grupo {group.groupLabel}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = predictions.find((item) => item.userId === profile.id);
                 return (

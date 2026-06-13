@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, computeStats } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -193,16 +193,10 @@ describe("team loyalty facts", () => {
     return buildTeamLoyaltyFacts(profiles, gps, preds, matches, teams, revealedGroups, revealed);
   };
 
-  it("termometro counts 1st-place backers and finds the family favorite", () => {
-    const { favoritoFamilia, termometro } = loyalty();
-    expect(favoritoFamilia.headline).toContain("Argentina");
+  it("termometro counts 1st-place backers ranked by votes", () => {
+    const { termometro } = loyalty();
     expect(termometro.find((t) => t.teamId === "arg")?.count).toBe(2);
-  });
-
-  it("oveja negra is a team backed by exactly one person", () => {
-    const { ovejaNegra } = loyalty();
-    expect(ovejaNegra.available).toBe(true);
-    expect(ovejaNegra.headline).toContain("Brasil");
+    expect(termometro[0]?.teamId).toBe("arg");
   });
 
   it("mas-querido and mas-odiado rank teams by predicted wins and losses", () => {
@@ -287,6 +281,54 @@ describe("points race", () => {
 
   it("is empty when no matches are finalized", () => {
     expect(buildPointsRace(profiles, [], [], new Set()).data).toHaveLength(0);
+  });
+});
+
+describe("accuracy breakdown", () => {
+  it("splits finalized predictions into exact / outcome / miss per person", () => {
+    const finalized = new Set(["m1", "m2", "m3"]);
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 1, 0), exactHit: true, outcomeHit: true },
+      { ...pred("u1", "m2", 2, 0), exactHit: false, outcomeHit: true },
+      { ...pred("u1", "m3", 0, 1), exactHit: false, outcomeHit: false },
+    ];
+    const rows = buildAccuracyBreakdown(profiles, preds, finalized);
+    const ana = rows.find((r) => r.user.id === "u1");
+    expect(ana).toMatchObject({ exact: 1, outcome: 1, miss: 1, total: 3 });
+  });
+
+  it("ignores non-finalized predictions and people with no finals", () => {
+    const preds = [pred("u1", "m1", 1, 0)];
+    expect(buildAccuracyBreakdown(profiles, preds, new Set())).toHaveLength(0);
+  });
+});
+
+describe("participation", () => {
+  it("counts revealed matches each person predicted, against the revealed total", () => {
+    const revealed = new Set(["m1", "m2"]);
+    const preds = [pred("u1", "m1", 1, 0), pred("u1", "m2", 2, 0), pred("u2", "m1", 0, 0)];
+    const { rows, total } = buildParticipation(profiles, preds, revealed);
+    expect(total).toBe(2);
+    expect(rows.find((r) => r.user.id === "u1")?.value).toBe(2);
+    expect(rows.find((r) => r.user.id === "u2")?.value).toBe(1);
+    expect(rows[0]?.user.id).toBe("u1"); // sorted desc
+  });
+});
+
+describe("goal margin", () => {
+  it("buckets predicted goal differences and skips hidden matches", () => {
+    const revealed = new Set(["m1", "m2", "m3"]);
+    const preds = [
+      pred("u1", "m1", 1, 1), // empate
+      pred("u1", "m2", 3, 1), // 2 goles
+      pred("u2", "m3", 5, 0), // 4+
+      pred("u2", "m4", 9, 0), // hidden -> ignored
+    ];
+    const { bins, total } = buildGoalMargin(preds, revealed);
+    expect(total).toBe(3);
+    expect(bins.find((b) => b.label === "Empate")?.count).toBe(1);
+    expect(bins.find((b) => b.label === "2 goles")?.count).toBe(1);
+    expect(bins.find((b) => b.label === "4+")?.count).toBe(1);
   });
 });
 

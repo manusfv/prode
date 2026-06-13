@@ -11,7 +11,7 @@ export type FactId =
   | "optimista" | "candado" | "scoreline-favorito" | "sin-empates"
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
-  | "favorito-familia" | "oveja-negra" | "mas-querido" | "mas-odiado" | "apuesta-audaz"
+  | "mas-querido" | "mas-odiado" | "apuesta-audaz"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 export type PersonValue = {
@@ -333,32 +333,7 @@ export function buildTeamLoyaltyFacts(
   for (const g of revealed) counts.set(g.firstTeamId!, (counts.get(g.firstTeamId!) ?? 0) + 1);
   const termometro = toTally(counts);
 
-  const available = termometro.length > 0;
   const hint = "Se revela cuando cierra el grupo";
-
-  const top = termometro[0];
-  const favoritoFamilia: Fact = {
-    id: "favorito-familia", category: "fidelidad", title: "El favorito de la familia", emoji: "👑",
-    blurb: "El equipo que más veces sale 1º en los pronósticos", requires: "predictions",
-    available, unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
-    headline: top ? `${top.flag} ${top.name}` : undefined,
-    winner: top
-      ? { user: approved[0]!, value: top.count, displayValue: `${top.count} ${top.count === 1 ? "voto" : "votos"}` }
-      : undefined,
-    coWinners: [], series: [], teamSeries: termometro,
-  };
-
-  const lone = [...termometro].reverse().find((t) => t.count === 1);
-  const ovejaNegra: Fact = {
-    id: "oveja-negra", category: "fidelidad", title: "La oveja negra", emoji: "🐐",
-    blurb: "Un equipo en el que cree una sola persona", requires: "predictions",
-    available: Boolean(lone), unavailableHint: hint, chartKind: "thermometer", unitSuffix: "votos",
-    headline: lone ? `${lone.flag} ${lone.name}` : undefined,
-    winner: lone
-      ? { user: approved[0]!, value: 1, displayValue: "La banca una sola persona" }
-      : undefined,
-    coWinners: [], series: [], teamSeries: termometro,
-  };
 
   // mas-querido / mas-odiado: across revealed match predictions, count how many
   // times each team was predicted to win vs. lose.
@@ -435,7 +410,7 @@ export function buildTeamLoyaltyFacts(
     winner: boldest, coWinners: [], series: audaz,
   };
 
-  return { favoritoFamilia, ovejaNegra, masQuerido, masOdiado, apuestaAudaz, termometro };
+  return { masQuerido, masOdiado, apuestaAudaz, termometro };
 }
 
 export function buildBehaviorFacts(
@@ -649,6 +624,68 @@ export function buildPointsRace(
   return { data, keys: approved.map((u) => u.displayName) };
 }
 
+export type AccuracyBreakdownRow = { user: Profile; exact: number; outcome: number; miss: number; total: number };
+
+/** Per-person split of finalized predictions into exacto / acierto de resultado / errado. */
+export function buildAccuracyBreakdown(
+  profiles: Profile[],
+  predictions: Prediction[],
+  finalized: Set<string>,
+): AccuracyBreakdownRow[] {
+  const approved = approvedProfiles(profiles);
+  const rows: AccuracyBreakdownRow[] = [];
+  for (const user of approved) {
+    const mine = predictions.filter((p) => p.userId === user.id && finalized.has(p.matchId));
+    if (mine.length === 0) continue;
+    let exact = 0, outcome = 0, miss = 0;
+    for (const p of mine) {
+      if (p.exactHit) exact += 1;
+      else if (p.outcomeHit) outcome += 1;
+      else miss += 1;
+    }
+    rows.push({ user, exact, outcome, miss, total: mine.length });
+  }
+  return rows.sort((a, b) => b.exact - a.exact || b.outcome - a.outcome);
+}
+
+/** How many revealed (locked) matches each person actually predicted. Privacy-safe: locked only. */
+export function buildParticipation(
+  profiles: Profile[],
+  predictions: Prediction[],
+  revealed: Set<string>,
+): { rows: PersonValue[]; total: number } {
+  const approved = approvedProfiles(profiles);
+  const total = revealed.size;
+  const rows: PersonValue[] = approved
+    .map((user) => {
+      const count = predictions.filter((p) => p.userId === user.id && revealed.has(p.matchId)).length;
+      return { user, value: count, displayValue: `${count} de ${total}` };
+    })
+    .sort((a, b) => b.value - a.value);
+  return { rows, total };
+}
+
+/** Distribution of predicted goal margins across revealed predictions. */
+export function buildGoalMargin(
+  predictions: Prediction[],
+  revealed: Set<string>,
+): { bins: HistogramBin[]; total: number } {
+  const buckets = new Map<string, number>();
+  let total = 0;
+  for (const p of predictions) {
+    if (!revealed.has(p.matchId)) continue;
+    const margin = Math.abs(p.homeScore - p.awayScore);
+    const label = margin === 0 ? "Empate" : margin >= 4 ? "4+" : `${margin} gol${margin > 1 ? "es" : ""}`;
+    buckets.set(label, (buckets.get(label) ?? 0) + 1);
+    total += 1;
+  }
+  const order = ["Empate", "1 gol", "2 goles", "3 goles", "4+"];
+  const bins: HistogramBin[] = order
+    .filter((l) => buckets.has(l))
+    .map((label) => ({ label, count: buckets.get(label)! }));
+  return { bins, total };
+}
+
 export type StatsBundle = {
   hero: { goalsDreamed: number; predictionsLoaded: number; groupExactPct: number; dividedMatchId?: string };
   personal: PersonalCard;
@@ -658,6 +695,9 @@ export type StatsBundle = {
   similarity: SimilarityMatrix;
   pointsRace: PointsRace;
   pointsTotals: PersonValue[];
+  accuracyBreakdown: AccuracyBreakdownRow[];
+  participation: { rows: PersonValue[]; total: number };
+  goalMargin: { bins: HistogramBin[]; total: number };
   dividedMatchId?: string;
   trampaMatchId?: string;
 };
@@ -678,6 +718,9 @@ export function computeStats(input: StatsInput): StatsBundle {
   const pointsRace = buildPointsRace(profiles, predictions, matches, finalized);
   const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, standingsStages })
     .map((row) => ({ user: row.user, value: row.points, displayValue: `${row.points} pts` }));
+  const accuracyBreakdown = buildAccuracyBreakdown(profiles, predictions, finalized);
+  const participation = buildParticipation(profiles, predictions, revealed);
+  const goalMargin = buildGoalMargin(predictions, revealed);
 
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
@@ -693,7 +736,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     },
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
     accuracy.francotirador, accuracy.racha, accuracy.trampa,
-    loyalty.favoritoFamilia, loyalty.ovejaNegra, loyalty.masQuerido, loyalty.masOdiado, loyalty.apuestaAudaz,
+    loyalty.masQuerido, loyalty.masOdiado, loyalty.apuestaAudaz,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
   ];
 
@@ -721,6 +764,9 @@ export function computeStats(input: StatsInput): StatsBundle {
     similarity,
     pointsRace,
     pointsTotals,
+    accuracyBreakdown,
+    participation,
+    goalMargin,
     dividedMatchId: consensus.dividedMatchId,
     trampaMatchId: accuracy.trampaMatchId,
   };

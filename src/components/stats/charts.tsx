@@ -6,7 +6,7 @@ import {
 } from "recharts";
 
 import { ChartContainer, chartColors } from "@/components/ui/chart";
-import type { HistogramBin, PersonValue, SimilarityMatrix, TeamTally } from "@/lib/stats";
+import type { AccuracyBreakdownRow, HistogramBin, PersonValue, SimilarityMatrix, TeamTally } from "@/lib/stats";
 
 const tooltipStyle = {
   background: "var(--color-app-panel)",
@@ -145,6 +145,24 @@ export function LineStat({ data, series }: { data: Array<Record<string, number |
           <Line key={s.key} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} />
         ))}
       </LineChart>
+    </ChartContainer>
+  );
+}
+
+/** Per-person stacked split of finalized predictions: exacto / resultado / errado. */
+export function StackedAccuracy({ rows }: { rows: AccuracyBreakdownRow[] }) {
+  const data = rows.map((r) => ({ name: r.user.displayName, exact: r.exact, outcome: r.outcome, miss: r.miss }));
+  return (
+    <ChartContainer height={Math.max(160, data.length * 40)}>
+      <BarChart layout="vertical" data={data} margin={{ left: 8, right: 24 }}>
+        <XAxis type="number" hide allowDecimals={false} />
+        <YAxis type="category" dataKey="name" width={90} tick={{ fill: chartColors.muted, fontSize: 12, fontWeight: 700 }} />
+        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: chartColors.surface }} />
+        <Legend wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 8 }} />
+        <Bar dataKey="exact" stackId="a" name="Exacto" fill={chartColors.green} radius={[6, 0, 0, 6]} />
+        <Bar dataKey="outcome" stackId="a" name="Resultado" fill={chartColors.amber} />
+        <Bar dataKey="miss" stackId="a" name="Errado" fill={chartColors.line} radius={[0, 6, 6, 0]} />
+      </BarChart>
     </ChartContainer>
   );
 }

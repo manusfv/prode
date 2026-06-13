@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
-import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, TeamThermometer } from "@/components/stats/charts";
+import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
 import { chartColors } from "@/components/ui/chart";
 import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
@@ -107,7 +107,10 @@ export function EstadisticasScreen() {
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
+            <p className="mb-1 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
+            {bundle.termometro[0] && (
+              <p className="mb-2 text-xs font-black text-app-green">👑 {bundle.termometro[0].flag} {bundle.termometro[0].name} lidera</p>
+            )}
             {bundle.termometro.length > 0
               ? <TeamThermometer teams={bundle.termometro} />
               : <p className="text-sm font-bold text-app-muted">Se muestra a medida que cierran los grupos.</p>}
@@ -118,6 +121,27 @@ export function EstadisticasScreen() {
             {bundle.scoreline.total > 0
               ? <Histogram bins={bundle.scoreline.bins} />
               : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">Margen de goles</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Diferencia de gol más pronosticada</p>
+            {bundle.goalMargin.total > 0
+              ? <Histogram bins={bundle.goalMargin.bins} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4")}>
+            <h3 className="m-0 text-sm font-black">Participación</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Pronósticos cargados de {bundle.participation.total} partidos jugados</p>
+            {bundle.participation.total > 0
+              ? <BarStat series={bundle.participation.rows} highlightId={currentUser.id} />
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+          </Card>
+          <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
+            <h3 className="m-0 text-sm font-black">Distribución de aciertos</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">Exactos, aciertos de resultado y errados por persona</p>
+            {bundle.accuracyBreakdown.length > 0
+              ? <StackedAccuracy rows={bundle.accuracyBreakdown} />
+              : <p className="text-sm font-bold text-app-muted">Se revela a medida que se cargan los resultados.</p>}
           </Card>
         </div>
       </section>
