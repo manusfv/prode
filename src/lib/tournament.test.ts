@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Group, Match, PredictionDraft } from "./types";
-import { getGroupStatus, needsAdvancer, stepScore } from "./tournament";
+import { getGroupStatus, hasGroupOrder, isGroupProvisional, needsAdvancer, stepScore } from "./tournament";
 
 const knockoutMatch: Match = {
   id: "m2",
@@ -103,5 +103,47 @@ describe("getGroupStatus", () => {
         new Date("2026-06-11T21:00:00.000Z"),
       ),
     ).toBe("finalized");
+  });
+});
+
+function testGroup(overrides: Partial<Group> = {}): Group {
+  return {
+    groupLabel: "A",
+    locksAt: null,
+    firstTeamId: null,
+    secondTeamId: null,
+    thirdTeamId: null,
+    fourthTeamId: null,
+    resultFinalizedAt: null,
+    resultFinalizedBy: null,
+    ...overrides,
+  };
+}
+
+describe("hasGroupOrder", () => {
+  it("is false when any slot is null", () => {
+    expect(hasGroupOrder(testGroup({ firstTeamId: "t1", secondTeamId: "t2", thirdTeamId: "t3" }))).toBe(false);
+  });
+
+  it("is true when all four slots are set", () => {
+    expect(
+      hasGroupOrder(testGroup({ firstTeamId: "t1", secondTeamId: "t2", thirdTeamId: "t3", fourthTeamId: "t4" })),
+    ).toBe(true);
+  });
+});
+
+describe("isGroupProvisional", () => {
+  const full = { firstTeamId: "t1", secondTeamId: "t2", thirdTeamId: "t3", fourthTeamId: "t4" };
+
+  it("is false when the order is incomplete", () => {
+    expect(isGroupProvisional(testGroup({ firstTeamId: "t1" }))).toBe(false);
+  });
+
+  it("is true when complete and not finalized", () => {
+    expect(isGroupProvisional(testGroup(full))).toBe(true);
+  });
+
+  it("is false when finalized", () => {
+    expect(isGroupProvisional(testGroup({ ...full, resultFinalizedAt: "2026-06-13T00:00:00Z" }))).toBe(false);
   });
 });
