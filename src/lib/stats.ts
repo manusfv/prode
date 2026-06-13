@@ -678,6 +678,8 @@ export type PersonalCard = {
   exactPct?: number;
   groupsPicked?: number;
   groupChampions?: string;
+  twin?: { name: string; pct: number };
+  opposite?: { name: string; pct: number };
 };
 
 function buildPersonalCard(
@@ -713,6 +715,23 @@ function buildPersonalCard(
     ? Math.round((finals.filter((p) => p.exactHit).length / finals.length) * 100)
     : undefined;
   return { hasData: true, favoriteScoreline, avgGoals, groupAvgGoals, exactPct, groupsPicked, groupChampions };
+}
+
+/** From the similarity matrix, the current user's most- and least-similar family member. */
+export function pickTwinAndOpposite(
+  similarity: SimilarityMatrix,
+  currentUserId: string,
+): { twin?: { name: string; pct: number }; opposite?: { name: string; pct: number } } {
+  const nameById = new Map(similarity.users.map((u) => [u.id, u.displayName]));
+  const myCells = similarity.cells
+    .filter((c) => c.aId === currentUserId)
+    .sort((a, b) => b.value - a.value || (nameById.get(a.bId) ?? "").localeCompare(nameById.get(b.bId) ?? ""));
+  if (myCells.length === 0 || myCells[0]!.value === 0) return {};
+  const top = myCells[0]!;
+  const bottom = myCells[myCells.length - 1]!;
+  const twin = { name: nameById.get(top.bId) ?? "", pct: top.value };
+  const opposite = myCells.length >= 2 ? { name: nameById.get(bottom.bId) ?? "", pct: bottom.value } : undefined;
+  return opposite ? { twin, opposite } : { twin };
 }
 
 const ES_MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];

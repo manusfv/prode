@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -339,6 +339,38 @@ describe("similarity matrix", () => {
     const { cells } = buildSimilarityMatrix(profiles, preds, revealed);
     const pair = cells.find((c) => c.aId === "u1" && c.bId === "u2");
     expect(pair?.value).toBe(50);
+  });
+});
+
+describe("twin and opposite", () => {
+  const users: Profile[] = [
+    profiles[0]!, profiles[1]!,
+    { id: "u3", displayName: "Caro", email: "c@x.com", approved: true, role: "user" },
+  ];
+  const matrix = {
+    users,
+    cells: [
+      { aId: "u1", bId: "u2", value: 80 }, { aId: "u1", bId: "u3", value: 30 },
+      { aId: "u2", bId: "u1", value: 80 }, { aId: "u2", bId: "u3", value: 50 },
+      { aId: "u3", bId: "u1", value: 30 }, { aId: "u3", bId: "u2", value: 50 },
+    ],
+  };
+
+  it("picks the most and least similar family member", () => {
+    expect(pickTwinAndOpposite(matrix, "u1")).toEqual({
+      twin: { name: "Beto", pct: 80 },
+      opposite: { name: "Caro", pct: 30 },
+    });
+  });
+
+  it("returns nothing when the row shows no agreement", () => {
+    const empty = { users, cells: [{ aId: "u1", bId: "u2", value: 0 }, { aId: "u1", bId: "u3", value: 0 }] };
+    expect(pickTwinAndOpposite(empty, "u1")).toEqual({});
+  });
+
+  it("gives only a twin when there is a single other person", () => {
+    const pair = { users: [users[0]!, users[1]!], cells: [{ aId: "u1", bId: "u2", value: 70 }, { aId: "u2", bId: "u1", value: 70 }] };
+    expect(pickTwinAndOpposite(pair, "u1")).toEqual({ twin: { name: "Beto", pct: 70 } });
   });
 });
 
