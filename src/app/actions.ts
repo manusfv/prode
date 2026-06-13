@@ -6,7 +6,7 @@ import { parseMatchCsv } from "@/lib/csv";
 import {
   canSaveGroupPrediction,
   canSavePrediction,
-  scoreGroupPrediction,
+  scoreGroupPredictionOrNull,
   scorePrediction,
 } from "@/lib/scoring";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -608,9 +608,7 @@ async function recalculateGroupPredictionsForGroups(
       const group = groupByLabel.get(prediction.groupLabel);
       if (!group) return null;
 
-      const score = group.resultFinalizedAt
-        ? scoreGroupPrediction(group, prediction)
-        : { points: null, exactPositions: 0 };
+      const score = scoreGroupPredictionOrNull(group, prediction);
 
       return supabase
         .from("group_predictions")
