@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stageLabels, stageOrder } from "@/lib/tournament";
+import { isGroupProvisional, stageLabels, stageOrder } from "@/lib/tournament";
 import type { Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type LeaderboardRow } from "@/lib/standings";
@@ -24,7 +24,7 @@ import { useApp } from "@/components/app-context";
 type StandingsView = "overall" | Stage;
 
 export function LeaderboardScreen() {
-  const { predictions, profiles, groupPredictions, matches, standingsStages, currentUser } = useApp();
+  const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser } = useApp();
   const [view, setView] = useState<StandingsView>("overall");
 
   // If the selected stage stops being revealed (admin toggled it off), fall back
@@ -46,6 +46,9 @@ export function LeaderboardScreen() {
   const rest = rows.slice(3);
 
   const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
+
+  const anyGroupProvisional = useMemo(() => groups.some(isGroupProvisional), [groups]);
+  const showProvisionalNote = anyGroupProvisional && (view === "overall" || view === "groups");
 
   return (
     <Card className={cn(ui.panel, "p-4")}>
@@ -89,6 +92,11 @@ export function LeaderboardScreen() {
         </Tabs>
       </div>
 
+      {showProvisionalNote && (
+        <p className="mt-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
+          Incluye posiciones de grupos <strong className="font-black">provisionales</strong>; pueden cambiar.
+        </p>
+      )}
       {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
       {rest.length > 0 && <StandingsTable rows={rest} currentUserId={currentUser.id} />}
       {rows.length === 0 && (
