@@ -23,10 +23,9 @@ const CATEGORY_LABELS: Record<FactCategory, string> = {
   manada: "Manada vs. rebelde",
   punteria: "Puntería y rachas",
   fidelidad: "Fidelidad de equipo",
-  grupos: "Fase de grupos",
   comportamiento: "Comportamiento",
 };
-const CATEGORY_ORDER: FactCategory[] = ["optimismo", "manada", "punteria", "fidelidad", "grupos", "comportamiento"];
+const CATEGORY_ORDER: FactCategory[] = ["optimismo", "manada", "punteria", "fidelidad", "comportamiento"];
 
 export function EstadisticasScreen() {
   const { profiles, predictions, groupPredictions, matches, groups, teams, currentUser, standingsStages, now } = useApp();
@@ -54,7 +53,7 @@ export function EstadisticasScreen() {
 
   function renderChart(fact: Fact) {
     if (fact.chartKind === "bar") {
-      return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={fact.winner?.user.id} />;
+      return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={currentUser.id} />;
     }
     if (fact.chartKind === "histogram") return <Histogram bins={fact.bins ?? []} />;
     if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} leaderIcon={fact.id === "colista" ? "⚰️" : undefined} />;
@@ -107,13 +106,6 @@ export function EstadisticasScreen() {
               : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
-            <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
-            {bundle.termometro.length > 0
-              ? <TeamThermometer teams={bundle.termometro} />
-              : <p className="text-sm font-bold text-app-muted">Se muestra a medida que cierran los grupos.</p>}
-          </Card>
-          <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
             {bundle.scoreline.total > 0
@@ -134,7 +126,7 @@ export function EstadisticasScreen() {
               ? <BarStat series={bundle.participation.rows} highlightId={currentUser.id} />
               : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
-          <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
+          <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Distribución de aciertos</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Exactos, aciertos de resultado y errados por persona</p>
             {bundle.accuracyBreakdown.length > 0
@@ -168,7 +160,9 @@ export function EstadisticasScreen() {
         {activeFact && (
           <>
             {renderChart(activeFact)}
-            <BreakdownTable fact={activeFact} />
+            {/* Bar charts already rank people (with detail on hover); the table would just repeat them.
+                Keep it for team/group charts where it adds the per-person view. */}
+            {activeFact.chartKind !== "bar" && <BreakdownTable fact={activeFact} />}
           </>
         )}
       </StatDrawer>
@@ -221,9 +215,19 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
         ))}
       </div>
       {card.groupChampions && (
-        <div className="mt-2 rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
+        <div className="mt-3">
           <span className={ui.label}>Tus cabezas de grupo ({card.groupsPicked})</span>
-          <strong className="mt-1 block text-lg font-black leading-none tracking-wide">{card.groupChampions}</strong>
+          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {card.groupChampions.map((c) => (
+              <div key={c.groupLabel} className="flex items-center gap-2 rounded-lg border border-app-line bg-app-surface px-2.5 py-1.5">
+                <span className="text-xl leading-none">{c.flag}</span>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-black uppercase leading-none tracking-wide text-app-muted">Grupo {c.groupLabel}</span>
+                  <strong className="mt-0.5 block truncate text-xs font-black leading-tight">{c.name}</strong>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {(card.twin || card.opposite) && (

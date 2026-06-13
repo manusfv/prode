@@ -459,14 +459,15 @@ describe("computeStats", () => {
     expect(bundle.hero.predictionsLoaded).toBeGreaterThanOrEqual(0);
   });
 
-  it("includes the grupos facts and a dream table in the bundle", () => {
+  it("includes the group-stage facts and a dream table in the bundle", () => {
     const now = new Date("2026-06-12T12:00:00.000Z");
     const bundle = computeStats({
       profiles: seedProfiles, predictions: seedPreds, groupPredictions: seedGroupPreds,
       matches: seedMatches, groups: seedGroups, teams: seedTeams,
       currentUserId: "u1", standingsStages: new Set(["groups"]), now,
     });
-    expect(bundle.facts.some((f) => f.category === "grupos")).toBe(true);
+    const ids = new Set(bundle.facts.map((f) => f.id));
+    expect(ids.has("grupo-muerte") && ids.has("visionario") && ids.has("colista")).toBe(true);
     expect(Array.isArray(bundle.dreamTable)).toBe(true);
   });
 
@@ -490,6 +491,9 @@ describe("computeStats", () => {
     });
     expect(bundle.personal.hasData).toBe(true);
     expect(bundle.personal.groupsPicked).toBe(2);
-    expect(bundle.personal.groupChampions).toBe("🇦🇷 🇧🇷");
+    expect(bundle.personal.groupChampions).toEqual([
+      { groupLabel: "A", flag: "🇦🇷", name: "Argentina" },
+      { groupLabel: "B", flag: "🇧🇷", name: "Brasil" },
+    ]);
   });
 });

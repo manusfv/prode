@@ -8,12 +8,17 @@ import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 import type { Fact } from "@/lib/stats";
 
+// "A" · "A y B" · "A, B y 1 más" · "A, B y 2 más" …
+function formatNames(names: string[]): string {
+  if (names.length <= 2) return names.join(" y ");
+  return `${names.slice(0, 2).join(", ")} y ${names.length - 2} más`;
+}
+
 export function FactCard({ fact, onOpen }: { fact: Fact; onOpen: (fact: Fact) => void }) {
-  const winnerLabel = fact.winner?.displayValue ?? fact.coWinners.map((c) => c.user.displayName).join(", ");
+  const tieNames = fact.coWinners.map((c) => c.user.displayName);
+  const winnerLabel = fact.winner?.displayValue ?? formatNames(tieNames);
   const winnerName = fact.headline
-    ?? (fact.coWinners.length
-      ? fact.coWinners.map((c) => c.user.displayName).join(" + ")
-      : fact.winner?.user.displayName);
+    ?? (tieNames.length ? formatNames(tieNames) : fact.winner?.user.displayName);
 
   if (!fact.available) {
     return (
@@ -58,7 +63,7 @@ export function StatDrawer({
   const open = Boolean(fact);
   const body = fact && (
     <>
-      <SheetHeader>
+      <SheetHeader className="shrink-0">
         <p className="text-xs font-extrabold uppercase leading-none text-app-muted">{fact.emoji} Estadística</p>
         <SheetTitle className="mt-1 text-xl font-black text-app-text">{fact.title}</SheetTitle>
         <p className="text-sm font-bold text-app-muted">{fact.blurb}</p>
@@ -71,11 +76,11 @@ export function StatDrawer({
     <>
       {/* Mobile: bottom sheet, full width */}
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="bottom" className="h-[90vh] sm:hidden">{body}</SheetContent>
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-hidden sm:hidden" overlayClassName="sm:hidden">{body}</SheetContent>
       </Sheet>
       {/* Desktop: right drawer, widened */}
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="right" className="hidden sm:flex sm:!max-w-lg">{body}</SheetContent>
+        <SheetContent side="right" className="hidden sm:flex sm:!max-w-lg" overlayClassName="hidden sm:block">{body}</SheetContent>
       </Sheet>
     </>
   );
