@@ -12,6 +12,7 @@ import {
   getMatchStatus,
   getTeamFlag,
   getTeamLabel,
+  isGroupProvisional,
   stageOrder,
 } from "@/lib/tournament";
 import {
@@ -237,6 +238,8 @@ function ResultGroupCard({
 }) {
   const status = getGroupStatus(group, now);
   const finalized = status === "finalized";
+  const provisional = isGroupProvisional(group);
+  const revealOrder = finalized || provisional;
   const order = [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId];
 
   const entries = useMemo(
@@ -245,9 +248,9 @@ function ResultGroupCard({
         userIdOf: (prediction) => prediction.userId,
         pointsOf: (prediction) => prediction.points ?? 0,
         exactOf: (prediction) => prediction.exactPositions,
-        finalized,
+        finalized: revealOrder,
       }),
-    [approvedProfiles, groupPredictions, finalized],
+    [approvedProfiles, groupPredictions, revealOrder],
   );
 
   const submitted = entries.filter((entry) => entry.prediction).length;
@@ -263,23 +266,28 @@ function ResultGroupCard({
         <StageBadge stage="groups" group={group.groupLabel} />
         <StatusChip
           status={status}
-          label={finalized ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"}
+          label={finalized ? "Finalizado" : provisional ? "Provisional" : status === "locked" ? "Cerrado" : "Abierto"}
         />
       </header>
 
-      {finalized ? (
-        <ol className="grid gap-1.5">
-          {order.map((teamId, index) => (
-            <li
-              key={index}
-              className="grid grid-cols-[28px_36px_minmax(0,1fr)] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2"
-            >
-              <span className="text-sm font-black text-app-muted">{index + 1}°</span>
-              <span className="text-lg">{getTeamFlag(teamId, teams)}</span>
-              <strong className="truncate text-sm font-black">{getTeamLabel(teamId, teams)}</strong>
-            </li>
-          ))}
-        </ol>
+      {revealOrder ? (
+        <div className="grid gap-1.5">
+          {provisional && (
+            <p className="text-xs font-black uppercase tracking-wide text-app-amber">Posiciones provisionales</p>
+          )}
+          <ol className="grid gap-1.5">
+            {order.map((teamId, index) => (
+              <li
+                key={index}
+                className="grid grid-cols-[28px_36px_minmax(0,1fr)] items-center gap-2.5 rounded-md bg-app-surface-2 px-2.5 py-2"
+              >
+                <span className="text-sm font-black text-app-muted">{index + 1}°</span>
+                <span className="text-lg">{getTeamFlag(teamId, teams)}</span>
+                <strong className="truncate text-sm font-black">{getTeamLabel(teamId, teams)}</strong>
+              </li>
+            ))}
+          </ol>
+        </div>
       ) : (
         <p className="rounded-md bg-app-surface-2 px-2.5 py-3 text-center text-sm font-bold text-app-muted">
           Resultado pendiente
@@ -294,7 +302,8 @@ function ResultGroupCard({
               profile={entry.profile}
               prediction={entry.prediction}
               teams={teams}
-              showPoints={finalized}
+              showPoints={revealOrder}
+              actualOrder={order}
               isCurrentUser={entry.profile.id === currentUserId}
             />
           ))}
@@ -367,16 +376,24 @@ function GroupComparisonRow({
   prediction,
   teams,
   showPoints,
+  actualOrder,
   isCurrentUser,
 }: {
   profile: Profile;
   prediction?: GroupPrediction;
   teams: Team[];
   showPoints: boolean;
+  actualOrder: (string | null)[];
   isCurrentUser: boolean;
 }) {
   const shortName = (teamId: string | null) =>
     teamId ? (teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams)) : "?";
+
+  const predictedOrder = prediction
+    ? [prediction.firstTeamId, prediction.secondTeamId, prediction.thirdTeamId, prediction.fourthTeamId]
+    : [];
+  // Per-slot ✓/✗ only for the current user, once the order is revealed.
+  const markSlots = isCurrentUser && showPoints;
 
   return (
     <div className={cn(
@@ -388,11 +405,24 @@ function GroupComparisonRow({
       </strong>
       {prediction ? (
         <span className="inline-flex items-center gap-2">
-          <span className="truncate text-xs font-bold text-app-muted">
-            {[prediction.firstTeamId, prediction.secondTeamId, prediction.thirdTeamId, prediction.fourthTeamId]
-              .map(shortName)
-              .join(" · ")}
-          </span>
+          {markSlots ? (
+            <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-bold">
+              {predictedOrder.map((teamId, index) => {
+                const hit = teamId != null && teamId === actualOrder[index];
+                return (
+                  <span key={index} className="inline-flex items-center gap-0.5">
+                    {index > 0 && <span className="text-app-muted">·</span>}
+                    <span className={hit ? "text-app-green" : "text-app-red"}>{shortName(teamId)}</span>
+                    <span className={hit ? "text-app-green" : "text-app-red"}>{hit ? "✓" : "✗"}</span>
+                  </span>
+                );
+              })}
+            </span>
+          ) : (
+            <span className="truncate text-xs font-bold text-app-muted">
+              {predictedOrder.map(shortName).join(" · ")}
+            </span>
+          )}
           {showPoints && (
             <span className="inline-flex items-center gap-1">
               <PointsPill points={prediction.points ?? 0} />
