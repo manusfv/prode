@@ -26,6 +26,12 @@ function barFill(isLeader: boolean, isYou = false): string {
   return chartColors.amber;
 }
 
+// Appends a unit to a value label: "%" attaches directly (55%), words get a space (2.3 goles).
+function unitLabel(value: number | string, unit?: string): string {
+  if (!unit) return String(value);
+  return unit === "%" ? `${value}%` : `${value} ${unit}`;
+}
+
 /** Two-line tooltip for the person bars: name on top, the stat's human detail below. */
 function BarTooltip({ active, payload, suffix }: TooltipProps<number, string> & { suffix?: string }) {
   if (!active || !payload?.length) return null;
@@ -81,7 +87,7 @@ export function BarStat({ series, suffix, highlightId }: { series: PersonValue[]
   const max = Math.max(0, ...data.map((d) => d.value));
   return (
     <ChartContainer height={Math.max(160, data.length * 40)}>
-      <BarChart layout="vertical" data={data} margin={{ left: 8, right: 24 }}>
+      <BarChart layout="vertical" data={data} margin={{ left: 8, right: suffix ? 52 : 24 }}>
         <XAxis type="number" hide />
         <YAxis type="category" dataKey="name" width={90} tick={{ fill: chartColors.muted, fontSize: 12, fontWeight: 700 }} />
         <Tooltip cursor={{ fill: chartColors.surface }} content={<BarTooltip suffix={suffix} />} />
@@ -89,32 +95,36 @@ export function BarStat({ series, suffix, highlightId }: { series: PersonValue[]
           {data.map((d) => (
             <Cell key={d.id} fill={barFill(d.value === max && max > 0, d.id === highlightId)} />
           ))}
-          <LabelList dataKey="value" position="right" fill={chartColors.text} fontSize={12} fontWeight={800} />
+          <LabelList dataKey="value" position="right" formatter={(v: number | string) => unitLabel(v, suffix)} fill={chartColors.text} fontSize={12} fontWeight={800} />
         </Bar>
       </BarChart>
     </ChartContainer>
   );
 }
 
-export function Histogram({ bins }: { bins: HistogramBin[] }) {
+export function Histogram({ bins, unit, detail }: { bins: HistogramBin[]; unit?: string; detail?: string }) {
   const max = Math.max(0, ...bins.map((b) => b.count));
   const data = bins.slice(0, 12).map((b) => ({ name: b.label, value: b.count, leader: b.count === max && max > 0 }));
+  // The bar labels stay terse ("55%"); the hover tooltip can add a descriptor ("55% de desacuerdo").
+  const tooltipValue = unit || detail
+    ? (v: number) => `${unitLabel(v, unit)}${detail ? ` ${detail}` : ""}`
+    : undefined;
   return (
     <ChartContainer height={240} minWidth={Math.max(280, data.length * 48)}>
       <BarChart data={data} margin={{ left: 0, right: 8, top: 16 }}>
         <XAxis dataKey="name" tick={{ fill: chartColors.muted, fontSize: 11, fontWeight: 700 }} />
         <YAxis allowDecimals={false} tick={{ fill: chartColors.muted, fontSize: 11 }} width={28} />
-        <Tooltip cursor={{ fill: chartColors.surface }} content={<ChartTooltip />} />
+        <Tooltip cursor={{ fill: chartColors.surface }} content={<ChartTooltip formatValue={tooltipValue} />} />
         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
           {data.map((d) => <Cell key={d.name} fill={barFill(d.leader)} />)}
-          <LabelList dataKey="value" position="top" fill={chartColors.text} fontSize={11} fontWeight={800} />
+          <LabelList dataKey="value" position="top" formatter={(v: number | string) => unitLabel(v, unit)} fill={chartColors.text} fontSize={11} fontWeight={800} />
         </Bar>
       </BarChart>
     </ChartContainer>
   );
 }
 
-export function TeamThermometer({ teams, leaderIcon = "👑" }: { teams: TeamTally[]; leaderIcon?: string }) {
+export function TeamThermometer({ teams, leaderIcon = "👑", unit = "votos" }: { teams: TeamTally[]; leaderIcon?: string; unit?: string }) {
   const max = Math.max(0, ...teams.map((t) => t.count));
   const data = teams.slice(0, 12).map((t) => {
     const leader = t.count === max && max > 0;
@@ -122,13 +132,13 @@ export function TeamThermometer({ teams, leaderIcon = "👑" }: { teams: TeamTal
   });
   return (
     <ChartContainer height={Math.max(160, data.length * 38)}>
-      <BarChart layout="vertical" data={data} margin={{ left: 8, right: 24 }}>
+      <BarChart layout="vertical" data={data} margin={{ left: 8, right: unit ? 56 : 24 }}>
         <XAxis type="number" hide allowDecimals={false} />
         <YAxis type="category" dataKey="name" width={132} tick={{ fill: chartColors.muted, fontSize: 12, fontWeight: 700 }} />
-        <Tooltip cursor={{ fill: chartColors.surface }} content={<ChartTooltip formatValue={(v) => `${v} ${v === 1 ? "voto" : "votos"}`} />} />
+        <Tooltip cursor={{ fill: chartColors.surface }} content={<ChartTooltip formatValue={(v) => unitLabel(v, unit)} />} />
         <Bar dataKey="value" radius={[0, 6, 6, 0]}>
           {data.map((d) => <Cell key={d.name} fill={barFill(d.leader)} />)}
-          <LabelList dataKey="value" position="right" fill={chartColors.text} fontSize={12} fontWeight={800} />
+          <LabelList dataKey="value" position="right" formatter={(v: number | string) => unitLabel(v, unit)} fill={chartColors.text} fontSize={12} fontWeight={800} />
         </Bar>
       </BarChart>
     </ChartContainer>

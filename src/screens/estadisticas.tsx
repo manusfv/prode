@@ -55,8 +55,8 @@ export function EstadisticasScreen() {
     if (fact.chartKind === "bar") {
       return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={currentUser.id} />;
     }
-    if (fact.chartKind === "histogram") return <Histogram bins={fact.bins ?? []} />;
-    if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} leaderIcon={fact.id === "colista" ? "⚰️" : undefined} />;
+    if (fact.chartKind === "histogram") return <Histogram bins={fact.bins ?? []} unit={fact.unitSuffix} detail={fact.valueDetail} />;
+    if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} leaderIcon={fact.id === "colista" ? "⚰️" : undefined} unit={fact.unitSuffix} />;
     if (fact.chartKind === "matchSplit") {
       const matchId = fact.id === "trampa" ? bundle.trampaMatchId : bundle.dividedMatchId;
       const match = matchId ? matchById.get(matchId) : undefined;

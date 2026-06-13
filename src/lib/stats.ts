@@ -38,6 +38,7 @@ export type Fact = {
   headline?: string;        // overrides the winner's name in the card (e.g. a team, not a person)
   teamSeries?: TeamTally[]; // team-based chart data (for thermometer-style facts)
   bins?: HistogramBin[];    // histogram data carried on the fact (e.g. per-group contention)
+  valueDetail?: string;     // phrase appended to the value in the chart hover tooltip ("de desacuerdo")
 };
 
 export type StatsInput = {
@@ -529,10 +530,10 @@ export function buildGroupRankingFacts(
   const grupoMuerte: Fact = {
     id: "grupo-muerte", category: "manada", title: "Grupo de la muerte", emoji: "🪦",
     blurb: "El grupo donde la familia menos se pone de acuerdo", requires: "predictions",
-    available: Boolean(worst), unavailableHint: GROUP_HINT, chartKind: "histogram",
+    available: Boolean(worst), unavailableHint: GROUP_HINT, chartKind: "histogram", unitSuffix: "%",
     headline: worst ? `Grupo ${worst.label}` : undefined,
     winner: worst ? { user: approved[0]!, value: worst.count, displayValue: `${worst.count}% de desacuerdo` } : undefined,
-    coWinners: [], series: [], bins: contentionBins,
+    coWinners: [], series: [], bins: contentionBins, valueDetail: "de desacuerdo",
   };
 
   // 2 · Colista cantado — most-predicted 4th place.
