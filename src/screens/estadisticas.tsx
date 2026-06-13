@@ -78,11 +78,11 @@ export function EstadisticasScreen() {
 
   return (
     <div className="grid gap-4">
-      <HeroRow bundle={bundle} />
       <PersonalCardView card={bundle.personal} userName={currentUser.displayName} />
 
       <section className="grid gap-2.5">
-        <h2 className={cn(ui.label, "text-sm")}>Gráficos</h2>
+        <h2 className={cn(ui.label, "text-sm")}>Los pronósticos de la familia</h2>
+        <HeroRow bundle={bundle} />
         <div className="grid gap-2.5 lg:grid-cols-2">
           <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
             <h3 className="m-0 text-sm font-black">La carrera</h3>
