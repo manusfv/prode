@@ -38,14 +38,16 @@ export function BarStat({ series, suffix, highlightId }: { series: PersonValue[]
 }
 
 export function Histogram({ bins }: { bins: HistogramBin[] }) {
-  const data = bins.slice(0, 12).map((b) => ({ name: b.label, value: b.count }));
+  const max = Math.max(0, ...bins.map((b) => b.count));
+  const data = bins.slice(0, 12).map((b) => ({ name: b.label, value: b.count, leader: b.count === max && max > 0 }));
   return (
     <ChartContainer height={240} minWidth={Math.max(280, data.length * 48)}>
       <BarChart data={data} margin={{ left: 0, right: 8, top: 16 }}>
         <XAxis dataKey="name" tick={{ fill: chartColors.muted, fontSize: 11, fontWeight: 700 }} />
         <YAxis allowDecimals={false} tick={{ fill: chartColors.muted, fontSize: 11 }} width={28} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: chartColors.surface }} />
-        <Bar dataKey="value" radius={[6, 6, 0, 0]} fill={chartColors.brand}>
+        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+          {data.map((d) => <Cell key={d.name} fill={d.leader ? chartColors.green : chartColors.brand} />)}
           <LabelList dataKey="value" position="top" fill={chartColors.text} fontSize={11} fontWeight={800} />
         </Bar>
       </BarChart>
@@ -54,14 +56,19 @@ export function Histogram({ bins }: { bins: HistogramBin[] }) {
 }
 
 export function TeamThermometer({ teams }: { teams: TeamTally[] }) {
-  const data = teams.slice(0, 12).map((t) => ({ name: `${t.flag} ${t.name}`, value: t.count }));
+  const max = Math.max(0, ...teams.map((t) => t.count));
+  const data = teams.slice(0, 12).map((t) => {
+    const leader = t.count === max && max > 0;
+    return { name: `${leader ? "👑 " : ""}${t.flag} ${t.name}`, value: t.count, leader };
+  });
   return (
     <ChartContainer height={Math.max(160, data.length * 38)}>
       <BarChart layout="vertical" data={data} margin={{ left: 8, right: 24 }}>
         <XAxis type="number" hide allowDecimals={false} />
-        <YAxis type="category" dataKey="name" width={120} tick={{ fill: chartColors.muted, fontSize: 12, fontWeight: 700 }} />
+        <YAxis type="category" dataKey="name" width={132} tick={{ fill: chartColors.muted, fontSize: 12, fontWeight: 700 }} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: chartColors.surface }} formatter={(v: number) => [`${v} votos`, ""]} />
-        <Bar dataKey="value" radius={[0, 6, 6, 0]} fill={chartColors.amber}>
+        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+          {data.map((d) => <Cell key={d.name} fill={d.leader ? chartColors.green : chartColors.amber} />)}
           <LabelList dataKey="value" position="right" fill={chartColors.text} fontSize={12} fontWeight={800} />
         </Bar>
       </BarChart>
@@ -146,19 +153,6 @@ export function LineStat({ data, series }: { data: Array<Record<string, number |
         ))}
       </LineChart>
     </ChartContainer>
-  );
-}
-
-/** A highlighted "leader" pill shown above a chart (the crowned team, top scoreline, etc.). */
-export function ChartLeader({ icon = "👑", label, value }: { icon?: string; label: string; value?: string }) {
-  return (
-    <div className="mb-3 flex w-fit max-w-full items-center gap-1.5 rounded-full bg-app-green/10 px-2.5 py-1 text-xs font-black text-app-green">
-      <span className="shrink-0 leading-none">{icon}</span>
-      <span className="truncate">{label}</span>
-      {value != null && (
-        <span className="shrink-0 rounded-full bg-app-green/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums">{value}</span>
-      )}
-    </div>
   );
 }
 

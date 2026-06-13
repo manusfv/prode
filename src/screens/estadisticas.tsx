@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
-import { BarStat, ChartLeader, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
+import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
 import { chartColors } from "@/components/ui/chart";
 import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
@@ -106,33 +106,21 @@ export function EstadisticasScreen() {
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
-            <p className="mb-2 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
-            {bundle.termometro[0] && (
-              <ChartLeader
-                label={`${bundle.termometro[0].flag} ${bundle.termometro[0].name}`}
-                value={`${bundle.termometro[0].count} votos`}
-              />
-            )}
+            <p className="mb-3 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
             {bundle.termometro.length > 0
               ? <TeamThermometer teams={bundle.termometro} />
               : <p className="text-sm font-bold text-app-muted">Se muestra a medida que cierran los grupos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
-            <p className="mb-2 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
-            {bundle.scoreline.mode && (
-              <ChartLeader icon="📊" label={`${bundle.scoreline.mode.label} es el más pronosticado`} value={`${bundle.scoreline.mode.count}×`} />
-            )}
+            <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
             {bundle.scoreline.total > 0
               ? <Histogram bins={bundle.scoreline.bins} />
               : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Margen de goles</h3>
-            <p className="mb-2 text-xs font-bold text-app-muted">Diferencia de gol más pronosticada</p>
-            {bundle.goalMargin.bins[0] && (
-              <ChartLeader icon="⚽" label={bundle.goalMargin.bins[0].label} value={`${bundle.goalMargin.bins[0].count}×`} />
-            )}
+            <p className="mb-3 text-xs font-bold text-app-muted">Diferencia de gol más pronosticada</p>
             {bundle.goalMargin.total > 0
               ? <Histogram bins={bundle.goalMargin.bins} />
               : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
