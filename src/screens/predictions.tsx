@@ -479,13 +479,17 @@ function GroupStandingsCard({
         })}
       </div>
 
-      {status !== "open" && (
-        <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted">
-          {status === "finalized" && prediction ? (
-            <span className="text-app-green">{prediction.points ?? 0} pts · {prediction.exactPositions}/4</span>
-          ) : (
-            <span />
-          )}
+      <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted">
+        {status === "finalized" && prediction ? (
+          <span className="text-app-green">{prediction.points ?? 0} pts · {prediction.exactPositions}/4</span>
+        ) : (
+          <span />
+        )}
+        {status === "open" ? (
+          <span className="inline-flex items-center gap-1.5">
+            Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+          </span>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
@@ -495,8 +499,8 @@ function GroupStandingsCard({
             <PanelRightOpen size={15} />
             Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
           </Button>
-        </footer>
-      )}
+        )}
+      </footer>
     </Card>
   );
 }
