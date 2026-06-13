@@ -20,7 +20,9 @@ export function StatsTeaser() {
       profiles, predictions, groupPredictions, matches, groups, teams,
       currentUserId: currentUser.id, standingsStages, now,
     });
-    return bundle.facts.find((f) => f.available && f.winner);
+    const withData = bundle.facts.filter((f) => f.available && f.winner);
+    if (withData.length === 0) return undefined;
+    return withData[Math.floor(Math.random() * withData.length)];
   }, [profiles, predictions, groupPredictions, matches, groups, teams, currentUser.id, standingsStages, now]);
 
   if (!isAdmin || !fact) return null;
