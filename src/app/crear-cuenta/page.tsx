@@ -64,7 +64,13 @@ export default function SignupPage() {
           ? "Registrate con email y contraseña para participar del prode familiar."
           : "Configurá NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY."}
       </p>
-      <div className="grid gap-4">
+      <form
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
         <label className="grid gap-2">
           <span className="text-xs font-black uppercase tracking-wide text-app-muted">Nombre</span>
           <Input
@@ -112,11 +118,11 @@ export default function SignupPage() {
         <Button
           className="mt-2 min-h-12 rounded-lg bg-app-brand text-app-brand-fg text-base font-black shadow-lg hover:bg-app-brand"
           disabled={submitting || !supabaseEnabled}
-          onClick={submit}
+          type="submit"
         >
           <LoadingLabel loading={submitting} label="Crear cuenta" />
         </Button>
-      </div>
+      </form>
       <p className="mt-6 text-sm font-bold text-app-muted">
         ¿Ya tenés cuenta?{" "}
         <Link href="/ingresar" className="text-app-brand hover:underline">Entrar</Link>

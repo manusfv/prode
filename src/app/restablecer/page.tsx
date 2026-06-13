@@ -51,7 +51,13 @@ export default function ResetPasswordPage() {
     <AuthLayout eyebrow="Restablecer contraseña">
       <h1 className="mb-2 text-2xl font-black leading-tight text-app-text">Elegí una contraseña nueva</h1>
       <p className="mb-6 text-sm font-bold leading-relaxed text-app-muted">Ingresá tu nueva contraseña para volver a entrar.</p>
-      <div className="grid gap-4">
+      <form
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
         <label className="grid gap-2">
           <span className={ui.label}>Nueva contraseña</span>
           <Input
@@ -75,12 +81,12 @@ export default function ResetPasswordPage() {
         <Button
           className="mt-2 min-h-12 rounded-lg bg-app-brand text-app-brand-fg text-base font-black"
           disabled={saving}
-          onClick={submit}
+          type="submit"
         >
           <LoadingLabel loading={saving} label="Guardar contraseña" />
         </Button>
         {message && <small className="text-sm font-bold text-app-muted">{message}</small>}
-      </div>
+      </form>
     </AuthLayout>
   );
 }
