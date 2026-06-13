@@ -558,6 +558,8 @@ export type PersonalCard = {
   avgGoals?: number;
   groupAvgGoals?: number;
   exactPct?: number;
+  groupsPicked?: number;
+  groupChampions?: string;
 };
 
 function buildPersonalCard(
@@ -565,9 +567,22 @@ function buildPersonalCard(
   currentUserId: string,
   groupAvgGoals: number | undefined,
   finalized: Set<string>,
+  groupPredictions: GroupPrediction[],
+  teams: Team[],
 ): PersonalCard {
   const mine = predictions.filter((p) => p.userId === currentUserId);
-  if (mine.length === 0) return { hasData: false };
+  const myGroups = groupPredictions.filter((g) => g.userId === currentUserId && g.firstTeamId);
+  if (mine.length === 0 && myGroups.length === 0) return { hasData: false };
+
+  // My own group picks are personal data — show them immediately, no locks needed.
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const groupsPicked = myGroups.length || undefined;
+  const groupChampions = myGroups.length
+    ? myGroups.map((g) => teamById.get(g.firstTeamId!)?.flag ?? "🏳️").join(" ")
+    : undefined;
+
+  if (mine.length === 0) return { hasData: true, groupAvgGoals, groupsPicked, groupChampions };
+
   const counts = new Map<string, number>();
   for (const p of mine) {
     const key = `${p.homeScore}-${p.awayScore}`;
@@ -579,7 +594,7 @@ function buildPersonalCard(
   const exactPct = finals.length
     ? Math.round((finals.filter((p) => p.exactHit).length / finals.length) * 100)
     : undefined;
-  return { hasData: true, favoriteScoreline, avgGoals, groupAvgGoals, exactPct };
+  return { hasData: true, favoriteScoreline, avgGoals, groupAvgGoals, exactPct, groupsPicked, groupChampions };
 }
 
 const ES_MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -699,7 +714,7 @@ export function computeStats(input: StatsInput): StatsBundle {
 
   return {
     hero,
-    personal: buildPersonalCard(predictions, currentUserId, groupAvgGoals, finalized),
+    personal: buildPersonalCard(predictions, currentUserId, groupAvgGoals, finalized, groupPredictions, teams),
     facts,
     termometro: loyalty.termometro,
     scoreline,

@@ -303,4 +303,27 @@ describe("computeStats", () => {
     expect(bundle.personal).toBeTruthy();
     expect(bundle.hero.predictionsLoaded).toBeGreaterThanOrEqual(0);
   });
+
+  it("surfaces the user's own group champions even with no match predictions and no locks", () => {
+    const teams = [
+      { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
+      { id: "bra", name: "Brasil", shortName: "BRA", flag: "🇧🇷" },
+    ];
+    const openGroups: Group[] = [
+      { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null },
+      { groupLabel: "B", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null },
+    ];
+    const groupPreds: GroupPrediction[] = [
+      { id: "g1", userId: "u1", groupLabel: "A", firstTeamId: "arg", secondTeamId: null, thirdTeamId: null, fourthTeamId: null, points: null, exactPositions: 0, createdAt: "", updatedAt: "" },
+      { id: "g2", userId: "u1", groupLabel: "B", firstTeamId: "bra", secondTeamId: null, thirdTeamId: null, fourthTeamId: null, points: null, exactPositions: 0, createdAt: "", updatedAt: "" },
+    ];
+    const bundle = computeStats({
+      profiles, predictions: [], groupPredictions: groupPreds,
+      matches: [], groups: openGroups, teams,
+      currentUserId: "u1", standingsStages: new Set(["groups"]), now,
+    });
+    expect(bundle.personal.hasData).toBe(true);
+    expect(bundle.personal.groupsPicked).toBe(2);
+    expect(bundle.personal.groupChampions).toBe("🇦🇷 🇧🇷");
+  });
 });

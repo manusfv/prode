@@ -191,6 +191,12 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
           </div>
         ))}
       </div>
+      {card.groupChampions && (
+        <div className="mt-2 rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
+          <span className={ui.label}>Tus campeones de grupo ({card.groupsPicked})</span>
+          <strong className="mt-1 block text-lg font-black leading-none tracking-wide">{card.groupChampions}</strong>
+        </div>
+      )}
     </Card>
   );
 }

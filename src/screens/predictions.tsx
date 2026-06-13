@@ -696,7 +696,7 @@ function ScoreControl({ value, disabled, className, onChange }: { value: number 
 
 function EarnedPoints({ finalized, points }: { finalized: boolean; points: number | null }) {
   if (!finalized) {
-    return <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-app-muted">WIP</span>;
+    return <span className="shrink-0 text-sm font-black text-app-muted">-</span>;
   }
   return <span className="shrink-0 text-sm font-black text-app-green">{points ?? 0} pts</span>;
 }
