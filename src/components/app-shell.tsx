@@ -27,7 +27,7 @@ import {
   createMatchAction,
   deleteGroupPredictionAction,
   deleteMatchAction,
-  finalizeGroupResultAction,
+  saveGroupStandingsAction,
   finalizeMatchAction,
   importMatchesCsvAction,
   recalculatePointsAction,
@@ -39,7 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
-import { scoreAllForMatch, scoreGroupPrediction } from "@/lib/scoring";
+import { scoreAllForMatch, scoreGroupPredictionOrNull } from "@/lib/scoring";
 import {
   groups as seedGroups,
   groupPredictions as seedGroupPredictions,
@@ -75,7 +75,7 @@ import {
   AppContext,
   type AppContextValue,
   type CreateMatchActionInput,
-  type FinalizeGroupResultInput,
+  type SaveGroupStandingsInput,
   type SaveState,
 } from "./app-context";
 import { PredictionDrawer } from "@/screens/predictions";
@@ -462,9 +462,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function finalizeGroupResult(input: FinalizeGroupResultInput) {
+  async function saveGroupStandings(input: SaveGroupStandingsInput) {
     if (supabaseEnabled) {
-      const result = await finalizeGroupResultAction(input);
+      const result = await saveGroupStandingsAction(input);
       setDataMessage(result.message);
       if (result.ok) await refreshSupabaseData();
       return;
@@ -472,24 +472,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (!currentUser) return;
 
-    const finalized: Group = {
+    const saved: Group = {
       groupLabel: input.groupLabel,
       locksAt: groups.find((group) => group.groupLabel === input.groupLabel)?.locksAt ?? null,
       firstTeamId: input.firstTeamId,
       secondTeamId: input.secondTeamId,
       thirdTeamId: input.thirdTeamId,
       fourthTeamId: input.fourthTeamId,
-      resultFinalizedAt: new Date().toISOString(),
-      resultFinalizedBy: currentUser.id,
+      resultFinalizedAt: input.finalize ? new Date().toISOString() : null,
+      resultFinalizedBy: input.finalize ? currentUser.id : null,
     };
 
     setGroups((items) =>
-      items.map((group) => (group.groupLabel === input.groupLabel ? finalized : group)),
+      items.map((group) => (group.groupLabel === input.groupLabel ? saved : group)),
     );
     setGroupPredictions((items) =>
       items.map((prediction) => {
         if (prediction.groupLabel !== input.groupLabel) return prediction;
-        const score = scoreGroupPrediction(finalized, prediction);
+        const score = scoreGroupPredictionOrNull(saved, prediction);
         return { ...prediction, points: score.points, exactPositions: score.exactPositions };
       }),
     );
@@ -555,7 +555,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     refreshSupabaseData,
     signOut,
     finalizeMatch,
-    finalizeGroupResult,
+    saveGroupStandings,
     updateGroupLocksAt,
     createMatch,
     deleteMatch,

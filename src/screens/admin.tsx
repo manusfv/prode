@@ -25,6 +25,7 @@ import {
   getGroupStatus,
   getTeamFlag,
   getTeamLabel,
+  isGroupProvisional,
   stageLabels,
   stageOrder,
 } from "@/lib/tournament";
@@ -89,7 +90,7 @@ export function AdminScreen() {
     now,
     dataMessage,
     finalizeMatch,
-    finalizeGroupResult,
+    saveGroupStandings,
     updateGroupLocksAt,
     importMatchesCsv,
     exportMatchesCsv,
@@ -284,15 +285,20 @@ export function AdminScreen() {
                 predictionCount={groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel).length}
                 now={now}
                 pendingKey={pendingAdminAction}
-                onFinalize={(order) =>
-                  runAdminAction(`finalize-group-${group.groupLabel}`, () =>
-                    finalizeGroupResult({
-                      groupLabel: group.groupLabel,
-                      firstTeamId: order[0],
-                      secondTeamId: order[1],
-                      thirdTeamId: order[2],
-                      fourthTeamId: order[3],
-                    }),
+                onSaveStandings={(order, finalize) =>
+                  runAdminAction(
+                    finalize
+                      ? `finalize-group-${group.groupLabel}`
+                      : `provisional-group-${group.groupLabel}`,
+                    () =>
+                      saveGroupStandings({
+                        groupLabel: group.groupLabel,
+                        firstTeamId: order[0],
+                        secondTeamId: order[1],
+                        thirdTeamId: order[2],
+                        fourthTeamId: order[3],
+                        finalize,
+                      }),
                   )
                 }
                 onSaveLocks={(locksIso) =>
@@ -474,7 +480,7 @@ function GroupAdminCard({
   predictionCount,
   now,
   pendingKey,
-  onFinalize,
+  onSaveStandings,
   onSaveLocks,
   onSetOpen,
 }: {
@@ -483,7 +489,7 @@ function GroupAdminCard({
   predictionCount: number;
   now: Date;
   pendingKey: string | null;
-  onFinalize: (order: [string, string, string, string]) => Promise<void> | void;
+  onSaveStandings: (order: [string, string, string, string], finalize: boolean) => Promise<void> | void;
   onSaveLocks: (locksIso: string | null) => Promise<void> | void;
   onSetOpen: (open: boolean) => Promise<void> | void;
 }) {
@@ -496,6 +502,8 @@ function GroupAdminCard({
   const [locksLocal, setLocksLocal] = useState(() => toDatetimeLocal(group.locksAt));
 
   const status = getGroupStatus(group, now);
+  const provisional = isGroupProvisional(group);
+  const provisionalPending = pendingKey === `provisional-group-${group.groupLabel}`;
   const closedByTime = Boolean(group.locksAt) && new Date(group.locksAt as string).getTime() <= now.getTime();
   const complete = order.every((slot): slot is string => Boolean(slot)) && new Set(order).size === 4;
   const finalizePending = pendingKey === `finalize-group-${group.groupLabel}`;
@@ -507,7 +515,13 @@ function GroupAdminCard({
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm font-black">Grupo {group.groupLabel}</strong>
         <small className="text-xs font-bold text-app-muted">
-          {status === "finalized" ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"} · {predictionCount} pron.
+          {status === "finalized"
+            ? "Finalizado"
+            : provisional
+              ? "Provisional"
+              : status === "locked"
+                ? "Cerrado"
+                : "Abierto"} · {predictionCount} pron.
         </small>
       </div>
       <div className="grid gap-2.5 md:grid-cols-2">
@@ -574,14 +588,23 @@ function GroupAdminCard({
           </Button>
         </div>
       </div>
-      <Button
-        className="w-full"
-        size="sm"
-        disabled={!complete || Boolean(pendingKey)}
-        onClick={() => onFinalize(order as [string, string, string, string])}
-      >
-        <LoadingLabel loading={finalizePending} label="Guardar resultado" />
-      </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!complete || Boolean(pendingKey)}
+          onClick={() => onSaveStandings(order as [string, string, string, string], false)}
+        >
+          <LoadingLabel loading={provisionalPending} label="Guardar provisional" />
+        </Button>
+        <Button
+          size="sm"
+          disabled={!complete || Boolean(pendingKey)}
+          onClick={() => onSaveStandings(order as [string, string, string, string], true)}
+        >
+          <LoadingLabel loading={finalizePending} label="Finalizar grupo" />
+        </Button>
+      </div>
     </div>
   );
 }

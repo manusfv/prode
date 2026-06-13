@@ -64,12 +64,13 @@ type SaveGroupPredictionInput = {
   fourthTeamId: string | null;
 };
 
-type FinalizeGroupResultInput = {
+type SaveGroupStandingsInput = {
   groupLabel: string;
   firstTeamId: string;
   secondTeamId: string;
   thirdTeamId: string;
   fourthTeamId: string;
+  finalize: boolean;
 };
 
 type UpdateGroupLocksInput = {
@@ -206,7 +207,7 @@ export async function deleteGroupPredictionAction(input: { groupLabel: string })
   return { ok: true, message: "Pronóstico borrado." };
 }
 
-export async function finalizeGroupResultAction(input: FinalizeGroupResultInput) {
+export async function saveGroupStandingsAction(input: SaveGroupStandingsInput) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Supabase no está configurado." };
 
@@ -221,6 +222,7 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
     return { ok: false, message: "No repitas equipos." };
   }
 
+  const now = new Date().toISOString();
   const { data: groupRow, error: updateError } = await supabase
     .from("groups")
     .update({
@@ -228,9 +230,9 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
       second_team_id: input.secondTeamId,
       third_team_id: input.thirdTeamId,
       fourth_team_id: input.fourthTeamId,
-      result_finalized_at: new Date().toISOString(),
-      result_finalized_by: admin.userId,
-      updated_at: new Date().toISOString(),
+      result_finalized_at: input.finalize ? now : null,
+      result_finalized_by: input.finalize ? admin.userId : null,
+      updated_at: now,
     })
     .eq("group_label", input.groupLabel)
     .select("*")
@@ -242,7 +244,10 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
   if (!recalculation.ok) return recalculation;
 
   revalidatePath("/");
-  return { ok: true, message: "Resultado del grupo finalizado." };
+  return {
+    ok: true,
+    message: input.finalize ? "Resultado del grupo finalizado." : "Posiciones provisionales guardadas.",
+  };
 }
 
 export async function updateGroupLocksAtAction(input: UpdateGroupLocksInput) {
