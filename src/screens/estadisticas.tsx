@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
-import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
+import { BarStat, ChartLeader, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
 import { chartColors } from "@/components/ui/chart";
 import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
@@ -55,7 +55,6 @@ export function EstadisticasScreen() {
     if (fact.chartKind === "bar") {
       return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={fact.winner?.user.id} />;
     }
-    if (fact.chartKind === "histogram") return <Histogram bins={bundle.scoreline.bins} />;
     if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} />;
     if (fact.chartKind === "matchSplit") {
       const matchId = fact.id === "trampa" ? bundle.trampaMatchId : bundle.dividedMatchId;
@@ -103,13 +102,16 @@ export function EstadisticasScreen() {
             <p className="mb-3 text-xs font-bold text-app-muted">Coincidencia de pronósticos entre la familia</p>
             {bundle.hero.predictionsLoaded > 0
               ? <SimilarityGrid matrix={bundle.similarity} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
-            <p className="mb-1 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
+            <p className="mb-2 text-xs font-bold text-app-muted">Equipos bancados para salir 1º de grupo</p>
             {bundle.termometro[0] && (
-              <p className="mb-2 text-xs font-black text-app-green">👑 {bundle.termometro[0].flag} {bundle.termometro[0].name} lidera</p>
+              <ChartLeader
+                label={`${bundle.termometro[0].flag} ${bundle.termometro[0].name}`}
+                value={`${bundle.termometro[0].count} votos`}
+              />
             )}
             {bundle.termometro.length > 0
               ? <TeamThermometer teams={bundle.termometro} />
@@ -117,24 +119,30 @@ export function EstadisticasScreen() {
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Scoreline favorito</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
+            <p className="mb-2 text-xs font-bold text-app-muted">Resultados más pronosticados</p>
+            {bundle.scoreline.mode && (
+              <ChartLeader icon="📊" label={`${bundle.scoreline.mode.label} es el más pronosticado`} value={`${bundle.scoreline.mode.count}×`} />
+            )}
             {bundle.scoreline.total > 0
               ? <Histogram bins={bundle.scoreline.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Margen de goles</h3>
-            <p className="mb-3 text-xs font-bold text-app-muted">Diferencia de gol más pronosticada</p>
+            <p className="mb-2 text-xs font-bold text-app-muted">Diferencia de gol más pronosticada</p>
+            {bundle.goalMargin.bins[0] && (
+              <ChartLeader icon="⚽" label={bundle.goalMargin.bins[0].label} value={`${bundle.goalMargin.bins[0].count}×`} />
+            )}
             {bundle.goalMargin.total > 0
               ? <Histogram bins={bundle.goalMargin.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Participación</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Pronósticos cargados de {bundle.participation.total} partidos jugados</p>
             {bundle.participation.total > 0
               ? <BarStat series={bundle.participation.rows} highlightId={currentUser.id} />
-              : <p className="text-sm font-bold text-app-muted">Se revela cuando arranca cada partido.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
             <h3 className="m-0 text-sm font-black">Distribución de aciertos</h3>

@@ -8,7 +8,7 @@ export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "m
 export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento";
 
 export type FactId =
-  | "optimista" | "candado" | "scoreline-favorito" | "sin-empates"
+  | "optimista" | "candado" | "sin-empates"
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
   | "mas-querido" | "mas-odiado" | "apuesta-audaz"
@@ -108,7 +108,7 @@ export function buildOptimismFacts(
   }
 
   const available = avgGoals.length > 0;
-  const hint = "Se revela cuando arranca cada partido";
+  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
   const sortDesc = (s: PersonValue[]) => [...s].sort((a, b) => b.value - a.value);
   const sortAsc = (s: PersonValue[]) => [...s].sort((a, b) => a.value - b.value);
 
@@ -202,7 +202,7 @@ export function buildConsensusFacts(
   }
 
   const available = contrarianRate.length > 0;
-  const hint = "Se revela cuando arranca cada partido";
+  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
   const reb = pickWinner(contrarianRate, (a, b) => a > b);
   const mon = pickWinner(contrarianRate, (a, b) => a < b);
 
@@ -355,7 +355,7 @@ export function buildTeamLoyaltyFacts(
   }
   const lovedTeams = toTally(wins);
   const hatedTeams = toTally(losses);
-  const matchHint = "Se revela cuando arranca cada partido";
+  const matchHint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
 
   const loved = lovedTeams[0];
   const masQuerido: Fact = {
@@ -443,7 +443,7 @@ export function buildBehaviorFacts(
   }
 
   const available = leadHours.length > 0;
-  const hint = "Se revela cuando arranca cada partido";
+  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
   const mad = pickWinner(leadHours, (a, b) => a > b);
   const last = pickWinner(leadHours, (a, b) => a < b);
   const ind = pickWinner(edits, (a, b) => a > b);
@@ -724,16 +724,6 @@ export function computeStats(input: StatsInput): StatsBundle {
 
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
-    {
-      id: "scoreline-favorito", category: "optimismo", title: "Scoreline favorito", emoji: "📊",
-      blurb: "El resultado más pronosticado por la familia", requires: "predictions",
-      available: scoreline.total > 0, unavailableHint: "Se revela cuando arranca cada partido",
-      chartKind: "histogram",
-      winner: scoreline.mode
-        ? { user: profiles[0]!, value: scoreline.mode.count, displayValue: `${scoreline.mode.label} (${scoreline.mode.count}x)` }
-        : undefined,
-      coWinners: [], series: [],
-    },
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
     accuracy.francotirador, accuracy.racha, accuracy.trampa,
     loyalty.masQuerido, loyalty.masOdiado, loyalty.apuestaAudaz,

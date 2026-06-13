@@ -149,6 +149,19 @@ export function LineStat({ data, series }: { data: Array<Record<string, number |
   );
 }
 
+/** A highlighted "leader" pill shown above a chart (the crowned team, top scoreline, etc.). */
+export function ChartLeader({ icon = "👑", label, value }: { icon?: string; label: string; value?: string }) {
+  return (
+    <div className="mb-3 flex w-fit max-w-full items-center gap-1.5 rounded-full bg-app-green/10 px-2.5 py-1 text-xs font-black text-app-green">
+      <span className="shrink-0 leading-none">{icon}</span>
+      <span className="truncate">{label}</span>
+      {value != null && (
+        <span className="shrink-0 rounded-full bg-app-green/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums">{value}</span>
+      )}
+    </div>
+  );
+}
+
 /** Per-person stacked split of finalized predictions: exacto / resultado / errado. */
 export function StackedAccuracy({ rows }: { rows: AccuracyBreakdownRow[] }) {
   const data = rows.map((r) => ({ name: r.user.displayName, exact: r.exact, outcome: r.outcome, miss: r.miss }));
