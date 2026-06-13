@@ -5,13 +5,14 @@ import { getGroupStatus, getMatchStatus } from "./tournament";
 import { getLeaderboard } from "./standings";
 
 export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit" | "thermometer";
-export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento";
+export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "grupos" | "comportamiento";
 
 export type FactId =
   | "optimista" | "candado" | "sin-empates"
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
   | "mas-querido" | "mas-odiado" | "apuesta-audaz"
+  | "grupo-muerte" | "colista" | "visionario" | "profeta-grupos"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 export type PersonValue = {
@@ -36,6 +37,7 @@ export type Fact = {
   unitSuffix?: string;
   headline?: string;        // overrides the winner's name in the card (e.g. a team, not a person)
   teamSeries?: TeamTally[]; // team-based chart data (for thermometer-style facts)
+  bins?: HistogramBin[];    // histogram data carried on the fact (e.g. per-group contention)
 };
 
 export type StatsInput = {
@@ -65,6 +67,12 @@ export function finalizedMatchIds(matches: Match[], now: Date): Set<string> {
 export function revealedGroupLabels(groups: Group[], now: Date): Set<string> {
   return new Set(
     groups.filter((g) => getGroupStatus(g, now) !== "open").map((g) => g.groupLabel),
+  );
+}
+
+export function finalizedGroupLabels(groups: Group[], now: Date): Set<string> {
+  return new Set(
+    groups.filter((g) => getGroupStatus(g, now) === "finalized").map((g) => g.groupLabel),
   );
 }
 

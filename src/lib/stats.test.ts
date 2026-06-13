@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -39,6 +39,14 @@ describe("visibility helpers", () => {
     const open: Group = { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null };
     const locked: Group = { ...open, groupLabel: "B", locksAt: "2026-06-01T00:00:00.000Z" };
     const labels = revealedGroupLabels([open, locked], now);
+    expect(labels.has("A")).toBe(false);
+    expect(labels.has("B")).toBe(true);
+  });
+
+  it("finalizedGroupLabels includes only groups whose result is finalized", () => {
+    const open: Group = { groupLabel: "A", locksAt: "2026-06-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null };
+    const done: Group = { ...open, groupLabel: "B", resultFinalizedAt: "2026-06-10T00:00:00.000Z" };
+    const labels = finalizedGroupLabels([open, done], now);
     expect(labels.has("A")).toBe(false);
     expect(labels.has("B")).toBe(true);
   });
