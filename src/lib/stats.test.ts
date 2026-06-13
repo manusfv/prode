@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -224,6 +224,79 @@ describe("team loyalty facts", () => {
     expect(apuestaAudaz.winner?.user.displayName).toBe("Ana");
     expect(apuestaAudaz.winner?.displayValue).toContain("Brasil");
     expect(apuestaAudaz.series).toHaveLength(2);
+  });
+});
+
+describe("group ranking facts", () => {
+  const teams = [
+    { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
+    { id: "bra", name: "Brasil", shortName: "BRA", flag: "🇧🇷" },
+    { id: "uru", name: "Uruguay", shortName: "URU", flag: "🇺🇾" },
+    { id: "chi", name: "Chile", shortName: "CHI", flag: "🇨🇱" },
+  ];
+  const threeProfiles: Profile[] = [
+    { id: "u1", displayName: "Ana", email: "a@x.com", approved: true, role: "user" },
+    { id: "u2", displayName: "Beto", email: "b@x.com", approved: true, role: "user" },
+    { id: "u3", displayName: "Caro", email: "c@x.com", approved: true, role: "user" },
+  ];
+  function grp(userId: string, label: string, order: [string, string, string, string], exactPositions = 0): GroupPrediction {
+    return {
+      id: `${userId}-${label}`, userId, groupLabel: label,
+      firstTeamId: order[0], secondTeamId: order[1], thirdTeamId: order[2], fourthTeamId: order[3],
+      points: null, exactPositions,
+      createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+  }
+  // Group A: divided; Group B: full consensus.
+  const gps: GroupPrediction[] = [
+    grp("u1", "A", ["arg", "bra", "uru", "chi"], 4),
+    grp("u2", "A", ["arg", "bra", "chi", "uru"], 2),
+    grp("u3", "A", ["bra", "arg", "uru", "chi"], 0),
+    grp("u1", "B", ["uru", "chi", "arg", "bra"]),
+    grp("u2", "B", ["uru", "chi", "arg", "bra"]),
+    grp("u3", "B", ["uru", "chi", "arg", "bra"]),
+  ];
+  const revealedGroups = new Set(["A", "B"]);
+  const ranking = (finalized = new Set<string>()) =>
+    buildGroupRankingFacts(threeProfiles, gps, teams, revealedGroups, finalized);
+
+  it("grupo de la muerte picks the most-divided group", () => {
+    const { grupoMuerte } = ranking();
+    expect(grupoMuerte.headline).toContain("A");
+    expect(grupoMuerte.bins?.[0]).toMatchObject({ label: "A", count: 33 });
+    expect(grupoMuerte.bins?.find((b) => b.label === "B")?.count).toBe(0);
+  });
+
+  it("colista tallies most-predicted last-place teams", () => {
+    const { colista } = ranking();
+    expect(colista.headline).toContain("Brasil");
+    expect(colista.teamSeries?.[0]).toMatchObject({ teamId: "bra", count: 3 });
+  });
+
+  it("visionario ranks people by full-order divergence from consensus", () => {
+    const { visionario } = ranking();
+    expect(visionario.series).toHaveLength(3);
+    expect(visionario.winner?.value).toBe(2);
+    expect(visionario.series.find((s) => s.user.id === "u1")?.value).toBe(0);
+  });
+
+  it("profeta sums exactPositions across finalized groups only", () => {
+    const { profeta } = ranking(new Set(["A"]));
+    expect(profeta.requires).toBe("results");
+    expect(profeta.winner?.user.displayName).toBe("Ana");
+    expect(profeta.winner?.value).toBe(4);
+    expect(profeta.series.find((s) => s.user.id === "u3")?.value).toBe(0);
+  });
+
+  it("profeta is unavailable when no group result is finalized", () => {
+    expect(ranking().profeta.available).toBe(false);
+  });
+
+  it("dream table picks each group's consensus winner", () => {
+    const { dreamTable } = ranking();
+    expect(dreamTable).toHaveLength(2);
+    expect(dreamTable[0]).toMatchObject({ groupLabel: "A", teamId: "arg", votes: 2, total: 3 });
+    expect(dreamTable[1]).toMatchObject({ groupLabel: "B", teamId: "uru", votes: 3, total: 3 });
   });
 });
 

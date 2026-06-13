@@ -421,6 +421,141 @@ export function buildTeamLoyaltyFacts(
   return { masQuerido, masOdiado, apuestaAudaz, termometro };
 }
 
+export type DreamTableRow = { groupLabel: string; teamId: string; name: string; flag: string; votes: number; total: number };
+
+const GROUP_HINT = "Se revela cuando cierra el grupo";
+const GROUP_RESULT_HINT = "Se revela cuando se cargan los resultados de los grupos";
+
+/** Stats mined from the full group-stage rankings (1º–4º order + exact positions). */
+export function buildGroupRankingFacts(
+  profiles: Profile[],
+  groupPredictions: GroupPrediction[],
+  teams: Team[],
+  revealedGroups: Set<string>,
+  finalizedGroups: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const approvedIds = new Set(approved.map((p) => p.id));
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const teamName = (id: string | null) => (id ? teamById.get(id)?.name ?? id : "");
+  const teamFlag = (id: string | null) => (id ? teamById.get(id)?.flag ?? "🏳️" : "🏳️");
+  const toTally = (counts: Map<string, number>): TeamTally[] =>
+    [...counts.entries()]
+      .map(([teamId, count]) => ({ teamId, name: teamName(teamId), flag: teamFlag(teamId), count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const slots: Array<keyof GroupPrediction> = ["firstTeamId", "secondTeamId", "thirdTeamId", "fourthTeamId"];
+  const revealed = groupPredictions.filter(
+    (g) => revealedGroups.has(g.groupLabel) && approvedIds.has(g.userId) && g.firstTeamId,
+  );
+
+  const byGroup = new Map<string, GroupPrediction[]>();
+  for (const g of revealed) {
+    const list = byGroup.get(g.groupLabel) ?? [];
+    list.push(g);
+    byGroup.set(g.groupLabel, list);
+  }
+
+  // Modal (most-voted) team per (group, slot) + per-group contention. Needs ≥2 pickers.
+  const modalAt = new Map<string, string>(); // `${group}:${slotIndex}` -> teamId
+  const contentionByGroup = new Map<string, number>();
+  for (const [label, picks] of byGroup) {
+    if (picks.length < 2) continue;
+    let disagreement = 0;
+    slots.forEach((slot, i) => {
+      const tally = new Map<string, number>();
+      for (const p of picks) {
+        const teamId = p[slot] as string | null;
+        if (teamId) tally.set(teamId, (tally.get(teamId) ?? 0) + 1);
+      }
+      const top = [...tally.entries()].sort((a, b) => b[1] - a[1] || teamName(a[0]).localeCompare(teamName(b[0])))[0];
+      if (top) modalAt.set(`${label}:${i}`, top[0]);
+      disagreement += 1 - (top?.[1] ?? 0) / picks.length;
+    });
+    contentionByGroup.set(label, disagreement / slots.length);
+  }
+
+  // 1 · Grupo de la muerte.
+  const contentionBins: HistogramBin[] = [...contentionByGroup.entries()]
+    .map(([label, c]) => ({ label, count: Math.round(c * 100) }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const worst = contentionBins[0];
+  const grupoMuerte: Fact = {
+    id: "grupo-muerte", category: "grupos", title: "Grupo de la muerte", emoji: "🪦",
+    blurb: "El grupo donde la familia menos se pone de acuerdo", requires: "predictions",
+    available: Boolean(worst), unavailableHint: GROUP_HINT, chartKind: "histogram",
+    headline: worst ? `Grupo ${worst.label}` : undefined,
+    winner: worst ? { user: approved[0]!, value: worst.count, displayValue: `${worst.count}% de desacuerdo` } : undefined,
+    coWinners: [], series: [], bins: contentionBins,
+  };
+
+  // 2 · Colista cantado — most-predicted 4th place.
+  const lastCounts = new Map<string, number>();
+  for (const g of revealed) if (g.fourthTeamId) lastCounts.set(g.fourthTeamId, (lastCounts.get(g.fourthTeamId) ?? 0) + 1);
+  const colistaTally = toTally(lastCounts);
+  const buried = colistaTally[0];
+  const colista: Fact = {
+    id: "colista", category: "grupos", title: "El colista cantado", emoji: "⚰️",
+    blurb: "El equipo que la familia más entierra en el fondo del grupo", requires: "predictions",
+    available: Boolean(buried), unavailableHint: GROUP_HINT, chartKind: "thermometer", unitSuffix: "votos",
+    headline: buried ? `${buried.flag} ${buried.name}` : undefined,
+    winner: buried ? { user: approved[0]!, value: buried.count, displayValue: `${buried.count} ${buried.count === 1 ? "voto" : "votos"} al fondo` } : undefined,
+    coWinners: [], series: [], teamSeries: colistaTally,
+  };
+
+  // 4 · El visionario — full-order divergence from the family consensus.
+  const divergence: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = revealed.filter((g) => g.userId === user.id);
+    if (mine.length === 0) continue;
+    let diff = 0;
+    for (const g of mine) {
+      slots.forEach((slot, i) => {
+        const modal = modalAt.get(`${g.groupLabel}:${i}`);
+        const teamId = g[slot] as string | null;
+        if (modal && teamId && teamId !== modal) diff += 1;
+      });
+    }
+    divergence.push({ user, value: diff, displayValue: `${diff} ${diff === 1 ? "casillero distinto" : "casilleros distintos"}` });
+  }
+  divergence.sort((a, b) => b.value - a.value);
+  const visionario: Fact = {
+    id: "visionario", category: "grupos", title: "El visionario", emoji: "👁️",
+    blurb: "Quien arma los grupos más distinto a todos", requires: "predictions",
+    available: divergence.length > 0, unavailableHint: GROUP_HINT, chartKind: "bar", unitSuffix: "",
+    winner: divergence[0], coWinners: [], series: divergence,
+  };
+
+  // 3 · El profeta de los grupos — exact positions across finalized groups.
+  const profetaScore: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = groupPredictions.filter((g) => g.userId === user.id && finalizedGroups.has(g.groupLabel));
+    if (mine.length === 0) continue;
+    const total = mine.reduce((t, g) => t + (g.exactPositions ?? 0), 0);
+    profetaScore.push({ user, value: total, displayValue: `${total} ${total === 1 ? "acierto" : "aciertos"} de orden` });
+  }
+  profetaScore.sort((a, b) => b.value - a.value);
+  const profeta: Fact = {
+    id: "profeta-grupos", category: "grupos", title: "El profeta de los grupos", emoji: "🔮",
+    blurb: "Quien más veces clavó el orden de un grupo", requires: "results",
+    available: profetaScore.length > 0, unavailableHint: GROUP_RESULT_HINT, chartKind: "bar", unitSuffix: "",
+    winner: profetaScore[0], coWinners: [], series: profetaScore,
+  };
+
+  // 9 · La tabla soñada — consensus 1st place per locked group.
+  const dreamTable: DreamTableRow[] = [];
+  for (const [label, picks] of byGroup) {
+    const tally = new Map<string, number>();
+    for (const p of picks) if (p.firstTeamId) tally.set(p.firstTeamId, (tally.get(p.firstTeamId) ?? 0) + 1);
+    const top = [...tally.entries()].sort((a, b) => b[1] - a[1] || teamName(a[0]).localeCompare(teamName(b[0])))[0];
+    if (!top) continue;
+    dreamTable.push({ groupLabel: label, teamId: top[0], name: teamName(top[0]), flag: teamFlag(top[0]), votes: top[1], total: picks.length });
+  }
+  dreamTable.sort((a, b) => a.groupLabel.localeCompare(b.groupLabel));
+
+  return { grupoMuerte, colista, visionario, profeta, dreamTable };
+}
+
 export function buildBehaviorFacts(
   profiles: Profile[],
   predictions: Prediction[],
