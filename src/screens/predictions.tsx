@@ -51,6 +51,7 @@ import { compareGroups, ui } from "@/lib/ui-tokens";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
+import { StatsTeaser } from "@/components/stats/stats-teaser";
 import { useApp } from "@/components/app-context";
 import { SaveStatus, StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
@@ -230,6 +231,7 @@ export function PredictionsScreen() {
       <aside className="sticky top-5 grid gap-2.5 max-lg:hidden">
         <SummaryPanel points={me?.points ?? 0} rank={me?.rank ?? 1} missingCount={missingCount} />
         <LeaderboardPreview rows={leaderboard.slice(0, 4)} onOpen={() => router.push("/tabla")} />
+        <StatsTeaser />
       </aside>
       <GroupDrawer
         group={drawerGroup}
@@ -694,7 +696,7 @@ function ScoreControl({ value, disabled, className, onChange }: { value: number 
 
 function EarnedPoints({ finalized, points }: { finalized: boolean; points: number | null }) {
   if (!finalized) {
-    return <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-app-muted">WIP</span>;
+    return <span className="shrink-0 text-sm font-black text-app-muted">-</span>;
   }
   return <span className="shrink-0 text-sm font-black text-app-green">{points ?? 0} pts</span>;
 }
@@ -732,7 +734,7 @@ export function PredictionDrawer({
                 {getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs {getTeamLabel(match.awayTeamId, teams, match.awaySeed)}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = matchPredictions.find((item) => item.userId === profile.id);
                 return (
@@ -795,7 +797,7 @@ function GroupDrawer({
                 Grupo {group.groupLabel}
               </SheetTitle>
             </SheetHeader>
-            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto px-4 pb-4">
+            <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = predictions.find((item) => item.userId === profile.id);
                 return (

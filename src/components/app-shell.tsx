@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BarChart3,
   CalendarClock,
   ChevronRight,
   ChevronsUpDown,
@@ -96,6 +97,7 @@ const routeTabs: Record<string, AppRoute> = {
   "/pronosticos": "predictions",
   "/tabla": "leaderboard",
   "/resultados": "results",
+  "/estadisticas": "stats",
   "/reglas": "rules",
   "/admin": "admin",
   "/cuenta": "account",
@@ -216,7 +218,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (activeTab === "admin" && !isAdmin) {
+    if (!isAdmin && (activeTab === "admin" || activeTab === "stats")) {
       router.replace(tabRoutes.predictions);
     }
   }, [activeTab, currentUser, isAdmin, router]);
@@ -668,6 +670,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} badge="Pronto" disabled={!isAdmin} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
@@ -676,22 +679,29 @@ function SidebarContent({
   );
 }
 
-function NavLink({ href, icon, label, active, onNavigate }: { href: string; icon: React.ReactNode; label: string; active: boolean; onNavigate?: () => void }) {
+function NavLink({ href, icon, label, active, onNavigate, badge, disabled }: { href: string; icon: React.ReactNode; label: string; active: boolean; onNavigate?: () => void; badge?: string; disabled?: boolean }) {
   const router = useRouter();
   return (
     <Button
       variant={active ? "default" : "ghost"}
+      disabled={disabled}
       className={cn(
         "h-10 justify-start gap-2.5 rounded-lg px-3 text-sm font-bold",
         active ? "bg-app-solid text-app-solid-fg" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text",
       )}
       onClick={() => {
+        if (disabled) return;
         router.push(href);
         onNavigate?.();
       }}
     >
       {icon}
       <span className="max-w-full truncate">{label}</span>
+      {badge && (
+        <span className="ml-auto rounded-full bg-app-surface-2 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-app-muted">
+          {badge}
+        </span>
+      )}
     </Button>
   );
 }
