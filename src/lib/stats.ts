@@ -108,7 +108,7 @@ export function buildOptimismFacts(
   }
 
   const available = avgGoals.length > 0;
-  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
+  const hint = "Se revela cuando se cierra el pronóstico de un partido";
   const sortDesc = (s: PersonValue[]) => [...s].sort((a, b) => b.value - a.value);
   const sortAsc = (s: PersonValue[]) => [...s].sort((a, b) => a.value - b.value);
 
@@ -202,7 +202,7 @@ export function buildConsensusFacts(
   }
 
   const available = contrarianRate.length > 0;
-  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
+  const hint = "Se revela cuando se cierra el pronóstico de un partido";
   const reb = pickWinner(contrarianRate, (a, b) => a > b);
   const mon = pickWinner(contrarianRate, (a, b) => a < b);
 
@@ -355,7 +355,7 @@ export function buildTeamLoyaltyFacts(
   }
   const lovedTeams = toTally(wins);
   const hatedTeams = toTally(losses);
-  const matchHint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
+  const matchHint = "Se revela cuando se cierra el pronóstico de un partido";
 
   const loved = lovedTeams[0];
   const masQuerido: Fact = {
@@ -443,7 +443,7 @@ export function buildBehaviorFacts(
   }
 
   const available = leadHours.length > 0;
-  const hint = "Se revela al arrancar cada partido, cuando se cierran los pronósticos";
+  const hint = "Se revela cuando se cierra el pronóstico de un partido";
   const mad = pickWinner(leadHours, (a, b) => a > b);
   const last = pickWinner(leadHours, (a, b) => a < b);
   const ind = pickWinner(edits, (a, b) => a > b);

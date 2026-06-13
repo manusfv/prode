@@ -102,7 +102,7 @@ export function EstadisticasScreen() {
             <p className="mb-3 text-xs font-bold text-app-muted">Coincidencia de pronósticos entre la familia</p>
             {bundle.hero.predictionsLoaded > 0
               ? <SimilarityGrid matrix={bundle.similarity} />
-              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Termómetro de favoritos</h3>
@@ -125,7 +125,7 @@ export function EstadisticasScreen() {
             )}
             {bundle.scoreline.total > 0
               ? <Histogram bins={bundle.scoreline.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Margen de goles</h3>
@@ -135,14 +135,14 @@ export function EstadisticasScreen() {
             )}
             {bundle.goalMargin.total > 0
               ? <Histogram bins={bundle.goalMargin.bins} />
-              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4")}>
             <h3 className="m-0 text-sm font-black">Participación</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Pronósticos cargados de {bundle.participation.total} partidos jugados</p>
             {bundle.participation.total > 0
               ? <BarStat series={bundle.participation.rows} highlightId={currentUser.id} />
-              : <p className="text-sm font-bold text-app-muted">Se revela al arrancar cada partido, cuando se cierran los pronósticos.</p>}
+              : <p className="text-sm font-bold text-app-muted">Se revela cuando se cierra el pronóstico de un partido.</p>}
           </Card>
           <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
             <h3 className="m-0 text-sm font-black">Distribución de aciertos</h3>
@@ -225,7 +225,7 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
       </div>
       {card.groupChampions && (
         <div className="mt-2 rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
-          <span className={ui.label}>Tus campeones de grupo ({card.groupsPicked})</span>
+          <span className={ui.label}>Tus cabezas de grupo ({card.groupsPicked})</span>
           <strong className="mt-1 block text-lg font-black leading-none tracking-wide">{card.groupChampions}</strong>
         </div>
       )}
