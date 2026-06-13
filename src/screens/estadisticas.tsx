@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
-import { BarStat, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
+import { BarStat, ConsensusBoard, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
 import { chartColors } from "@/components/ui/chart";
 import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
@@ -56,7 +56,8 @@ export function EstadisticasScreen() {
     if (fact.chartKind === "bar") {
       return <BarStat series={fact.series} suffix={fact.unitSuffix} highlightId={fact.winner?.user.id} />;
     }
-    if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} />;
+    if (fact.chartKind === "histogram") return <Histogram bins={fact.bins ?? []} />;
+    if (fact.chartKind === "thermometer") return <TeamThermometer teams={fact.teamSeries ?? bundle.termometro} leaderIcon={fact.id === "colista" ? "⚰️" : undefined} />;
     if (fact.chartKind === "matchSplit") {
       const matchId = fact.id === "trampa" ? bundle.trampaMatchId : bundle.dividedMatchId;
       const match = matchId ? matchById.get(matchId) : undefined;
@@ -140,6 +141,13 @@ export function EstadisticasScreen() {
               ? <StackedAccuracy rows={bundle.accuracyBreakdown} />
               : <p className="text-sm font-bold text-app-muted">Se revela a medida que se cargan los resultados.</p>}
           </Card>
+          <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
+            <h3 className="m-0 text-sm font-black">La tabla soñada</h3>
+            <p className="mb-3 text-xs font-bold text-app-muted">El 1º de cada grupo según la familia</p>
+            {bundle.dreamTable.length > 0
+              ? <ConsensusBoard rows={bundle.dreamTable} />
+              : <p className="text-sm font-bold text-app-muted">Se muestra a medida que cierran los grupos.</p>}
+          </Card>
         </div>
       </section>
 
@@ -216,6 +224,16 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
         <div className="mt-2 rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
           <span className={ui.label}>Tus cabezas de grupo ({card.groupsPicked})</span>
           <strong className="mt-1 block text-lg font-black leading-none tracking-wide">{card.groupChampions}</strong>
+        </div>
+      )}
+      {(card.twin || card.opposite) && (
+        <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
+          {card.twin && (
+            <span className="rounded-full border border-app-line bg-app-surface px-2.5 py-1">👯 Tu gemelo: {card.twin.name} ({card.twin.pct}%)</span>
+          )}
+          {card.opposite && (
+            <span className="rounded-full border border-app-line bg-app-surface px-2.5 py-1">🃏 Tu opuesto: {card.opposite.name} ({card.opposite.pct}%)</span>
+          )}
         </div>
       )}
     </Card>
