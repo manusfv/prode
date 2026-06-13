@@ -6,7 +6,7 @@ import {
 } from "recharts";
 
 import { ChartContainer, chartColors } from "@/components/ui/chart";
-import type { AccuracyBreakdownRow, HistogramBin, PersonValue, SimilarityMatrix, TeamTally } from "@/lib/stats";
+import type { AccuracyBreakdownRow, DreamTableRow, HistogramBin, PersonValue, SimilarityMatrix, TeamTally } from "@/lib/stats";
 
 const tooltipStyle = {
   background: "var(--color-app-panel)",
@@ -55,11 +55,11 @@ export function Histogram({ bins }: { bins: HistogramBin[] }) {
   );
 }
 
-export function TeamThermometer({ teams }: { teams: TeamTally[] }) {
+export function TeamThermometer({ teams, leaderIcon = "👑" }: { teams: TeamTally[]; leaderIcon?: string }) {
   const max = Math.max(0, ...teams.map((t) => t.count));
   const data = teams.slice(0, 12).map((t) => {
     const leader = t.count === max && max > 0;
-    return { name: `${leader ? "👑 " : ""}${t.flag} ${t.name}`, value: t.count, leader };
+    return { name: `${leader ? `${leaderIcon} ` : ""}${t.flag} ${t.name}`, value: t.count, leader };
   });
   return (
     <ChartContainer height={Math.max(160, data.length * 38)}>
@@ -171,5 +171,20 @@ export function StackedAccuracy({ rows }: { rows: AccuracyBreakdownRow[] }) {
         <Bar dataKey="miss" stackId="a" name="Errado" fill={chartColors.line} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ChartContainer>
+  );
+}
+
+/** Board of each locked group's consensus 1st-place pick (La tabla soñada). */
+export function ConsensusBoard({ rows }: { rows: DreamTableRow[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {rows.map((r) => (
+        <div key={r.groupLabel} className="rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
+          <span className="text-[10px] font-black uppercase tracking-wide text-app-muted">Grupo {r.groupLabel}</span>
+          <strong className="mt-1 block truncate text-sm font-black">{r.flag} {r.name}</strong>
+          <small className="text-xs font-bold text-app-muted">{r.votes}/{r.total} votos</small>
+        </div>
+      ))}
+    </div>
   );
 }
