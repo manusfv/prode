@@ -8,7 +8,7 @@ import type {
   Profile,
   Stage,
 } from "./types";
-import { getGroupStatus, getMatchStatus, inferWinner, needsAdvancer } from "./tournament";
+import { getGroupStatus, getMatchStatus, hasGroupOrder, inferWinner, needsAdvancer } from "./tournament";
 
 export type ScoreResult = {
   points: number;
@@ -56,6 +56,19 @@ export function scoreGroupPrediction(
   }
 
   return { points, exactPositions };
+}
+
+/**
+ * Scores a group-position prediction against the group's current order, whether
+ * that order is provisional or finalized. Returns null points when the order is
+ * incomplete (mirrors how the leaderboard treats unscored predictions).
+ */
+export function scoreGroupPredictionOrNull(
+  group: Group,
+  prediction: GroupPrediction,
+): { points: number | null; exactPositions: number } {
+  if (!hasGroupOrder(group)) return { points: null, exactPositions: 0 };
+  return scoreGroupPrediction(group, prediction);
 }
 
 export function scorePrediction(match: Match, prediction: Prediction): ScoreResult {

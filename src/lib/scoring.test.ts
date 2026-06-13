@@ -4,6 +4,7 @@ import {
   canSaveGroupPrediction,
   canSavePrediction,
   scoreGroupPrediction,
+  scoreGroupPredictionOrNull,
   scorePrediction,
 } from "./scoring";
 import { formatKickoff, getMatchStatus } from "./tournament";
@@ -300,5 +301,44 @@ describe("formatKickoff", () => {
 
     expect(kickoff).toContain("07:00");
     expect(kickoff).not.toMatch(/\u00a0|\u202f/);
+  });
+});
+
+describe("scoreGroupPredictionOrNull", () => {
+  const order = { firstTeamId: "t1", secondTeamId: "t2", thirdTeamId: "t3", fourthTeamId: "t4" };
+  const baseGroup = {
+    groupLabel: "A",
+    locksAt: null,
+    resultFinalizedAt: null,
+    resultFinalizedBy: null,
+  } as const;
+  const prediction = {
+    id: "gp1",
+    userId: "u1",
+    groupLabel: "A",
+    firstTeamId: "t1",
+    secondTeamId: "t2",
+    thirdTeamId: "t3",
+    fourthTeamId: "t4",
+    points: null,
+    exactPositions: 0,
+    createdAt: "2026-06-13T00:00:00Z",
+    updatedAt: "2026-06-13T00:00:00Z",
+  };
+
+  it("returns null points when the group order is incomplete", () => {
+    const result = scoreGroupPredictionOrNull(
+      { ...baseGroup, ...order, fourthTeamId: null } as Group,
+      prediction as GroupPrediction,
+    );
+    expect(result).toEqual({ points: null, exactPositions: 0 });
+  });
+
+  it("scores against a complete provisional order (no resultFinalizedAt)", () => {
+    const result = scoreGroupPredictionOrNull(
+      { ...baseGroup, ...order } as Group,
+      prediction as GroupPrediction,
+    );
+    expect(result).toEqual({ points: 28, exactPositions: 4 });
   });
 });
