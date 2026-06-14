@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Info } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
@@ -99,16 +100,18 @@ export function LeaderboardScreen() {
           </TabsList>
         </Tabs>
         {showPreviewToggle && (
-          <Button
-            type="button"
-            variant={preview ? "default" : "outline"}
-            size="sm"
-            aria-pressed={preview}
-            onClick={() => setPreview((value) => !value)}
-            className="w-full shrink-0 sm:w-auto"
-          >
-            {preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-          </Button>
+          <Tooltip content={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
+            <Button
+              type="button"
+              variant={preview ? "default" : "outline"}
+              size="icon-sm"
+              aria-pressed={preview}
+              aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+              onClick={() => setPreview((value) => !value)}
+            >
+              {preview ? <EyeOff /> : <Eye />}
+            </Button>
+          </Tooltip>
         )}
       </div>
 

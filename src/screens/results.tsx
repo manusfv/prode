@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarClock, ChevronDown } from "lucide-react";
+import { CalendarClock, ChevronDown, Eye, EyeOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   formatKickoff,
   getGroupStatus,
@@ -86,15 +87,18 @@ export function ResultsScreen() {
         </div>
         <div className="flex items-center gap-3 max-lg:w-full max-lg:justify-between">
           {isGroups && (
-            <Button
-              type="button"
-              variant={previewGroups ? "default" : "outline"}
-              size="sm"
-              aria-pressed={previewGroups}
-              onClick={() => setPreviewGroups((value) => !value)}
-            >
-              {previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-            </Button>
+            <Tooltip content={previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
+              <Button
+                type="button"
+                variant={previewGroups ? "default" : "outline"}
+                size="icon-sm"
+                aria-pressed={previewGroups}
+                aria-label={previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+                onClick={() => setPreviewGroups((value) => !value)}
+              >
+                {previewGroups ? <EyeOff /> : <Eye />}
+              </Button>
+            </Tooltip>
           )}
           <span className="text-sm font-black text-app-muted">
             {count} {isGroups ? "grupos" : "partidos"}
