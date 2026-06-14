@@ -604,7 +604,7 @@ export function buildGroupRankingFacts(
   }
   divergence.sort((a, b) => b.value - a.value);
   const visionario: Fact = {
-    id: "visionario", category: "manada", title: "El visionario", emoji: "👁️",
+    id: "visionario", category: "manada", title: "El supuesto visionario", emoji: "👁️",
     blurb: "Quien arma los grupos más distinto a todos", requires: "predictions",
     available: divergence.length > 0, unavailableHint: GROUP_HINT, chartKind: "bar", unitSuffix: "",
     winner: divergence[0], coWinners: topTies(divergence), series: divergence,
