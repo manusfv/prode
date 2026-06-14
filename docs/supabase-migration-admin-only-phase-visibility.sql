@@ -2,6 +2,14 @@
 -- States: 'closed' (nobody), 'admin' (admins preview), 'open' (everyone).
 -- Re-runnable / guarded.
 
+-- Postgres refuses to alter a column's type while a policy references it, so drop
+-- the dependent policies first; they are recreated (gated on 'open') further below.
+drop policy if exists "predictions_insert_own_open" on public.predictions;
+drop policy if exists "predictions_update_own_open" on public.predictions;
+drop policy if exists "group_predictions_insert_own_open" on public.group_predictions;
+drop policy if exists "group_predictions_update_own_open" on public.group_predictions;
+drop policy if exists "group_predictions_delete_own_open" on public.group_predictions;
+
 do $$
 declare
   col text;
@@ -35,7 +43,6 @@ begin
 end $$;
 
 -- RLS: saving predictions requires the phase to be fully open (admin-only does not permit writes).
-drop policy if exists "predictions_insert_own_open" on public.predictions;
 create policy "predictions_insert_own_open"
 on public.predictions
 for insert
@@ -65,7 +72,6 @@ with check (
   )
 );
 
-drop policy if exists "predictions_update_own_open" on public.predictions;
 create policy "predictions_update_own_open"
 on public.predictions
 for update
@@ -96,7 +102,6 @@ with check (
   )
 );
 
-drop policy if exists "group_predictions_insert_own_open" on public.group_predictions;
 create policy "group_predictions_insert_own_open"
 on public.group_predictions
 for insert
@@ -114,7 +119,6 @@ with check (
   )
 );
 
-drop policy if exists "group_predictions_update_own_open" on public.group_predictions;
 create policy "group_predictions_update_own_open"
 on public.group_predictions
 for update
@@ -133,7 +137,6 @@ with check (
   )
 );
 
-drop policy if exists "group_predictions_delete_own_open" on public.group_predictions;
 create policy "group_predictions_delete_own_open"
 on public.group_predictions
 for delete
