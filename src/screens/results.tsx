@@ -1,12 +1,11 @@
 "use client";
 
-import { CalendarClock, ChevronDown, Eye, EyeOff } from "lucide-react";
+import { CalendarClock, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
   formatKickoff,
   getGroupStatus,
@@ -74,8 +73,6 @@ export function ResultsScreen() {
   const isGroups = activeStage === "groups";
   const count = isGroups ? sortedGroups.length : stageMatches.length;
 
-  const [previewGroups, setPreviewGroups] = useState(false);
-
   return (
     <section className="grid gap-3.5">
       <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={setActiveStage} />
@@ -86,27 +83,13 @@ export function ResultsScreen() {
           <h2 className="mt-1 text-3xl font-black leading-none">Resultados</h2>
         </div>
         <div className="flex items-center gap-3 max-lg:w-full max-lg:justify-between">
-          {isGroups && (
-            <Tooltip content={previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
-              <Button
-                type="button"
-                variant={previewGroups ? "default" : "outline"}
-                size="icon-sm"
-                aria-pressed={previewGroups}
-                aria-label={previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-                onClick={() => setPreviewGroups((value) => !value)}
-              >
-                {previewGroups ? <EyeOff /> : <Eye />}
-              </Button>
-            </Tooltip>
-          )}
           <span className="text-sm font-black text-app-muted">
             {count} {isGroups ? "grupos" : "partidos"}
           </span>
         </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="grid items-start gap-3 xl:grid-cols-2">
         {isGroups
           ? sortedGroups.map((group) => (
               <ResultGroupCard
@@ -117,7 +100,6 @@ export function ResultsScreen() {
                 approvedProfiles={approvedProfiles}
                 groupPredictions={groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel)}
                 currentUserId={currentUser.id}
-                preview={previewGroups}
               />
             ))
           : stageMatches.map((match) => (
@@ -248,7 +230,6 @@ function ResultGroupCard({
   approvedProfiles,
   groupPredictions,
   currentUserId,
-  preview,
 }: {
   group: Group;
   teams: Team[];
@@ -256,12 +237,11 @@ function ResultGroupCard({
   approvedProfiles: Profile[];
   groupPredictions: GroupPrediction[];
   currentUserId: string;
-  preview: boolean;
 }) {
   const status = getGroupStatus(group, now);
   const finalized = status === "finalized";
   const provisional = isGroupProvisional(group);
-  const revealOrder = finalized || (provisional && preview);
+  const revealOrder = finalized || provisional;
   const order = [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId];
 
   const entries = useMemo(
@@ -294,9 +274,6 @@ function ResultGroupCard({
 
       {revealOrder ? (
         <div className="grid gap-1.5">
-          {provisional && (
-            <p className="text-xs font-black uppercase tracking-wide text-app-amber">Posiciones provisionales</p>
-          )}
           <ol className="grid gap-1.5">
             {order.map((teamId, index) => (
               <li

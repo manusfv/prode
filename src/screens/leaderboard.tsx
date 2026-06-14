@@ -100,27 +100,37 @@ export function LeaderboardScreen() {
               ))}
             </TabsList>
           </Tabs>
-          {showPreviewToggle && (
-            <Tooltip content={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
-              <Button
-                type="button"
-                variant={preview ? "default" : "outline"}
-                size="icon-lg"
-                className="shrink-0 self-stretch sm:size-12 sm:[&_svg]:size-5"
-                aria-pressed={preview}
-                aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-                onClick={() => setPreview((value) => !value)}
-              >
-                {preview ? <EyeOff /> : <Eye />}
-              </Button>
-            </Tooltip>
-          )}
+          <Tooltip
+            content={
+              showPreviewToggle
+                ? preview
+                  ? "Ocultar resultados provisionales"
+                  : "Mostrar resultados provisionales"
+                : "Vista previa de grupos no disponible en esta vista"
+            }
+          >
+            <Button
+              type="button"
+              variant={preview && showPreviewToggle ? "default" : "outline"}
+              size="icon-lg"
+              className="shrink-0 self-stretch aria-disabled:opacity-50 aria-disabled:cursor-not-allowed sm:size-12 sm:[&_svg]:size-5"
+              aria-disabled={!showPreviewToggle}
+              aria-pressed={preview && showPreviewToggle}
+              aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+              onClick={() => {
+                if (!showPreviewToggle) return;
+                setPreview((value) => !value);
+              }}
+            >
+              {preview && showPreviewToggle ? <EyeOff /> : <Eye />}
+            </Button>
+          </Tooltip>
         </div>
       </div>
 
-      {preview && canPreview && (
+      {preview && showPreviewToggle && (
         <p className="mt-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
-          Mostrando cómo quedaría la tabla <strong className="font-black">si los grupos terminaran hoy</strong>. No es el resultado final.
+          Mostrando la tabla <strong className="font-black">con resultados provisionales incluidos</strong>. No es el resultado final.
         </p>
       )}
       {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
