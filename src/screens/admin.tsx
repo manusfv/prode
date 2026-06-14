@@ -319,7 +319,7 @@ export function AdminScreen() {
 
         <Card className={cn(ui.panel, "p-4")}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="m-0 text-lg font-black">Admin / Resultados</h2>
+            <h2 className="m-0 text-lg font-black">Resultados de partidos</h2>
             <div className="admin-actions">
               <input ref={importInputRef} className="csv-file-input" type="file" accept=".csv,text/csv" onChange={handleImportInputChange} />
               <Button variant="outline" disabled={Boolean(pendingAdminAction)} onClick={() => importInputRef.current?.click()}>

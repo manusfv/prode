@@ -391,9 +391,7 @@ input:disabled {
 
 .stage-admin-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
+  gap: 8px;
   padding: 10px;
   background: var(--surface-2);
   border: 1px solid var(--line);
