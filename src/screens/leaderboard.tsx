@@ -107,7 +107,7 @@ export function LeaderboardScreen() {
             onClick={() => setPreview((value) => !value)}
             className="w-full shrink-0 sm:w-auto"
           >
-            {preview ? "Vista previa activa" : "Si los grupos terminaran hoy"}
+            {preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
           </Button>
         )}
       </div>

@@ -93,7 +93,7 @@ export function ResultsScreen() {
               aria-pressed={previewGroups}
               onClick={() => setPreviewGroups((value) => !value)}
             >
-              {previewGroups ? "Ocultar provisionales" : "Ver posiciones provisionales"}
+              {previewGroups ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
             </Button>
           )}
           <span className="text-sm font-black text-app-muted">
