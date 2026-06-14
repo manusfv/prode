@@ -16,9 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stageLabels, stageOrder } from "@/lib/tournament";
+import { StageTabs } from "@/components/badges";
 import type { Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type LeaderboardRow } from "@/lib/standings";
@@ -51,96 +49,64 @@ export function LeaderboardScreen() {
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
 
-  const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
-
   const canPreview = standingsStages.has("groups");
   const showPreviewToggle = canPreview && (view === "overall" || view === "groups");
 
   return (
-    <Card className={cn(ui.panel, "p-4")}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="m-0 text-lg font-black">Tabla general</h2>
-          <StandingsLegend />
+    <div>
+      <div className="mb-4 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <StageTabs
+            activeStage={view}
+            enabledStages={standingsStages}
+            onChange={setView}
+            leadingOption={{ value: "overall", label: "Acumulado" }}
+            label="Vista"
+          />
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-1">
-          <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
-            <SelectTrigger className={cn(ui.control, "min-w-0 flex-1 sm:hidden")} aria-label="Vista">
-              <span className={ui.label}>Vista</span>
-              <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="overall">Acumulado</SelectItem>
-              <SelectSeparator />
-              {stageOrder.map((stage) => (
-                <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
-                  {stageLabels[stage]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block sm:flex-1">
-            <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
-              <TabsTrigger
-                value="overall"
-                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
-              >
-                Acumulado
-              </TabsTrigger>
-              <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
-              {stageOrder.map((stage) => (
-                <TabsTrigger
-                  key={stage}
-                  value={stage}
-                  disabled={!standingsStages.has(stage)}
-                  className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
-                >
-                  {stageLabels[stage]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-          <Tooltip
-            content={
-              showPreviewToggle
-                ? preview
-                  ? "Ocultar resultados provisionales"
-                  : "Mostrar resultados provisionales"
-                : "Vista previa de grupos no disponible en esta vista"
-            }
+        <StandingsLegend />
+        <Tooltip
+          content={
+            showPreviewToggle
+              ? preview
+                ? "Ocultar resultados provisionales"
+                : "Mostrar resultados provisionales"
+              : "Vista previa de grupos no disponible en esta vista"
+          }
+        >
+          <Button
+            type="button"
+            variant={preview && showPreviewToggle ? "default" : "outline"}
+            size="icon-lg"
+            className="shrink-0 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed sm:size-12 sm:[&_svg]:size-5"
+            aria-disabled={!showPreviewToggle}
+            aria-pressed={preview && showPreviewToggle}
+            aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+            onClick={() => {
+              if (!showPreviewToggle) return;
+              setPreview((value) => !value);
+            }}
           >
-            <Button
-              type="button"
-              variant={preview && showPreviewToggle ? "default" : "outline"}
-              size="icon-lg"
-              className="shrink-0 self-stretch aria-disabled:opacity-50 aria-disabled:cursor-not-allowed sm:size-12 sm:[&_svg]:size-5"
-              aria-disabled={!showPreviewToggle}
-              aria-pressed={preview && showPreviewToggle}
-              aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-              onClick={() => {
-                if (!showPreviewToggle) return;
-                setPreview((value) => !value);
-              }}
-            >
-              {preview && showPreviewToggle ? <EyeOff /> : <Eye />}
-            </Button>
-          </Tooltip>
-        </div>
+            {preview && showPreviewToggle ? <EyeOff /> : <Eye />}
+          </Button>
+        </Tooltip>
       </div>
 
-      {preview && showPreviewToggle && (
-        <p className="mt-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
-          Mostrando la tabla <strong className="font-black">con resultados provisionales incluidos</strong>. No es el resultado final.
-        </p>
-      )}
-      {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
-      {rest.length > 0 && <StandingsTable rows={rest} currentUserId={currentUser.id} />}
-      {rows.length === 0 && (
-        <p className="mt-4 rounded-lg border border-app-line bg-app-surface px-3 py-6 text-center text-sm font-bold text-app-muted">
-          Todavía no hay participantes en la tabla.
-        </p>
-      )}
-    </Card>
+      <Card className={cn(ui.panel, "p-4")}>
+        {preview && showPreviewToggle && (
+          <p className="mb-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
+            Mostrando la tabla <strong className="font-black">con resultados provisionales incluidos</strong>. No es el resultado final.
+          </p>
+        )}
+        {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
+        {rest.length > 0 && <StandingsTable rows={rest} currentUserId={currentUser.id} />}
+        {rows.length === 0 && (
+          <p className="mt-4 rounded-lg border border-app-line bg-app-surface px-3 py-6 text-center text-sm font-bold text-app-muted">
+            Todavía no hay participantes en la tabla.
+          </p>
+        )}
+      </Card>
+    </div>
   );
 }
 
