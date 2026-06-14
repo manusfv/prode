@@ -47,7 +47,7 @@ const VISIBILITY_META: Record<
   { variant: "default" | "outline"; tint: string; title: string }
 > = {
   closed: { variant: "outline", tint: "", title: "cerrado" },
-  admin: { variant: "outline", tint: "border-app-amber text-app-amber", title: "solo admin" },
+  admin: { variant: "outline", tint: "border-app-amber bg-app-amber/15 text-app-amber hover:bg-app-amber/25", title: "solo admin" },
   open: { variant: "default", tint: "", title: "abierto" },
 };
 
