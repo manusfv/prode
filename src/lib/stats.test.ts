@@ -225,6 +225,17 @@ describe("team loyalty facts", () => {
     expect(apuestaAudaz.winner?.displayValue).toContain("Brasil");
     expect(apuestaAudaz.series).toHaveLength(2);
   });
+
+  it("apuesta-audaz summarizes every tied lone pick, not just the leader's", () => {
+    // Each person is alone on a DIFFERENT team -> they tie for boldest. The card
+    // summary must name both teams, not pin the leader's pick on everyone.
+    const tiedGps = [gp("u1", "A", "arg"), gp("u2", "A", "bra")];
+    const { apuestaAudaz } = buildTeamLoyaltyFacts(profiles, tiedGps, [], [], teams, new Set(["A"]), new Set());
+    expect(apuestaAudaz.coWinners).toHaveLength(2);
+    expect(apuestaAudaz.winnerSummary).toContain("Argentina");
+    expect(apuestaAudaz.winnerSummary).toContain("Brasil");
+    expect(apuestaAudaz.winnerSummary).toContain("nadie más las eligió");
+  });
 });
 
 describe("group ranking facts", () => {
