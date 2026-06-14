@@ -65,12 +65,14 @@ export type Prediction = {
   updatedAt: string;
 };
 
+export type StageVisibility = "closed" | "admin" | "open";
+
 export type StageState = {
   stage: Stage;
   label: string;
-  predictionsOpen: boolean;
-  resultsOpen: boolean;
-  standingsOpen: boolean;
+  predictionsOpen: StageVisibility;
+  resultsOpen: StageVisibility;
+  standingsOpen: StageVisibility;
 };
 
 export type StageFlag = "predictions" | "results" | "standings";
