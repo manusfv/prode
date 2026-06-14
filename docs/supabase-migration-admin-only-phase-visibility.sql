@@ -21,6 +21,11 @@ begin
       );
       execute format('alter table public.stages alter column %I set default ''closed''', col);
       execute format('alter table public.stages alter column %I set not null', col);
+    end if;
+
+    -- Add the CHECK independently so an interrupted prior run (column already
+    -- converted to text but constraint not yet added) still gets it on re-run.
+    if not exists (select 1 from pg_constraint where conname = col || '_check') then
       execute format(
         'alter table public.stages add constraint %I check (%I in (''closed'', ''admin'', ''open''))',
         col || '_check', col
