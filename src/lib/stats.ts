@@ -947,7 +947,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const scoreline = buildScorelineHistogram(predictions, revealed);
   const similarity = buildSimilarityMatrix(profiles, predictions, revealed);
   const pointsRace = buildPointsRace(profiles, predictions, matches, finalized);
-  const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, standingsStages })
+  const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, groups, standingsStages })
     .map((row) => ({ user: row.user, value: row.points, displayValue: `${row.points} pts` }));
   const accuracyBreakdown = buildAccuracyBreakdown(profiles, predictions, finalized);
   const participation = buildParticipation(profiles, predictions, revealed);

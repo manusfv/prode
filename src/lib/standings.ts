@@ -1,4 +1,5 @@
-import type { GroupPrediction, Match, Prediction, Profile, Stage } from "./types";
+import type { Group, GroupPrediction, Match, Prediction, Profile, Stage } from "./types";
+import { isGroupProvisional } from "./tournament";
 
 type LeaderboardInput = {
   profiles: Profile[];
@@ -45,26 +46,47 @@ function stageByMatchId(matches: Match[]): Map<string, Stage> {
   return new Map(matches.map((match) => [match.id, match.stage]));
 }
 
-/** Accumulated leaderboard over the revealed (standings_open) stages only. */
+/** Keep group predictions whose group counts toward the total: finalized groups
+ *  always; provisional groups only when previewing ("if the groups ended today"). */
+function filterGroupPredictions(
+  groupPredictions: GroupPrediction[],
+  groups: Group[],
+  includeProvisional: boolean,
+): GroupPrediction[] {
+  if (includeProvisional) return groupPredictions;
+  const provisionalLabels = new Set(
+    groups.filter(isGroupProvisional).map((group) => group.groupLabel),
+  );
+  return groupPredictions.filter((prediction) => !provisionalLabels.has(prediction.groupLabel));
+}
+
+/** Accumulated leaderboard over the revealed (standings_open) stages only.
+ *  Provisional group points count only when includeProvisional is set. */
 export function getLeaderboard({
   predictions,
   profiles,
   groupPredictions,
   matches,
+  groups,
   standingsStages,
+  includeProvisional = false,
 }: {
   predictions: Prediction[];
   profiles: Profile[];
   groupPredictions: GroupPrediction[];
   matches: Match[];
+  groups: Group[];
   standingsStages: Set<Stage>;
+  includeProvisional?: boolean;
 }): LeaderboardRow[] {
   const byMatch = stageByMatchId(matches);
   const predSubset = predictions.filter((prediction) => {
     const stage = byMatch.get(prediction.matchId);
     return stage ? standingsStages.has(stage) : false;
   });
-  const groupSubset = standingsStages.has("groups") ? groupPredictions : [];
+  const groupSubset = standingsStages.has("groups")
+    ? filterGroupPredictions(groupPredictions, groups, includeProvisional)
+    : [];
   return buildLeaderboard({ profiles, predictions: predSubset, groupPredictions: groupSubset });
 }
 
@@ -76,15 +98,20 @@ export function getStageLeaderboard(
     profiles,
     groupPredictions,
     matches,
+    groups,
+    includeProvisional = false,
   }: {
     predictions: Prediction[];
     profiles: Profile[];
     groupPredictions: GroupPrediction[];
     matches: Match[];
+    groups: Group[];
+    includeProvisional?: boolean;
   },
 ): LeaderboardRow[] {
   if (stage === "groups") {
-    return buildLeaderboard({ profiles, predictions: [], groupPredictions });
+    const groupSubset = filterGroupPredictions(groupPredictions, groups, includeProvisional);
+    return buildLeaderboard({ profiles, predictions: [], groupPredictions: groupSubset });
   }
   const byMatch = stageByMatchId(matches);
   const predSubset = predictions.filter((prediction) => byMatch.get(prediction.matchId) === stage);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder } from "./standings";
-import type { GroupPrediction, Match, Prediction, Profile } from "./types";
+import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 
 const profiles: Profile[] = [
   { id: "u1", displayName: "Ana", email: "a@x.com", approved: true, role: "user" },
@@ -28,9 +28,16 @@ const groupPredictions: GroupPrediction[] = [
   { id: "g1", userId: "u1", groupLabel: "A", firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", points: 8, exactPositions: 2, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-05-01T00:00:00.000Z" },
 ];
 
+const finalizedGroups: Group[] = [
+  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: "2026-06-10T00:00:00.000Z", resultFinalizedBy: "admin" },
+];
+const provisionalGroups: Group[] = [
+  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: null, resultFinalizedBy: null },
+];
+
 describe("getLeaderboard (revealed-scoped)", () => {
   it("sums only revealed stages and excludes groups when not revealed", () => {
-    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32"]) });
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: finalizedGroups, standingsStages: new Set(["round32"]) });
     const u1 = rows.find((r) => r.user.id === "u1")!;
     const u2 = rows.find((r) => r.user.id === "u2")!;
     expect(u1.points).toBe(10); // round32 only, no round16, no groups
@@ -39,12 +46,12 @@ describe("getLeaderboard (revealed-scoped)", () => {
   });
 
   it("includes groups points only when groups is revealed", () => {
-    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32", "groups"]) });
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: finalizedGroups, standingsStages: new Set(["round32", "groups"]) });
     expect(rows.find((r) => r.user.id === "u1")!.points).toBe(18); // 10 + 8 groups
   });
 
   it("ranks by points then exact hits", () => {
-    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages: new Set(["round32", "round16"]) });
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: finalizedGroups, standingsStages: new Set(["round32", "round16"]) });
     expect(rows[0].user.id).toBe("u1"); // 15 > 3
     expect(rows[0].rank).toBe(1);
   });
@@ -52,14 +59,42 @@ describe("getLeaderboard (revealed-scoped)", () => {
 
 describe("getStageLeaderboard", () => {
   it("returns only that stage's match points", () => {
-    const rows = getStageLeaderboard("round16", { predictions, profiles, groupPredictions, matches });
+    const rows = getStageLeaderboard("round16", { predictions, profiles, groupPredictions, matches, groups: finalizedGroups });
     expect(rows.find((r) => r.user.id === "u1")!.points).toBe(5);
     expect(rows.find((r) => r.user.id === "u2")!.points).toBe(0);
   });
 
   it("uses group predictions for the groups stage", () => {
-    const rows = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches });
+    const rows = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches, groups: finalizedGroups });
     expect(rows.find((r) => r.user.id === "u1")!.points).toBe(8);
+  });
+});
+
+describe("getLeaderboard provisional gating", () => {
+  it("excludes provisional group points by default", () => {
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: provisionalGroups, standingsStages: new Set(["round32", "groups"]) });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(10); // 10 match; provisional 8 excluded
+  });
+
+  it("includes provisional group points when includeProvisional is true", () => {
+    const rows = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: provisionalGroups, standingsStages: new Set(["round32", "groups"]), includeProvisional: true });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(18); // 10 + 8 provisional
+  });
+
+  it("counts finalized group points in both modes", () => {
+    const off = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: finalizedGroups, standingsStages: new Set(["round32", "groups"]) });
+    const on = getLeaderboard({ predictions, profiles, groupPredictions, matches, groups: finalizedGroups, standingsStages: new Set(["round32", "groups"]), includeProvisional: true });
+    expect(off.find((r) => r.user.id === "u1")!.points).toBe(18);
+    expect(on.find((r) => r.user.id === "u1")!.points).toBe(18);
+  });
+});
+
+describe("getStageLeaderboard provisional gating", () => {
+  it("excludes provisional groups by default and includes them when previewing", () => {
+    const off = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches, groups: provisionalGroups });
+    const on = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches, groups: provisionalGroups, includeProvisional: true });
+    expect(off.find((r) => r.user.id === "u1")!.points).toBe(0);
+    expect(on.find((r) => r.user.id === "u1")!.points).toBe(8);
   });
 });
 

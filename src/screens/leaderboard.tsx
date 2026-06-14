@@ -40,10 +40,10 @@ export function LeaderboardScreen() {
 
   const rows = useMemo(() => {
     if (view === "overall") {
-      return getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages });
+      return getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages });
     }
-    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches });
-  }, [view, predictions, profiles, groupPredictions, matches, standingsStages]);
+    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches, groups });
+  }, [view, predictions, profiles, groupPredictions, matches, groups, standingsStages]);
 
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);

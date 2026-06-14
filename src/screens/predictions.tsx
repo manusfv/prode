@@ -153,8 +153,8 @@ export function PredictionsScreen() {
   }, [activeStage, currentGroupPredictionMap, currentPredictionMap, matches]);
 
   const leaderboard = useMemo(
-    () => getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }),
-    [predictions, profiles, groupPredictions, matches, standingsStages],
+    () => getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }),
+    [predictions, profiles, groupPredictions, matches, groups, standingsStages],
   );
   const me = leaderboard.find((row) => row.user.id === currentUser.id);
   const missingMatches = matches.filter(

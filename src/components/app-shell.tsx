@@ -143,7 +143,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const me = useMemo(
     () =>
-      getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }).find(
+      getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }).find(
         (row) => row.user.id === currentUser?.id,
       ),
     [predictions, profiles, groupPredictions, matches, standingsStages, currentUser],
@@ -604,7 +604,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </section>
 
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetContent side="left" className="w-[280px] gap-0 border-app-line bg-app-sidebar p-4 sm:max-w-[280px]">
+          <SheetContent side="left" className="w-70 gap-0 border-app-line bg-app-sidebar p-4 sm:max-w-70">
             <SheetTitle className="sr-only">Menú</SheetTitle>
             <SidebarContent
               activeTab={activeTab}
