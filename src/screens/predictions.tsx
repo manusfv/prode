@@ -84,6 +84,7 @@ export function PredictionsScreen() {
     now,
     saveState,
     openStages,
+    editableStages,
     standingsStages,
     updatePrediction,
     updateGroupPrediction,
@@ -160,7 +161,7 @@ export function PredictionsScreen() {
   const missingMatches = matches.filter(
     (match) =>
       getMatchStatus(match, now) === "open" &&
-      openStages.has(match.stage) &&
+      editableStages.has(match.stage) &&
       match.homeTeamId &&
       match.awayTeamId &&
       !currentPredictionMap.has(match.id),
@@ -168,7 +169,7 @@ export function PredictionsScreen() {
   const missingGroups = groups.filter(
     (group) =>
       getGroupStatus(group, now) === "open" &&
-      openStages.has("groups") &&
+      editableStages.has("groups") &&
       !isGroupPredictionComplete(currentGroupPredictionMap.get(group.groupLabel)),
   ).length;
   const missingCount = missingMatches + missingGroups;
@@ -178,6 +179,9 @@ export function PredictionsScreen() {
       <div className="min-w-0">
         <div className="mb-6 grid gap-3">
           <StageTabs activeStage={activeStage} enabledStages={openStages} onChange={setActiveStage} />
+          {!editableStages.has(activeStage) && openStages.has(activeStage) && (
+            <p className={cn(ui.label, "text-app-amber")}>Vista previa · solo admin</p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
               {activeStage === "groups" && (
@@ -214,7 +218,7 @@ export function PredictionsScreen() {
                   )}
                   profiles={profiles}
                   now={now}
-                  stageOpen={openStages.has("groups")}
+                  stageOpen={editableStages.has("groups")}
                   onChange={updateGroupPrediction}
                   onOpenDrawer={setDrawerGroup}
                 />
@@ -228,7 +232,7 @@ export function PredictionsScreen() {
                   now={now}
                   teams={teams}
                   profiles={profiles}
-                  openStages={openStages}
+                  editableStages={editableStages}
                   onChange={updatePrediction}
                   onOpenDrawer={openPredictionDrawer}
                 />
@@ -519,7 +523,7 @@ function MatchCard({
   now,
   teams,
   profiles,
-  openStages,
+  editableStages,
   onChange,
   onOpenDrawer,
 }: {
@@ -529,12 +533,12 @@ function MatchCard({
   now: Date;
   teams: Team[];
   profiles: Profile[];
-  openStages: Set<Stage>;
+  editableStages: Set<Stage>;
   onChange: (match: Match, patch: Partial<Prediction>) => void;
   onOpenDrawer: (match: Match) => void;
 }) {
   const status = getMatchStatus(match, now);
-  const isOpen = status === "open" && openStages.has(match.stage) && match.homeTeamId && match.awayTeamId;
+  const isOpen = status === "open" && editableStages.has(match.stage) && match.homeTeamId && match.awayTeamId;
 
   const [draft, setDraft] = useState<PredictionDraft>(() => toDraft(prediction));
   const savedKey = prediction
