@@ -27,7 +27,7 @@ import {
   createMatchAction,
   deleteGroupPredictionAction,
   deleteMatchAction,
-  finalizeGroupResultAction,
+  saveGroupStandingsAction,
   finalizeMatchAction,
   importMatchesCsvAction,
   recalculatePointsAction,
@@ -36,10 +36,11 @@ import {
   updateGroupLocksAtAction,
   updateStageFlagAction,
 } from "@/app/actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
-import { scoreAllForMatch, scoreGroupPrediction } from "@/lib/scoring";
+import { scoreAllForMatch, scoreGroupPredictionOrNull } from "@/lib/scoring";
 import {
   groups as seedGroups,
   groupPredictions as seedGroupPredictions,
@@ -60,10 +61,11 @@ import type {
   Stage,
   StageFlag,
   StageState,
+  StageVisibility,
   Team,
 } from "@/lib/types";
 import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
-import { getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
+import { getEditablePredictionsStages, getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
 import { getLeaderboard } from "@/lib/standings";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
@@ -75,7 +77,7 @@ import {
   AppContext,
   type AppContextValue,
   type CreateMatchActionInput,
-  type FinalizeGroupResultInput,
+  type SaveGroupStandingsInput,
   type SaveState,
 } from "./app-context";
 import { PredictionDrawer } from "@/screens/predictions";
@@ -136,16 +138,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const supabaseEnabled = hasSupabaseConfig();
 
   const isAdmin = currentUser?.role === "admin";
-  const openStages = useMemo(() => getPredictionsStages(stages), [stages]);
-  const resultsStages = useMemo(() => getResultsStages(stages, matches, groups), [stages, matches, groups]);
-  const standingsStages = useMemo(() => getStandingsStages(stages), [stages]);
+  const openStages = useMemo(() => getPredictionsStages(stages, isAdmin), [stages, isAdmin]);
+  const editableStages = useMemo(() => getEditablePredictionsStages(stages), [stages]);
+  const resultsStages = useMemo(() => getResultsStages(stages, matches, groups, isAdmin), [stages, matches, groups, isAdmin]);
+  const standingsStages = useMemo(() => getStandingsStages(stages, isAdmin), [stages, isAdmin]);
 
   const me = useMemo(
     () =>
-      getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages }).find(
+      getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }).find(
         (row) => row.user.id === currentUser?.id,
       ),
-    [predictions, profiles, groupPredictions, matches, standingsStages, currentUser],
+    [predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser],
   );
 
   const refreshSupabaseData = useCallback(async () => {
@@ -288,7 +291,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (result.ok) await refreshSupabaseData();
   }
 
-  async function updateStageFlag(stage: Stage, flag: StageFlag, value: boolean) {
+  async function updateStageFlag(stage: Stage, flag: StageFlag, value: StageVisibility) {
     const column = flag === "predictions" ? "predictionsOpen" : flag === "results" ? "resultsOpen" : "standingsOpen";
     setStages((current) => current.map((item) => (item.stage === stage ? { ...item, [column]: value } : item)));
     const result = await updateStageFlagAction({ stage, flag, value });
@@ -462,9 +465,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function finalizeGroupResult(input: FinalizeGroupResultInput) {
+  async function saveGroupStandings(input: SaveGroupStandingsInput) {
     if (supabaseEnabled) {
-      const result = await finalizeGroupResultAction(input);
+      const result = await saveGroupStandingsAction(input);
       setDataMessage(result.message);
       if (result.ok) await refreshSupabaseData();
       return;
@@ -472,24 +475,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     if (!currentUser) return;
 
-    const finalized: Group = {
+    const saved: Group = {
       groupLabel: input.groupLabel,
       locksAt: groups.find((group) => group.groupLabel === input.groupLabel)?.locksAt ?? null,
       firstTeamId: input.firstTeamId,
       secondTeamId: input.secondTeamId,
       thirdTeamId: input.thirdTeamId,
       fourthTeamId: input.fourthTeamId,
-      resultFinalizedAt: new Date().toISOString(),
-      resultFinalizedBy: currentUser.id,
+      resultFinalizedAt: input.finalize ? new Date().toISOString() : null,
+      resultFinalizedBy: input.finalize ? currentUser.id : null,
     };
 
     setGroups((items) =>
-      items.map((group) => (group.groupLabel === input.groupLabel ? finalized : group)),
+      items.map((group) => (group.groupLabel === input.groupLabel ? saved : group)),
     );
     setGroupPredictions((items) =>
       items.map((prediction) => {
         if (prediction.groupLabel !== input.groupLabel) return prediction;
-        const score = scoreGroupPrediction(finalized, prediction);
+        const score = scoreGroupPredictionOrNull(saved, prediction);
         return { ...prediction, points: score.points, exactPositions: score.exactPositions };
       }),
     );
@@ -547,6 +550,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveState,
     dataMessage,
     openStages,
+    editableStages,
     resultsStages,
     standingsStages,
     updatePrediction,
@@ -555,7 +559,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     refreshSupabaseData,
     signOut,
     finalizeMatch,
-    finalizeGroupResult,
+    saveGroupStandings,
     updateGroupLocksAt,
     createMatch,
     deleteMatch,
@@ -603,7 +607,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </section>
 
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetContent side="left" className="w-[280px] gap-0 border-app-line bg-app-sidebar p-4 sm:max-w-[280px]">
+          <SheetContent side="left" className="w-70 gap-0 border-app-line bg-app-sidebar p-4 sm:max-w-70">
             <SheetTitle className="sr-only">Menú</SheetTitle>
             <SidebarContent
               activeTab={activeTab}
@@ -670,7 +674,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} badge="Nuevo" />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
@@ -698,9 +702,9 @@ function NavLink({ href, icon, label, active, onNavigate, badge, disabled }: { h
       {icon}
       <span className="max-w-full truncate">{label}</span>
       {badge && (
-        <span className="ml-auto rounded-full bg-app-surface-2 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-app-muted">
+        <Badge className="ml-auto bg-app-green text-[10px] font-black uppercase tracking-wide text-white">
           {badge}
-        </span>
+        </Badge>
       )}
     </Button>
   );

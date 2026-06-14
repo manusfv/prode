@@ -225,6 +225,17 @@ describe("team loyalty facts", () => {
     expect(apuestaAudaz.winner?.displayValue).toContain("Brasil");
     expect(apuestaAudaz.series).toHaveLength(2);
   });
+
+  it("apuesta-audaz summarizes every tied lone pick, not just the leader's", () => {
+    // Each person is alone on a DIFFERENT team -> they tie for boldest. The card
+    // summary must name both teams, not pin the leader's pick on everyone.
+    const tiedGps = [gp("u1", "A", "arg"), gp("u2", "A", "bra")];
+    const { apuestaAudaz } = buildTeamLoyaltyFacts(profiles, tiedGps, [], [], teams, new Set(["A"]), new Set());
+    expect(apuestaAudaz.coWinners).toHaveLength(2);
+    expect(apuestaAudaz.winnerSummary).toContain("Argentina");
+    expect(apuestaAudaz.winnerSummary).toContain("Brasil");
+    expect(apuestaAudaz.winnerSummary).toContain("nadie más las eligió");
+  });
 });
 
 describe("group ranking facts", () => {
@@ -265,6 +276,14 @@ describe("group ranking facts", () => {
     expect(grupoMuerte.headline).toContain("A");
     expect(grupoMuerte.bins?.[0]).toMatchObject({ label: "A", count: 33 });
     expect(grupoMuerte.bins?.find((b) => b.label === "B")?.count).toBe(0);
+  });
+
+  it("grupo cantado picks the most-agreed group with agreement %", () => {
+    const { grupoUnanime } = ranking();
+    expect(grupoUnanime.headline).toContain("B");
+    expect(grupoUnanime.bins?.[0]).toMatchObject({ label: "B", count: 100 });
+    expect(grupoUnanime.bins?.find((b) => b.label === "A")?.count).toBe(67);
+    expect(grupoUnanime.winner?.displayValue).toBe("100% de acuerdo");
   });
 
   it("colista tallies most-predicted last-place teams", () => {
@@ -467,7 +486,7 @@ describe("computeStats", () => {
       currentUserId: "u1", standingsStages: new Set(["groups"]), now,
     });
     const ids = new Set(bundle.facts.map((f) => f.id));
-    expect(ids.has("grupo-muerte") && ids.has("visionario") && ids.has("colista")).toBe(true);
+    expect(ids.has("grupo-muerte") && ids.has("grupo-unanime") && ids.has("visionario") && ids.has("colista")).toBe(true);
     expect(Array.isArray(bundle.dreamTable)).toBe(true);
   });
 

@@ -12,7 +12,7 @@ export type FactId =
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
   | "mas-querido" | "mas-odiado" | "apuesta-audaz" | "apuesta-segura" | "favorito-familia"
-  | "grupo-muerte" | "colista" | "visionario" | "profeta-grupos"
+  | "grupo-muerte" | "grupo-unanime" | "colista" | "visionario" | "profeta-grupos"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 export type PersonValue = {
@@ -36,6 +36,7 @@ export type Fact = {
   series: PersonValue[];    // per-person data (empty when unavailable)
   unitSuffix?: string;
   headline?: string;        // overrides the winner's name in the card (e.g. a team, not a person)
+  winnerSummary?: string;   // overrides the winner's value line when tied winners differ (e.g. distinct picks)
   teamSeries?: TeamTally[]; // team-based chart data (for thermometer-style facts)
   bins?: HistogramBin[];    // histogram data carried on the fact (e.g. per-group contention)
   valueDetail?: string;     // phrase appended to the value in the chart hover tooltip ("de desacuerdo")
@@ -100,14 +101,18 @@ function topTies(series: PersonValue[]): PersonValue[] {
   return top.length > 1 ? top : [];
 }
 
+// "A" · "A y B" · "A, B y 1 más" · "A, B y 2 más" …
+function formatList(items: string[]): string {
+  if (items.length <= 2) return items.join(" y ");
+  return `${items.slice(0, 2).join(", ")} y ${items.length - 2} más`;
+}
+
 // Headline for a team tally that names every team tied for the top count:
 // "🇲🇽 México" · "🇲🇽 México y 🇨🇭 Suiza" · "🇲🇽 México, 🇨🇭 Suiza y 1 más".
 function topTeamHeadline(tally: TeamTally[]): string | undefined {
   if (tally.length === 0) return undefined;
   const tied = tally.filter((t) => t.count === tally[0]!.count);
-  const names = tied.map((t) => `${t.flag} ${t.name}`);
-  if (names.length <= 2) return names.join(" y ");
-  return `${names.slice(0, 2).join(", ")} y ${names.length - 2} más`;
+  return formatList(tied.map((t) => `${t.flag} ${t.name}`));
 }
 
 export function buildOptimismFacts(
@@ -155,7 +160,7 @@ export function buildOptimismFacts(
     winner: can.winner, coWinners: can.coWinners, series: sortAsc(avgGoals),
   };
   const sinEmpates: Fact = {
-    id: "sin-empates", category: "optimismo", title: "Nunca cree en empates", emoji: "🙅",
+    id: "sin-empates", category: "optimismo", title: "El que nunca cree en empates", emoji: "🙅",
     blurb: "Menor porcentaje de empates pronosticados", requires: "predictions",
     available, unavailableHint: hint, chartKind: "bar", unitSuffix: "%",
     winner: noDraw.winner, coWinners: noDraw.coWinners, series: sortAsc(drawPct),
@@ -311,7 +316,7 @@ export function buildAccuracyFacts(
     series: [...exactPct].sort((a, b) => b.value - a.value),
   };
   const racha: Fact = {
-    id: "racha", category: "punteria", title: "Racha caliente", emoji: "🔥",
+    id: "racha", category: "punteria", title: "La racha caliente", emoji: "🔥",
     blurb: "Más aciertos de resultado seguidos", requires: "results",
     available, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
     winner: ra.winner, coWinners: ra.coWinners,
@@ -425,7 +430,7 @@ export function buildTeamLoyaltyFacts(
   // AVERAGE — the true inverse of boldness (a "plays it safe" spectrum, not just "who backed
   // the favorite"), so it differentiates people instead of collapsing onto one team.
   const denom = approved.length - 1; // max possible "others" sharing a pick
-  const audaz: PersonValue[] = [];
+  const audazRaw: { user: Profile; boldness: number; others: number; teamLabel: string }[] = [];
   const segura: PersonValue[] = [];
   for (const user of approved) {
     const mine = revealed.filter((g) => g.userId === user.id);
@@ -441,22 +446,40 @@ export function buildTeamLoyaltyFacts(
     }
     if (boldPick) {
       const t = teamById.get(boldPick.teamId);
-      const boldness = denom - boldPick.others; // alone with the pick => max
-      const shareText = boldPick.others === 0
-        ? "nadie más la eligió"
-        : `${boldPick.others} ${boldPick.others === 1 ? "más la eligió" : "más la eligieron"}`;
-      audaz.push({ user, value: boldness, displayValue: `${t?.flag ?? ""} ${t?.name ?? boldPick.teamId} · ${shareText}` });
+      audazRaw.push({
+        user,
+        boldness: denom - boldPick.others, // alone with the pick => max
+        others: boldPick.others,
+        teamLabel: `${t?.flag ?? ""} ${t?.name ?? boldPick.teamId}`,
+      });
     }
     const avgPct = denom > 0 ? Math.round((shareSum / mine.length / denom) * 100) : 0;
     segura.push({ user, value: avgPct, displayValue: `${avgPct}% de coincidencia promedio` });
   }
-  audaz.sort((a, b) => b.value - a.value);
+  audazRaw.sort((a, b) => b.boldness - a.boldness);
   segura.sort((a, b) => b.value - a.value);
+  // "N more chose it" — plural form covers a tied summary naming several teams.
+  const shareText = (others: number, plural: boolean) =>
+    others === 0
+      ? plural ? "nadie más las eligió" : "nadie más la eligió"
+      : `${others} ${others === 1 ? "más la eligió" : "más la eligieron"}`;
+  const audaz: PersonValue[] = audazRaw.map((r) => ({
+    user: r.user,
+    value: r.boldness,
+    displayValue: `${r.teamLabel} · ${shareText(r.others, false)}`,
+  }));
+  // Several people can tie for boldest while each backed a DIFFERENT lone pick.
+  // Summarize every tied team so the card doesn't pin one person's pick on all.
+  const audazTop = audazRaw.filter((r) => r.boldness === audazRaw[0]?.boldness);
+  const audazSummary =
+    audazTop.length > 1
+      ? `${formatList(audazTop.map((r) => r.teamLabel))} · ${shareText(audazTop[0]!.others, true)}`
+      : undefined;
   const apuestaAudaz: Fact = {
     id: "apuesta-audaz", category: "fidelidad", title: "La apuesta más audaz", emoji: "🎲",
     blurb: "El pronóstico de 1º de grupo que menos gente comparte", requires: "predictions",
     available: audaz.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
-    winner: audaz[0], coWinners: topTies(audaz), series: audaz,
+    winner: audaz[0], coWinners: topTies(audaz), series: audaz, winnerSummary: audazSummary,
   };
   const apuestaSegura: Fact = {
     id: "apuesta-segura", category: "fidelidad", title: "La apuesta más segura", emoji: "🛡️",
@@ -528,12 +551,26 @@ export function buildGroupRankingFacts(
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   const worst = contentionBins[0];
   const grupoMuerte: Fact = {
-    id: "grupo-muerte", category: "manada", title: "Grupo de la muerte", emoji: "🪦",
+    id: "grupo-muerte", category: "manada", title: "El grupo de la muerte", emoji: "🪦",
     blurb: "El grupo donde la familia menos se pone de acuerdo", requires: "predictions",
     available: Boolean(worst), unavailableHint: GROUP_HINT, chartKind: "histogram", unitSuffix: "%",
     headline: worst ? `Grupo ${worst.label}` : undefined,
     winner: worst ? { user: approved[0]!, value: worst.count, displayValue: `${worst.count}% de desacuerdo` } : undefined,
     coWinners: [], series: [], bins: contentionBins, valueDetail: "de desacuerdo",
+  };
+
+  // 1b · El grupo más unánime — inverse of grupo de la muerte (highest agreement).
+  const agreementBins: HistogramBin[] = [...contentionByGroup.entries()]
+    .map(([label, c]) => ({ label, count: Math.round((1 - c) * 100) }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const mostUnanimous = agreementBins[0];
+  const grupoUnanime: Fact = {
+    id: "grupo-unanime", category: "manada", title: "El grupo cantado", emoji: "🎵",
+    blurb: "El grupo donde la familia más se pone de acuerdo", requires: "predictions",
+    available: Boolean(mostUnanimous), unavailableHint: GROUP_HINT, chartKind: "histogram", unitSuffix: "%",
+    headline: mostUnanimous ? `Grupo ${mostUnanimous.label}` : undefined,
+    winner: mostUnanimous ? { user: approved[0]!, value: mostUnanimous.count, displayValue: `${mostUnanimous.count}% de acuerdo` } : undefined,
+    coWinners: [], series: [], bins: agreementBins, valueDetail: "de acuerdo",
   };
 
   // 2 · Colista cantado — most-predicted 4th place.
@@ -600,7 +637,7 @@ export function buildGroupRankingFacts(
   }
   dreamTable.sort((a, b) => a.groupLabel.localeCompare(b.groupLabel));
 
-  return { grupoMuerte, colista, visionario, profeta, dreamTable };
+  return { grupoMuerte, grupoUnanime, colista, visionario, profeta, dreamTable };
 }
 
 export function buildBehaviorFacts(
@@ -933,7 +970,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const scoreline = buildScorelineHistogram(predictions, revealed);
   const similarity = buildSimilarityMatrix(profiles, predictions, revealed);
   const pointsRace = buildPointsRace(profiles, predictions, matches, finalized);
-  const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, standingsStages })
+  const pointsTotals: PersonValue[] = getLeaderboard({ profiles, predictions, groupPredictions, matches, groups, standingsStages })
     .map((row) => ({ user: row.user, value: row.points, displayValue: `${row.points} pts` }));
   const accuracyBreakdown = buildAccuracyBreakdown(profiles, predictions, finalized);
   const participation = buildParticipation(profiles, predictions, revealed);
@@ -944,7 +981,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
-    groupRanking.grupoMuerte, groupRanking.visionario,
+    groupRanking.grupoMuerte, groupRanking.grupoUnanime, groupRanking.visionario,
     accuracy.francotirador, accuracy.racha, accuracy.trampa, groupRanking.profeta,
     loyalty.masQuerido, loyalty.masOdiado, loyalty.favoritoFamilia,
     loyalty.apuestaAudaz, loyalty.apuestaSegura, groupRanking.colista,

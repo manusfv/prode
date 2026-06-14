@@ -7,6 +7,7 @@ import type {
   Profile,
   Stage,
   StageState,
+  StageVisibility,
   Team,
 } from "./types";
 
@@ -29,9 +30,9 @@ type TeamRow = {
 type StageRow = {
   stage: Stage;
   label: string;
-  predictions_open: boolean;
-  results_open: boolean;
-  standings_open: boolean;
+  predictions_open: StageVisibility;
+  results_open: StageVisibility;
+  standings_open: StageVisibility;
 };
 
 type MatchRow = {

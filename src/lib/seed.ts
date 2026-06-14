@@ -20,13 +20,13 @@ export const profiles: Profile[] = [
 ];
 
 export const stages: StageState[] = [
-  { stage: "groups", label: "Grupos", predictionsOpen: true, resultsOpen: true, standingsOpen: true },
-  { stage: "round32", label: "16avos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
-  { stage: "round16", label: "Octavos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
-  { stage: "quarter", label: "Cuartos", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
-  { stage: "semi", label: "Semis", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
-  { stage: "third", label: "3er puesto", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
-  { stage: "final", label: "Final", predictionsOpen: false, resultsOpen: false, standingsOpen: false },
+  { stage: "groups", label: "Grupos", predictionsOpen: "open", resultsOpen: "open", standingsOpen: "open" },
+  { stage: "round32", label: "16avos", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
+  { stage: "round16", label: "Octavos", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
+  { stage: "quarter", label: "Cuartos", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
+  { stage: "semi", label: "Semis", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
+  { stage: "third", label: "3er puesto", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
+  { stage: "final", label: "Final", predictionsOpen: "closed", resultsOpen: "closed", standingsOpen: "closed" },
 ];
 
 // Group A is still open; Group B has already locked and been finalized.

@@ -45,6 +45,14 @@ export function getGroupStatus(group: Group, now = new Date()): GroupStatus {
   return new Date(group.locksAt).getTime() <= now.getTime() ? "locked" : "open";
 }
 
+export function hasGroupOrder(group: Group): boolean {
+  return [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId].every(Boolean);
+}
+
+export function isGroupProvisional(group: Group): boolean {
+  return hasGroupOrder(group) && !group.resultFinalizedAt;
+}
+
 export function getTeamLabel(teamId: string | null, teams: Team[], seed?: string) {
   if (!teamId) return seed ?? "Por definir";
   return teams.find((team) => team.id === teamId)?.name ?? "Por definir";

@@ -39,10 +39,14 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         setMessage(error.message);
+        setSaving(false);
         return;
       }
+      // Success: redirect home. Keep the button busy through the navigation
+      // instead of flashing the idle label first.
       router.replace("/");
-    } finally {
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo guardar la contraseña.");
       setSaving(false);
     }
   }

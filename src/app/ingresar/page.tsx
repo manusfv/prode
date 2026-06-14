@@ -38,11 +38,17 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setMessage(error.message);
+        setSubmitting(false);
         return;
       }
       // Success: AppShell's auth-state subscription loads the profile and its
-      // redirect effect moves us off this route. Keep the button busy meanwhile.
-    } finally {
+      // redirect effect moves us off this route. Keep the button busy through
+      // the redirect — resetting here would flash the idle label first.
+      // Blur the focused field so iOS Safari resets any input auto-zoom before
+      // the client-side redirect; otherwise the zoom carries into the dashboard.
+      (document.activeElement as HTMLElement | null)?.blur();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
       setSubmitting(false);
     }
   }

@@ -25,15 +25,31 @@ import {
   getGroupStatus,
   getTeamFlag,
   getTeamLabel,
+  isGroupProvisional,
   stageLabels,
   stageOrder,
 } from "@/lib/tournament";
-import type { Group, Match, MatchLifecycleStatus, Stage } from "@/lib/types";
+import type { Group, Match, MatchLifecycleStatus, Stage, StageVisibility } from "@/lib/types";
 import { compareGroups, getAdminLifecycleStatus, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp, type CreateMatchActionInput } from "@/components/app-context";
 import { LoadingLabel } from "@/components/badges";
+
+const VISIBILITY_CYCLE: Record<StageVisibility, StageVisibility> = {
+  closed: "admin",
+  admin: "open",
+  open: "closed",
+};
+
+const VISIBILITY_META: Record<
+  StageVisibility,
+  { variant: "default" | "outline"; tint: string; title: string }
+> = {
+  closed: { variant: "outline", tint: "", title: "cerrado" },
+  admin: { variant: "default", tint: "border-app-amber bg-app-amber text-app-bg hover:bg-app-amber/90", title: "solo admin" },
+  open: { variant: "default", tint: "", title: "abierto" },
+};
 
 // Group matches no longer exist; admins only create knockout fixtures.
 const creatableStages = stageOrder.filter((stage) => stage !== "groups");
@@ -89,7 +105,7 @@ export function AdminScreen() {
     now,
     dataMessage,
     finalizeMatch,
-    finalizeGroupResult,
+    saveGroupStandings,
     updateGroupLocksAt,
     importMatchesCsv,
     exportMatchesCsv,
@@ -284,15 +300,20 @@ export function AdminScreen() {
                 predictionCount={groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel).length}
                 now={now}
                 pendingKey={pendingAdminAction}
-                onFinalize={(order) =>
-                  runAdminAction(`finalize-group-${group.groupLabel}`, () =>
-                    finalizeGroupResult({
-                      groupLabel: group.groupLabel,
-                      firstTeamId: order[0],
-                      secondTeamId: order[1],
-                      thirdTeamId: order[2],
-                      fourthTeamId: order[3],
-                    }),
+                onSaveStandings={(order, finalize) =>
+                  runAdminAction(
+                    finalize
+                      ? `finalize-group-${group.groupLabel}`
+                      : `provisional-group-${group.groupLabel}`,
+                    () =>
+                      saveGroupStandings({
+                        groupLabel: group.groupLabel,
+                        firstTeamId: order[0],
+                        secondTeamId: order[1],
+                        thirdTeamId: order[2],
+                        fourthTeamId: order[3],
+                        finalize,
+                      }),
                   )
                 }
                 onSaveLocks={(locksIso) =>
@@ -313,7 +334,7 @@ export function AdminScreen() {
 
         <Card className={cn(ui.panel, "p-4")}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="m-0 text-lg font-black">Admin / Resultados</h2>
+            <h2 className="m-0 text-lg font-black">Resultados de partidos</h2>
             <div className="admin-actions">
               <input ref={importInputRef} className="csv-file-input" type="file" accept=".csv,text/csv" onChange={handleImportInputChange} />
               <Button variant="outline" disabled={Boolean(pendingAdminAction)} onClick={() => importInputRef.current?.click()}>
@@ -407,9 +428,9 @@ export function AdminScreen() {
               {stageOrder.map((stage) => {
                 const stageState = stages.find((item) => item.stage === stage);
                 const flags = [
-                  { flag: "predictions" as const, label: "Predicciones", value: Boolean(stageState?.predictionsOpen) },
-                  { flag: "results" as const, label: "Resultados", value: Boolean(stageState?.resultsOpen) },
-                  { flag: "standings" as const, label: "Standings", value: Boolean(stageState?.standingsOpen) },
+                  { flag: "predictions" as const, label: "Predicciones", value: stageState?.predictionsOpen ?? "closed" },
+                  { flag: "results" as const, label: "Resultados", value: stageState?.resultsOpen ?? "closed" },
+                  { flag: "standings" as const, label: "Standings", value: stageState?.standingsOpen ?? "closed" },
                 ];
 
                 return (
@@ -420,13 +441,16 @@ export function AdminScreen() {
                     <div className="flex flex-wrap gap-1.5">
                       {flags.map(({ flag, label, value }) => {
                         const key = `stage-${stage}-${flag}`;
+                        const meta = VISIBILITY_META[value];
                         return (
                           <Button
                             key={flag}
-                            variant={value ? "default" : "outline"}
+                            variant={meta.variant}
                             size="sm"
+                            className={meta.tint}
+                            title={`${label}: ${meta.title}`}
                             disabled={Boolean(pendingAdminAction)}
-                            onClick={() => runAdminAction(key, () => updateStageFlag(stage, flag, !value))}
+                            onClick={() => runAdminAction(key, () => updateStageFlag(stage, flag, VISIBILITY_CYCLE[value]))}
                           >
                             <LoadingLabel loading={pendingAdminAction === key} label={label} />
                           </Button>
@@ -474,7 +498,7 @@ function GroupAdminCard({
   predictionCount,
   now,
   pendingKey,
-  onFinalize,
+  onSaveStandings,
   onSaveLocks,
   onSetOpen,
 }: {
@@ -483,7 +507,7 @@ function GroupAdminCard({
   predictionCount: number;
   now: Date;
   pendingKey: string | null;
-  onFinalize: (order: [string, string, string, string]) => Promise<void> | void;
+  onSaveStandings: (order: [string, string, string, string], finalize: boolean) => Promise<void> | void;
   onSaveLocks: (locksIso: string | null) => Promise<void> | void;
   onSetOpen: (open: boolean) => Promise<void> | void;
 }) {
@@ -496,6 +520,8 @@ function GroupAdminCard({
   const [locksLocal, setLocksLocal] = useState(() => toDatetimeLocal(group.locksAt));
 
   const status = getGroupStatus(group, now);
+  const provisional = isGroupProvisional(group);
+  const provisionalPending = pendingKey === `provisional-group-${group.groupLabel}`;
   const closedByTime = Boolean(group.locksAt) && new Date(group.locksAt as string).getTime() <= now.getTime();
   const complete = order.every((slot): slot is string => Boolean(slot)) && new Set(order).size === 4;
   const finalizePending = pendingKey === `finalize-group-${group.groupLabel}`;
@@ -507,7 +533,13 @@ function GroupAdminCard({
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm font-black">Grupo {group.groupLabel}</strong>
         <small className="text-xs font-bold text-app-muted">
-          {status === "finalized" ? "Finalizado" : status === "locked" ? "Cerrado" : "Abierto"} · {predictionCount} pron.
+          {status === "finalized"
+            ? "Finalizado"
+            : provisional
+              ? "Provisional"
+              : status === "locked"
+                ? "Cerrado"
+                : "Abierto"} · {predictionCount} pron.
         </small>
       </div>
       <div className="grid gap-2.5 md:grid-cols-2">
@@ -574,14 +606,23 @@ function GroupAdminCard({
           </Button>
         </div>
       </div>
-      <Button
-        className="w-full"
-        size="sm"
-        disabled={!complete || Boolean(pendingKey)}
-        onClick={() => onFinalize(order as [string, string, string, string])}
-      >
-        <LoadingLabel loading={finalizePending} label="Guardar resultado" />
-      </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!complete || Boolean(pendingKey)}
+          onClick={() => onSaveStandings(order as [string, string, string, string], false)}
+        >
+          <LoadingLabel loading={provisionalPending} label="Guardar provisional" />
+        </Button>
+        <Button
+          size="sm"
+          disabled={!complete || Boolean(pendingKey)}
+          onClick={() => onSaveStandings(order as [string, string, string, string], true)}
+        >
+          <LoadingLabel loading={finalizePending} label="Finalizar grupo" />
+        </Button>
+      </div>
     </div>
   );
 }

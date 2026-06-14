@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { Eye, EyeOff, Info } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -24,8 +29,9 @@ import { useApp } from "@/components/app-context";
 type StandingsView = "overall" | Stage;
 
 export function LeaderboardScreen() {
-  const { predictions, profiles, groupPredictions, matches, standingsStages, currentUser } = useApp();
+  const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser } = useApp();
   const [view, setView] = useState<StandingsView>("overall");
+  const [preview, setPreview] = useState(false);
 
   // If the selected stage stops being revealed (admin toggled it off), fall back
   // to the accumulated view so a hidden stage's standings aren't shown.
@@ -37,58 +43,96 @@ export function LeaderboardScreen() {
 
   const rows = useMemo(() => {
     if (view === "overall") {
-      return getLeaderboard({ predictions, profiles, groupPredictions, matches, standingsStages });
+      return getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages, includeProvisional: preview });
     }
-    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches });
-  }, [view, predictions, profiles, groupPredictions, matches, standingsStages]);
+    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches, groups, includeProvisional: preview });
+  }, [view, predictions, profiles, groupPredictions, matches, groups, standingsStages, preview]);
 
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
 
   const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
 
+  const canPreview = standingsStages.has("groups");
+  const showPreviewToggle = canPreview && (view === "overall" || view === "groups");
+
   return (
     <Card className={cn(ui.panel, "p-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-lg font-black">Tabla general</h2>
-        <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
-          <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Vista">
-            <span className={ui.label}>Vista</span>
-            <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="overall">Acumulado</SelectItem>
-            <SelectSeparator />
-            {stageOrder.map((stage) => (
-              <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
-                {stageLabels[stage]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block">
-          <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
-            <TabsTrigger
-              value="overall"
-              className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
-            >
-              Acumulado
-            </TabsTrigger>
-            <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
-            {stageOrder.map((stage) => (
+        <div className="flex items-center gap-2">
+          <h2 className="m-0 text-lg font-black">Tabla general</h2>
+          <StandingsLegend />
+        </div>
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-1">
+          <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
+            <SelectTrigger className={cn(ui.control, "min-w-0 flex-1 sm:hidden")} aria-label="Vista">
+              <span className={ui.label}>Vista</span>
+              <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overall">Acumulado</SelectItem>
+              <SelectSeparator />
+              {stageOrder.map((stage) => (
+                <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
+                  {stageLabels[stage]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block sm:flex-1">
+            <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
               <TabsTrigger
-                key={stage}
-                value={stage}
-                disabled={!standingsStages.has(stage)}
-                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
+                value="overall"
+                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
               >
-                {stageLabels[stage]}
+                Acumulado
               </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+              <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
+              {stageOrder.map((stage) => (
+                <TabsTrigger
+                  key={stage}
+                  value={stage}
+                  disabled={!standingsStages.has(stage)}
+                  className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
+                >
+                  {stageLabels[stage]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <Tooltip
+            content={
+              showPreviewToggle
+                ? preview
+                  ? "Ocultar resultados provisionales"
+                  : "Mostrar resultados provisionales"
+                : "Vista previa de grupos no disponible en esta vista"
+            }
+          >
+            <Button
+              type="button"
+              variant={preview && showPreviewToggle ? "default" : "outline"}
+              size="icon-lg"
+              className="shrink-0 self-stretch aria-disabled:opacity-50 aria-disabled:cursor-not-allowed sm:size-12 sm:[&_svg]:size-5"
+              aria-disabled={!showPreviewToggle}
+              aria-pressed={preview && showPreviewToggle}
+              aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+              onClick={() => {
+                if (!showPreviewToggle) return;
+                setPreview((value) => !value);
+              }}
+            >
+              {preview && showPreviewToggle ? <EyeOff /> : <Eye />}
+            </Button>
+          </Tooltip>
+        </div>
       </div>
 
+      {preview && showPreviewToggle && (
+        <p className="mt-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
+          Mostrando la tabla <strong className="font-black">con resultados provisionales incluidos</strong>. No es el resultado final.
+        </p>
+      )}
       {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
       {rest.length > 0 && <StandingsTable rows={rest} currentUserId={currentUser.id} />}
       {rows.length === 0 && (
@@ -97,6 +141,45 @@ export function LeaderboardScreen() {
         </p>
       )}
     </Card>
+  );
+}
+
+function StandingsLegend() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="Qué significan puntos, exactos y aciertos"
+        className="grid size-6 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-surface hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-brand"
+      >
+        <Info className="size-4" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-w-[min(20rem,calc(100vw-1.5rem))] font-normal backdrop-blur-md">
+        <p className="m-0 mb-2 text-sm font-black text-app-text">Cómo se lee la tabla</p>
+        <dl className="m-0 space-y-2 text-xs leading-normal text-app-muted">
+          <div>
+            <dt className="font-black text-app-text">Puntos</dt>
+            <dd className="m-0">
+              Tu total. En cruces, <strong className="font-bold text-app-text">3</strong> por el
+              resultado exacto y <strong className="font-bold text-app-text">1</strong> por acertar
+              ganador o empate. En grupos, <strong className="font-bold text-app-text">10/8/6/4</strong>{" "}
+              por cada posición acertada (máx. 28 por grupo).
+            </dd>
+          </div>
+          <div>
+            <dt className="font-black text-app-text">Exactos</dt>
+            <dd className="m-0">
+              Cantidad de resultados exactos en cruces más posiciones de grupo acertadas.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-black text-app-text">Aciertos</dt>
+            <dd className="m-0">
+              Cruces donde acertaste el ganador o el empate (incluye los exactos).
+            </dd>
+          </div>
+        </dl>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -145,8 +228,8 @@ function StandingsTable({ rows, currentUserId }: { rows: LeaderboardRow[]; curre
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-app-line bg-app-surface">
       <Table>
-        <TableHeader>
-          <TableRow>
+        <TableHeader className="bg-app-surface-2 [&_th]:h-9 [&_th]:text-[0.7rem] [&_th]:font-black [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-app-muted">
+          <TableRow className="border-b-2 border-app-line hover:bg-transparent">
             <TableHead className="w-12">#</TableHead>
             <TableHead>Participante</TableHead>
             <TableHead className="text-right">Puntos</TableHead>

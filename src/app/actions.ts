@@ -6,7 +6,7 @@ import { parseMatchCsv } from "@/lib/csv";
 import {
   canSaveGroupPrediction,
   canSavePrediction,
-  scoreGroupPrediction,
+  scoreGroupPredictionOrNull,
   scorePrediction,
 } from "@/lib/scoring";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -20,6 +20,7 @@ import type {
   Profile,
   Stage,
   StageFlag,
+  StageVisibility,
 } from "@/lib/types";
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
@@ -64,12 +65,13 @@ type SaveGroupPredictionInput = {
   fourthTeamId: string | null;
 };
 
-type FinalizeGroupResultInput = {
+type SaveGroupStandingsInput = {
   groupLabel: string;
   firstTeamId: string;
   secondTeamId: string;
   thirdTeamId: string;
   fourthTeamId: string;
+  finalize: boolean;
 };
 
 type UpdateGroupLocksInput = {
@@ -87,7 +89,7 @@ export async function savePredictionAction(input: SavePredictionInput) {
   const [profileResult, matchResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("matches").select("*").eq("id", input.matchId).single(),
-    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", "open"),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -141,7 +143,7 @@ export async function saveGroupPredictionAction(input: SaveGroupPredictionInput)
   const [profileResult, groupResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("groups").select("*").eq("group_label", input.groupLabel).single(),
-    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", "open"),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -206,7 +208,7 @@ export async function deleteGroupPredictionAction(input: { groupLabel: string })
   return { ok: true, message: "Pronóstico borrado." };
 }
 
-export async function finalizeGroupResultAction(input: FinalizeGroupResultInput) {
+export async function saveGroupStandingsAction(input: SaveGroupStandingsInput) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, message: "Supabase no está configurado." };
 
@@ -221,6 +223,7 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
     return { ok: false, message: "No repitas equipos." };
   }
 
+  const now = new Date().toISOString();
   const { data: groupRow, error: updateError } = await supabase
     .from("groups")
     .update({
@@ -228,9 +231,9 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
       second_team_id: input.secondTeamId,
       third_team_id: input.thirdTeamId,
       fourth_team_id: input.fourthTeamId,
-      result_finalized_at: new Date().toISOString(),
-      result_finalized_by: admin.userId,
-      updated_at: new Date().toISOString(),
+      result_finalized_at: input.finalize ? now : null,
+      result_finalized_by: input.finalize ? admin.userId : null,
+      updated_at: now,
     })
     .eq("group_label", input.groupLabel)
     .select("*")
@@ -242,7 +245,10 @@ export async function finalizeGroupResultAction(input: FinalizeGroupResultInput)
   if (!recalculation.ok) return recalculation;
 
   revalidatePath("/");
-  return { ok: true, message: "Resultado del grupo finalizado." };
+  return {
+    ok: true,
+    message: input.finalize ? "Resultado del grupo finalizado." : "Posiciones provisionales guardadas.",
+  };
 }
 
 export async function updateGroupLocksAtAction(input: UpdateGroupLocksInput) {
@@ -314,13 +320,19 @@ export async function updateDisplayNameAction(displayName: string) {
 type UpdateStageFlagInput = {
   stage: Stage;
   flag: StageFlag;
-  value: boolean;
+  value: StageVisibility;
 };
 
 const STAGE_FLAG_COLUMN: Record<StageFlag, "predictions_open" | "results_open" | "standings_open"> = {
   predictions: "predictions_open",
   results: "results_open",
   standings: "standings_open",
+};
+
+const STAGE_FLAG_MESSAGE: Record<StageVisibility, string> = {
+  open: "Etapa abierta.",
+  admin: "Etapa en vista previa (solo admin).",
+  closed: "Etapa cerrada.",
 };
 
 export async function updateStageFlagAction(input: UpdateStageFlagInput) {
@@ -333,15 +345,16 @@ export async function updateStageFlagAction(input: UpdateStageFlagInput) {
   const column = STAGE_FLAG_COLUMN[input.flag];
   const update: Record<string, unknown> = { [column]: input.value };
   if (input.flag === "predictions") {
-    update.opened_at = input.value ? new Date().toISOString() : null;
-    update.opened_by = input.value ? admin.userId : null;
+    const opened = input.value === "open";
+    update.opened_at = opened ? new Date().toISOString() : null;
+    update.opened_by = opened ? admin.userId : null;
   }
 
   const { error } = await supabase.from("stages").update(update).eq("stage", input.stage);
   if (error) return { ok: false, message: error.message };
 
   revalidatePath("/");
-  return { ok: true, message: input.value ? "Etapa habilitada." : "Etapa deshabilitada." };
+  return { ok: true, message: STAGE_FLAG_MESSAGE[input.value] };
 }
 
 export async function createMatchAction(input: CreateMatchInput) {
@@ -608,9 +621,7 @@ async function recalculateGroupPredictionsForGroups(
       const group = groupByLabel.get(prediction.groupLabel);
       if (!group) return null;
 
-      const score = group.resultFinalizedAt
-        ? scoreGroupPrediction(group, prediction)
-        : { points: null, exactPositions: 0 };
+      const score = scoreGroupPredictionOrNull(group, prediction);
 
       return supabase
         .from("group_predictions")

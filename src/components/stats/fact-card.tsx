@@ -16,7 +16,7 @@ function formatNames(names: string[]): string {
 
 export function FactCard({ fact, onOpen }: { fact: Fact; onOpen: (fact: Fact) => void }) {
   const tieNames = fact.coWinners.map((c) => c.user.displayName);
-  const winnerLabel = fact.winner?.displayValue ?? formatNames(tieNames);
+  const winnerLabel = fact.winnerSummary ?? fact.winner?.displayValue ?? formatNames(tieNames);
   const winnerName = fact.headline
     ?? (tieNames.length ? formatNames(tieNames) : fact.winner?.user.displayName);
 
