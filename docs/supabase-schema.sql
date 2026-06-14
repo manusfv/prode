@@ -22,9 +22,9 @@ create table public.teams (
 create table public.stages (
   stage public.stage_key primary key,
   label text not null,
-  predictions_open boolean not null default false,
-  results_open boolean not null default false,
-  standings_open boolean not null default false,
+  predictions_open text not null default 'closed' check (predictions_open in ('closed', 'admin', 'open')),
+  results_open text not null default 'closed' check (results_open in ('closed', 'admin', 'open')),
+  standings_open text not null default 'closed' check (standings_open in ('closed', 'admin', 'open')),
   opened_at timestamptz,
   opened_by uuid references public.profiles(id)
 );
@@ -238,7 +238,7 @@ with check (
     from public.matches m
     join public.stages s on s.stage = m.stage
     where m.id = match_id
-      and s.predictions_open = true
+      and s.predictions_open = 'open'
       and m.status = 'open'
       and m.finalized_at is null
       and (
@@ -271,7 +271,7 @@ with check (
     from public.matches m
     join public.stages s on s.stage = m.stage
     where m.id = match_id
-      and s.predictions_open = true
+      and s.predictions_open = 'open'
       and m.status = 'open'
       and m.finalized_at is null
       and (
@@ -391,7 +391,7 @@ with check (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.predictions_open = true
+      and s.predictions_open = 'open'
       and (g.locks_at is null or g.locks_at > now())
   )
 );
@@ -409,7 +409,7 @@ with check (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.predictions_open = true
+      and s.predictions_open = 'open'
       and (g.locks_at is null or g.locks_at > now())
   )
 );
@@ -426,7 +426,7 @@ using (
     from public.groups g
     join public.stages s on s.stage = 'groups'
     where g.group_label = group_predictions.group_label
-      and s.predictions_open = true
+      and s.predictions_open = 'open'
       and (g.locks_at is null or g.locks_at > now())
   )
 );

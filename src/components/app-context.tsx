@@ -11,6 +11,7 @@ import type {
   Stage,
   StageFlag,
   StageState,
+  StageVisibility,
   Team,
 } from "@/lib/types";
 
@@ -32,6 +33,7 @@ export type AppContextValue = {
   saveState: SaveState;
   dataMessage: string;
   openStages: Set<Stage>;
+  editableStages: Set<Stage>;
   resultsStages: Set<Stage>;
   standingsStages: Set<Stage>;
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
@@ -44,7 +46,7 @@ export type AppContextValue = {
   updateGroupLocksAt: (groupLabel: string, locksAt: string | null) => Promise<void> | void;
   createMatch: (input: CreateMatchActionInput) => Promise<void> | void;
   deleteMatch: (matchId: string) => Promise<void> | void;
-  updateStageFlag: (stage: Stage, flag: StageFlag, value: boolean) => Promise<void> | void;
+  updateStageFlag: (stage: Stage, flag: StageFlag, value: StageVisibility) => Promise<void> | void;
   approveProfile: (profileId: string) => Promise<void> | void;
   importMatchesCsv: (file: File | null) => Promise<void> | void;
   exportMatchesCsv: () => void;

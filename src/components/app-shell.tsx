@@ -61,10 +61,11 @@ import type {
   Stage,
   StageFlag,
   StageState,
+  StageVisibility,
   Team,
 } from "@/lib/types";
 import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
-import { getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
+import { getEditablePredictionsStages, getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
 import { getLeaderboard } from "@/lib/standings";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
@@ -137,9 +138,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const supabaseEnabled = hasSupabaseConfig();
 
   const isAdmin = currentUser?.role === "admin";
-  const openStages = useMemo(() => getPredictionsStages(stages), [stages]);
-  const resultsStages = useMemo(() => getResultsStages(stages, matches, groups), [stages, matches, groups]);
-  const standingsStages = useMemo(() => getStandingsStages(stages), [stages]);
+  const openStages = useMemo(() => getPredictionsStages(stages, isAdmin), [stages, isAdmin]);
+  const editableStages = useMemo(() => getEditablePredictionsStages(stages), [stages]);
+  const resultsStages = useMemo(() => getResultsStages(stages, matches, groups, isAdmin), [stages, matches, groups, isAdmin]);
+  const standingsStages = useMemo(() => getStandingsStages(stages, isAdmin), [stages, isAdmin]);
 
   const me = useMemo(
     () =>
@@ -289,7 +291,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (result.ok) await refreshSupabaseData();
   }
 
-  async function updateStageFlag(stage: Stage, flag: StageFlag, value: boolean) {
+  async function updateStageFlag(stage: Stage, flag: StageFlag, value: StageVisibility) {
     const column = flag === "predictions" ? "predictionsOpen" : flag === "results" ? "resultsOpen" : "standingsOpen";
     setStages((current) => current.map((item) => (item.stage === stage ? { ...item, [column]: value } : item)));
     const result = await updateStageFlagAction({ stage, flag, value });
@@ -548,6 +550,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveState,
     dataMessage,
     openStages,
+    editableStages,
     resultsStages,
     standingsStages,
     updatePrediction,
