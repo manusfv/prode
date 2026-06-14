@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { Info } from "lucide-react";
+
 import { Card } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -53,7 +56,10 @@ export function LeaderboardScreen() {
   return (
     <Card className={cn(ui.panel, "p-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-lg font-black">Tabla general</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="m-0 text-lg font-black">Tabla general</h2>
+          <StandingsLegend />
+        </div>
         <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
           <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Vista">
             <span className={ui.label}>Vista</span>
@@ -108,6 +114,45 @@ export function LeaderboardScreen() {
   );
 }
 
+function StandingsLegend() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        aria-label="Qué significan puntos, exactos y aciertos"
+        className="grid size-6 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-surface hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-brand"
+      >
+        <Info className="size-4" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-w-[min(20rem,calc(100vw-1.5rem))] font-normal backdrop-blur-md">
+        <p className="m-0 mb-2 text-sm font-black text-app-text">Cómo se lee la tabla</p>
+        <dl className="m-0 space-y-2 text-xs leading-normal text-app-muted">
+          <div>
+            <dt className="font-black text-app-text">Puntos</dt>
+            <dd className="m-0">
+              Tu total. En cruces, <strong className="font-bold text-app-text">3</strong> por el
+              resultado exacto y <strong className="font-bold text-app-text">1</strong> por acertar
+              ganador o empate. En grupos, <strong className="font-bold text-app-text">10/8/6/4</strong>{" "}
+              por cada posición acertada (máx. 28 por grupo).
+            </dd>
+          </div>
+          <div>
+            <dt className="font-black text-app-text">Exactos</dt>
+            <dd className="m-0">
+              Cantidad de resultados exactos en cruces más posiciones de grupo acertadas.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-black text-app-text">Aciertos</dt>
+            <dd className="m-0">
+              Cruces donde acertaste el ganador o el empate (incluye los exactos).
+            </dd>
+          </div>
+        </dl>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 const medalByRank: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 const avatarToneByRank: Record<number, string> = {
   1: "bg-app-amber text-app-bg",
@@ -153,8 +198,8 @@ function StandingsTable({ rows, currentUserId }: { rows: LeaderboardRow[]; curre
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-app-line bg-app-surface">
       <Table>
-        <TableHeader>
-          <TableRow>
+        <TableHeader className="bg-app-surface-2 [&_th]:h-9 [&_th]:text-[0.7rem] [&_th]:font-black [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-app-muted">
+          <TableRow className="border-b-2 border-app-line hover:bg-transparent">
             <TableHead className="w-12">#</TableHead>
             <TableHead>Participante</TableHead>
             <TableHead className="text-right">Puntos</TableHead>
