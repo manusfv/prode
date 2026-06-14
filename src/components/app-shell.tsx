@@ -36,6 +36,7 @@ import {
   updateGroupLocksAtAction,
   updateStageFlagAction,
 } from "@/app/actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { matchesToCsv } from "@/lib/csv";
@@ -670,7 +671,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} />
+        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} badge="Nuevo" />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
@@ -698,9 +699,9 @@ function NavLink({ href, icon, label, active, onNavigate, badge, disabled }: { h
       {icon}
       <span className="max-w-full truncate">{label}</span>
       {badge && (
-        <span className="ml-auto rounded-full bg-app-surface-2 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-app-muted">
+        <Badge className="ml-auto bg-app-green text-[10px] font-black uppercase tracking-wide text-white">
           {badge}
-        </span>
+        </Badge>
       )}
     </Button>
   );
