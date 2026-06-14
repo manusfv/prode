@@ -63,56 +63,59 @@ export function LeaderboardScreen() {
           <h2 className="m-0 text-lg font-black">Tabla general</h2>
           <StandingsLegend />
         </div>
-        <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
-          <SelectTrigger className={cn(ui.control, "w-full sm:hidden")} aria-label="Vista">
-            <span className={ui.label}>Vista</span>
-            <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="overall">Acumulado</SelectItem>
-            <SelectSeparator />
-            {stageOrder.map((stage) => (
-              <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
-                {stageLabels[stage]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block">
-          <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
-            <TabsTrigger
-              value="overall"
-              className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
-            >
-              Acumulado
-            </TabsTrigger>
-            <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
-            {stageOrder.map((stage) => (
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-1">
+          <Select value={view} onValueChange={(value) => setView(value as StandingsView)}>
+            <SelectTrigger className={cn(ui.control, "min-w-0 flex-1 sm:hidden")} aria-label="Vista">
+              <span className={ui.label}>Vista</span>
+              <SelectValue className={ui.controlValue}>{viewLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overall">Acumulado</SelectItem>
+              <SelectSeparator />
+              {stageOrder.map((stage) => (
+                <SelectItem key={stage} value={stage} disabled={!standingsStages.has(stage)}>
+                  {stageLabels[stage]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Tabs value={view} onValueChange={(value) => setView(value as StandingsView)} className="hidden min-w-0 sm:block sm:flex-1">
+            <TabsList className="flex !h-auto w-full min-w-0 max-w-full flex-wrap gap-1.5 rounded-xl border border-app-line bg-app-panel p-1.5">
               <TabsTrigger
-                key={stage}
-                value={stage}
-                disabled={!standingsStages.has(stage)}
-                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
+                value="overall"
+                className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm sm:px-4 sm:text-sm"
               >
-                {stageLabels[stage]}
+                Acumulado
               </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {showPreviewToggle && (
-          <Tooltip content={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
-            <Button
-              type="button"
-              variant={preview ? "default" : "outline"}
-              size="icon-sm"
-              aria-pressed={preview}
-              aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
-              onClick={() => setPreview((value) => !value)}
-            >
-              {preview ? <EyeOff /> : <Eye />}
-            </Button>
-          </Tooltip>
-        )}
+              <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
+              {stageOrder.map((stage) => (
+                <TabsTrigger
+                  key={stage}
+                  value={stage}
+                  disabled={!standingsStages.has(stage)}
+                  className="!h-9 shrink-0 rounded-md px-2 text-xs font-extrabold text-app-muted hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:px-4 sm:text-sm"
+                >
+                  {stageLabels[stage]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          {showPreviewToggle && (
+            <Tooltip content={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}>
+              <Button
+                type="button"
+                variant={preview ? "default" : "outline"}
+                size="icon-lg"
+                className="shrink-0 self-stretch sm:size-12 sm:[&_svg]:size-5"
+                aria-pressed={preview}
+                aria-label={preview ? "Ocultar resultados provisionales" : "Mostrar resultados provisionales"}
+                onClick={() => setPreview((value) => !value)}
+              >
+                {preview ? <EyeOff /> : <Eye />}
+              </Button>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {preview && canPreview && (
