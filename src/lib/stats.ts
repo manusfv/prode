@@ -12,7 +12,7 @@ export type FactId =
   | "rebelde" | "del-monton" | "partido-dividido" | "palpito-solitario"
   | "francotirador" | "racha" | "trampa"
   | "mas-querido" | "mas-odiado" | "apuesta-audaz" | "apuesta-segura" | "favorito-familia"
-  | "grupo-muerte" | "colista" | "visionario" | "profeta-grupos"
+  | "grupo-muerte" | "grupo-unanime" | "colista" | "visionario" | "profeta-grupos"
   | "madrugador" | "ultimo-minuto" | "indeciso";
 
 export type PersonValue = {
@@ -155,7 +155,7 @@ export function buildOptimismFacts(
     winner: can.winner, coWinners: can.coWinners, series: sortAsc(avgGoals),
   };
   const sinEmpates: Fact = {
-    id: "sin-empates", category: "optimismo", title: "Nunca cree en empates", emoji: "🙅",
+    id: "sin-empates", category: "optimismo", title: "El que nunca cree en empates", emoji: "🙅",
     blurb: "Menor porcentaje de empates pronosticados", requires: "predictions",
     available, unavailableHint: hint, chartKind: "bar", unitSuffix: "%",
     winner: noDraw.winner, coWinners: noDraw.coWinners, series: sortAsc(drawPct),
@@ -311,7 +311,7 @@ export function buildAccuracyFacts(
     series: [...exactPct].sort((a, b) => b.value - a.value),
   };
   const racha: Fact = {
-    id: "racha", category: "punteria", title: "Racha caliente", emoji: "🔥",
+    id: "racha", category: "punteria", title: "La racha caliente", emoji: "🔥",
     blurb: "Más aciertos de resultado seguidos", requires: "results",
     available, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
     winner: ra.winner, coWinners: ra.coWinners,
@@ -528,12 +528,26 @@ export function buildGroupRankingFacts(
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   const worst = contentionBins[0];
   const grupoMuerte: Fact = {
-    id: "grupo-muerte", category: "manada", title: "Grupo de la muerte", emoji: "🪦",
+    id: "grupo-muerte", category: "manada", title: "El grupo de la muerte", emoji: "🪦",
     blurb: "El grupo donde la familia menos se pone de acuerdo", requires: "predictions",
     available: Boolean(worst), unavailableHint: GROUP_HINT, chartKind: "histogram", unitSuffix: "%",
     headline: worst ? `Grupo ${worst.label}` : undefined,
     winner: worst ? { user: approved[0]!, value: worst.count, displayValue: `${worst.count}% de desacuerdo` } : undefined,
     coWinners: [], series: [], bins: contentionBins, valueDetail: "de desacuerdo",
+  };
+
+  // 1b · El grupo más unánime — inverse of grupo de la muerte (highest agreement).
+  const agreementBins: HistogramBin[] = [...contentionByGroup.entries()]
+    .map(([label, c]) => ({ label, count: Math.round((1 - c) * 100) }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const mostUnanimous = agreementBins[0];
+  const grupoUnanime: Fact = {
+    id: "grupo-unanime", category: "manada", title: "El grupo cantado", emoji: "🎵",
+    blurb: "El grupo donde la familia más se pone de acuerdo", requires: "predictions",
+    available: Boolean(mostUnanimous), unavailableHint: GROUP_HINT, chartKind: "histogram", unitSuffix: "%",
+    headline: mostUnanimous ? `Grupo ${mostUnanimous.label}` : undefined,
+    winner: mostUnanimous ? { user: approved[0]!, value: mostUnanimous.count, displayValue: `${mostUnanimous.count}% de acuerdo` } : undefined,
+    coWinners: [], series: [], bins: agreementBins, valueDetail: "de acuerdo",
   };
 
   // 2 · Colista cantado — most-predicted 4th place.
@@ -600,7 +614,7 @@ export function buildGroupRankingFacts(
   }
   dreamTable.sort((a, b) => a.groupLabel.localeCompare(b.groupLabel));
 
-  return { grupoMuerte, colista, visionario, profeta, dreamTable };
+  return { grupoMuerte, grupoUnanime, colista, visionario, profeta, dreamTable };
 }
 
 export function buildBehaviorFacts(
@@ -944,7 +958,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const facts: Fact[] = [
     optimism.optimista, optimism.candado, optimism.sinEmpates,
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
-    groupRanking.grupoMuerte, groupRanking.visionario,
+    groupRanking.grupoMuerte, groupRanking.grupoUnanime, groupRanking.visionario,
     accuracy.francotirador, accuracy.racha, accuracy.trampa, groupRanking.profeta,
     loyalty.masQuerido, loyalty.masOdiado, loyalty.favoritoFamilia,
     loyalty.apuestaAudaz, loyalty.apuestaSegura, groupRanking.colista,

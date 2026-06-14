@@ -267,6 +267,14 @@ describe("group ranking facts", () => {
     expect(grupoMuerte.bins?.find((b) => b.label === "B")?.count).toBe(0);
   });
 
+  it("grupo cantado picks the most-agreed group with agreement %", () => {
+    const { grupoUnanime } = ranking();
+    expect(grupoUnanime.headline).toContain("B");
+    expect(grupoUnanime.bins?.[0]).toMatchObject({ label: "B", count: 100 });
+    expect(grupoUnanime.bins?.find((b) => b.label === "A")?.count).toBe(67);
+    expect(grupoUnanime.winner?.displayValue).toBe("100% de acuerdo");
+  });
+
   it("colista tallies most-predicted last-place teams", () => {
     const { colista } = ranking();
     expect(colista.headline).toContain("Brasil");
@@ -467,7 +475,7 @@ describe("computeStats", () => {
       currentUserId: "u1", standingsStages: new Set(["groups"]), now,
     });
     const ids = new Set(bundle.facts.map((f) => f.id));
-    expect(ids.has("grupo-muerte") && ids.has("visionario") && ids.has("colista")).toBe(true);
+    expect(ids.has("grupo-muerte") && ids.has("grupo-unanime") && ids.has("visionario") && ids.has("colista")).toBe(true);
     expect(Array.isArray(bundle.dreamTable)).toBe(true);
   });
 
