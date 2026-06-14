@@ -73,6 +73,9 @@ export function ResultsScreen() {
   const isGroups = activeStage === "groups";
   const count = isGroups ? sortedGroups.length : stageMatches.length;
 
+  const anyGroupProvisional = useMemo(() => groups.some(isGroupProvisional), [groups]);
+  const [previewGroups, setPreviewGroups] = useState(false);
+
   return (
     <section className="grid gap-3.5">
       <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={setActiveStage} />
@@ -82,9 +85,22 @@ export function ResultsScreen() {
           <p className={ui.label}>Fixture y marcadores</p>
           <h2 className="mt-1 text-3xl font-black leading-none">Resultados</h2>
         </div>
-        <span className="text-sm font-black text-app-muted">
-          {count} {isGroups ? "grupos" : "partidos"}
-        </span>
+        <div className="flex items-center gap-3 max-lg:w-full max-lg:justify-between">
+          {isGroups && anyGroupProvisional && (
+            <Button
+              type="button"
+              variant={previewGroups ? "default" : "outline"}
+              size="sm"
+              aria-pressed={previewGroups}
+              onClick={() => setPreviewGroups((value) => !value)}
+            >
+              {previewGroups ? "Ocultar provisionales" : "Ver posiciones provisionales"}
+            </Button>
+          )}
+          <span className="text-sm font-black text-app-muted">
+            {count} {isGroups ? "grupos" : "partidos"}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-3 xl:grid-cols-2">
@@ -98,6 +114,7 @@ export function ResultsScreen() {
                 approvedProfiles={approvedProfiles}
                 groupPredictions={groupPredictions.filter((prediction) => prediction.groupLabel === group.groupLabel)}
                 currentUserId={currentUser.id}
+                preview={previewGroups}
               />
             ))
           : stageMatches.map((match) => (
@@ -228,6 +245,7 @@ function ResultGroupCard({
   approvedProfiles,
   groupPredictions,
   currentUserId,
+  preview,
 }: {
   group: Group;
   teams: Team[];
@@ -235,11 +253,12 @@ function ResultGroupCard({
   approvedProfiles: Profile[];
   groupPredictions: GroupPrediction[];
   currentUserId: string;
+  preview: boolean;
 }) {
   const status = getGroupStatus(group, now);
   const finalized = status === "finalized";
   const provisional = isGroupProvisional(group);
-  const revealOrder = finalized || provisional;
+  const revealOrder = finalized || (provisional && preview);
   const order = [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId];
 
   const entries = useMemo(
