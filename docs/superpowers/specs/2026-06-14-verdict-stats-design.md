@@ -18,6 +18,10 @@ It is one new `FactCategory` (`veredicto`) rendered last, with 10 standard
 `FactCard`s — same card + drawer interaction as every other category. No new
 chart components.
 
+This batch also ships a separate **"Rachas"** section (see the dedicated section
+below): 4 streak cards in two consistent hot/cold pairs, with a bespoke
+`StreakCard` visual so it reads distinctly from the rest of the page.
+
 ### Reveal model (unchanged, for reference)
 - **Match kickoff** (`getMatchStatus !== "open"`): unlocks match-prediction stats.
 - **Result finalized** (`getMatchStatus === "finalized"`): unlocks match accuracy stats.
@@ -222,6 +226,61 @@ fixtures plus match fixtures with scores:
 - Person ranks: `topTies`/`coWinners` as elsewhere.
 - Team thermometers (#5, 6): equal `count` ordered by team name.
 - Bucket/group histograms: stable order by label.
+
+## Rachas section (streaks)
+
+A dedicated, visually distinct **"Rachas"** section holding 4 streak cards in two
+consistent hot/cold pairs. All are `requires: "results"`, gated on finalized
+matches, and computed over each approved person's finalized predictions sorted
+chronologically by kickoff (the same walk the current `racha` already does).
+
+**Semantics:**
+- **HAD (record / best-ever):** the longest run anywhere in the person's history.
+- **HAS (current / ongoing):** the run *ending at their most recent finalized
+  match* — resets to 0 the moment the chain breaks.
+
+For each person we walk their chronologically-sorted finalized predictions
+tracking four counters: best hit-run (`bH`), best miss-run (`bM`), and the
+*current* hit-run (`rH`) and miss-run (`rM`) (whichever is non-zero at the end).
+
+| Card | id | Pair | Tone | value |
+|---|---|---|---|---|
+| **La racha caliente** | `racha` (moved) | Récord histórico | hot | best hit-run |
+| **La sequía** | `sequia` | Récord histórico | cold | best miss-run |
+| **En llamas** | `en-llamas` | Ahora mismo | hot | current hit-run |
+| **En sequía** | `en-sequia` | Ahora mismo | cold | current miss-run |
+
+- Hot cards: winner = max run (higher = better), `text-app-green`.
+- Cold cards: winner = max run too (longest drought "wins" — a hall-of-shame),
+  `text-app-red`. Ties via `topTies`/`coWinners`.
+- displayValue: hot record `${n} al hilo`; cold record `${n} errados al hilo`;
+  current hot `${n} al hilo (en curso)`; current cold `${n} errados (en curso)`.
+- When the max run is 0 (e.g. nobody has an active drought), `winner = undefined`
+  and `headline` carries a "…todavía"/"sin racha activa" message.
+- Emojis: 🔥 (racha caliente), 🏜️ (sequía), ⚡ (en llamas), 🥶 (en sequía).
+
+**Builder:** new `buildStreakFacts(profiles, predictions, matches, finalized)`
+returning `{ rachaCaliente, sequia, enLlamas, enSequia }`. The existing `racha`
+computation is **removed from `buildAccuracyFacts`** and consolidated here so all
+streak logic lives in one place; `computeStats` wires `streak.rachaCaliente` into
+`facts` in `racha`'s former slot.
+
+**Category:** new `FactCategory: "rachas"` on all four facts, **deliberately
+omitted from `CATEGORY_ORDER`** so the generic category loop skips it — the
+section is rendered by a bespoke `RachasSection` that pulls the four facts from
+the bundle by id.
+
+**UI:** new `StreakCard` component (in `src/components/stats/fact-card.tsx`):
+a panel leading with the big streak number + emoji and a hot/cold accent
+(`app-green`/`app-red` text, `bg-app-*/10` tint, `border-app-*/30`), opening the
+existing `StatDrawer` + `BarStat` on tap. `RachasSection` renders two labelled
+rows ("Récord histórico", "Ahora mismo"), each a 2-up grid of one hot + one cold
+card. Locked/`!available` state mirrors `FactCard`'s greyed treatment.
+
+**Testing (`stats.test.ts`):** new `describe("streak facts")` — best hit-run,
+best miss-run, current hit-run resets after a hit, current miss-run; plus update
+the existing "racha" test to call `buildStreakFacts` instead of
+`buildAccuracyFacts`.
 
 ## Out of scope
 - Draw-rate realism for `ojo-clinico` (goal-volume only).

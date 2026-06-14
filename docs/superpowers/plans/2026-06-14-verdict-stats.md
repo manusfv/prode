@@ -1248,9 +1248,387 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
+## Task 13: Streak facts builder (`buildStreakFacts`) + consolidate `racha`
+
+Creates all four streak facts in one builder and moves the existing `racha` out of `buildAccuracyFacts`.
+
+**Files:**
+- Modify: `src/lib/stats.ts` (types; add `buildStreakFacts`; trim `buildAccuracyFacts`; wire `computeStats`)
+- Test: `src/lib/stats.test.ts`
+
+- [ ] **Step 1: Add the `rachas` category and streak fact ids**
+
+In `src/lib/stats.ts`, extend `FactCategory` and `FactId` (`racha` already exists):
+
+```ts
+export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento" | "veredicto" | "rachas";
+```
+
+Append to the `FactId` union (after the `grupo-cantado` member added in Task 1):
+
+```ts
+  | "sequia" | "en-llamas" | "en-sequia";
+```
+
+- [ ] **Step 2: Write the failing streak tests**
+
+Add `buildStreakFacts` to the import on line 3 of `src/lib/stats.test.ts`, then add this describe block at the end of the file:
+
+```ts
+describe("streak facts", () => {
+  function fmatch(id: string, kickoff: string): Match {
+    return {
+      id, matchNo: 1, stage: "round16", homeTeamId: "arg", awayTeamId: "fra",
+      kickoffUtc: kickoff, status: "finalized",
+      homeScore: 1, awayScore: 0, winnerTeamId: "arg",
+      finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null,
+    };
+  }
+  function scored(userId: string, matchId: string, outcome: boolean): Prediction {
+    return { ...pred(userId, matchId, 1, 0), outcomeHit: outcome };
+  }
+  // chronological order m1<m2<m3<m4. Ana: hit,hit,miss,hit. Beto: miss,miss,miss,hit.
+  const matches = [
+    fmatch("m1", "2026-06-01T00:00:00.000Z"), fmatch("m2", "2026-06-02T00:00:00.000Z"),
+    fmatch("m3", "2026-06-03T00:00:00.000Z"), fmatch("m4", "2026-06-04T00:00:00.000Z"),
+  ];
+  const finalized = new Set(["m1", "m2", "m3", "m4"]);
+  const preds = [
+    scored("u1", "m1", true), scored("u1", "m2", true), scored("u1", "m3", false), scored("u1", "m4", true),
+    scored("u2", "m1", false), scored("u2", "m2", false), scored("u2", "m3", false), scored("u2", "m4", true),
+  ];
+
+  it("racha caliente = longest run of correct outcomes (HAD)", () => {
+    const { rachaCaliente } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(rachaCaliente.id).toBe("racha");
+    expect(rachaCaliente.winner?.user.displayName).toBe("Ana");
+    expect(rachaCaliente.winner?.value).toBe(2);
+  });
+
+  it("sequia = longest run of misses (HAD)", () => {
+    const { sequia } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(sequia.winner?.user.displayName).toBe("Beto");
+    expect(sequia.winner?.value).toBe(3);
+  });
+
+  it("en llamas = current ongoing hit run, en sequia = current ongoing miss run", () => {
+    const { enLlamas, enSequia } = buildStreakFacts(profiles, preds, matches, finalized);
+    // both end on a hit (m4) -> current hit run 1 each, current miss run 0
+    expect(enLlamas.winner?.value).toBe(1);
+    expect(enSequia.winner).toBeUndefined();
+    expect(enSequia.headline).toContain("Sin rachas");
+  });
+
+  it("is unavailable with no finalized matches", () => {
+    expect(buildStreakFacts(profiles, preds, matches, new Set()).rachaCaliente.available).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 3: Run the tests to verify they fail**
+
+Run: `npx vitest run src/lib/stats.test.ts -t "streak facts"`
+Expected: FAIL — `buildStreakFacts is not a function`.
+
+- [ ] **Step 4: Implement `buildStreakFacts`**
+
+In `src/lib/stats.ts`, add after `buildAccuracyFacts`:
+
+```ts
+export function buildStreakFacts(
+  profiles: Profile[],
+  predictions: Prediction[],
+  matches: Match[],
+  finalized: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
+
+  const bestHit: PersonValue[] = [];
+  const bestMiss: PersonValue[] = [];
+  const curHit: PersonValue[] = [];
+  const curMiss: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions
+      .filter((p) => p.userId === user.id && finalized.has(p.matchId))
+      .sort((a, b) => (kickoffById.get(a.matchId) ?? "").localeCompare(kickoffById.get(b.matchId) ?? ""));
+    if (mine.length === 0) continue;
+    let bH = 0, bM = 0, rH = 0, rM = 0;
+    for (const p of mine) {
+      if (p.outcomeHit) { rH += 1; rM = 0; } else { rM += 1; rH = 0; }
+      if (rH > bH) bH = rH;
+      if (rM > bM) bM = rM;
+    }
+    bestHit.push({ user, value: bH, displayValue: `${bH} al hilo` });
+    bestMiss.push({ user, value: bM, displayValue: `${bM} errados al hilo` });
+    curHit.push({ user, value: rH, displayValue: rH > 0 ? `${rH} al hilo (en curso)` : "sin racha activa" });
+    curMiss.push({ user, value: rM, displayValue: rM > 0 ? `${rM} errados (en curso)` : "sin sequía activa" });
+  }
+  const hint = "Se revela a medida que se cargan los resultados";
+
+  const streakFact = (id: FactId, title: string, emoji: string, blurb: string, series: PersonValue[]): Fact => {
+    const sorted = [...series].sort((a, b) => b.value - a.value);
+    const max = sorted[0]?.value ?? 0;
+    return {
+      id, category: "rachas", title, emoji, blurb, requires: "results",
+      available: sorted.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+      winner: max > 0 ? sorted[0] : undefined,
+      coWinners: max > 0 ? topTies(sorted) : [],
+      series: sorted,
+      headline: max > 0 ? undefined : "Sin rachas todavía",
+    };
+  };
+
+  return {
+    rachaCaliente: streakFact("racha", "La racha caliente", "🔥", "Más aciertos de resultado al hilo", bestHit),
+    sequia: streakFact("sequia", "La sequía", "🏜️", "La peor racha de errores al hilo", bestMiss),
+    enLlamas: streakFact("en-llamas", "En llamas", "⚡", "La racha de aciertos más larga en curso", curHit),
+    enSequia: streakFact("en-sequia", "En sequía", "🥶", "La peor racha de errores en curso", curMiss),
+  };
+}
+```
+
+- [ ] **Step 5: Run the streak tests to verify they pass**
+
+Run: `npx vitest run src/lib/stats.test.ts -t "streak facts"`
+Expected: PASS.
+
+- [ ] **Step 6: Remove `racha` from `buildAccuracyFacts`**
+
+In `buildAccuracyFacts`, delete the `streak` array declaration and its inner loop. Change this:
+
+```ts
+  const exactPct: PersonValue[] = [];
+  const streak: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions
+      .filter((p) => p.userId === user.id && finalized.has(p.matchId))
+      .sort((a, b) =>
+        (kickoffById.get(a.matchId) ?? "").localeCompare(kickoffById.get(b.matchId) ?? ""),
+      );
+    if (mine.length === 0) continue;
+    const exact = mine.filter((p) => p.exactHit).length;
+    const pct = Math.round((exact / mine.length) * 100);
+    exactPct.push({ user, value: pct, displayValue: `${pct}% exactos` });
+
+    let best = 0;
+    let run = 0;
+    for (const p of mine) {
+      run = p.outcomeHit ? run + 1 : 0;
+      if (run > best) best = run;
+    }
+    streak.push({ user, value: best, displayValue: `${best} seguidos` });
+  }
+```
+
+to this (keep the kickoff sort so `matches`/`kickoffById` stay used):
+
+```ts
+  const exactPct: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions
+      .filter((p) => p.userId === user.id && finalized.has(p.matchId))
+      .sort((a, b) =>
+        (kickoffById.get(a.matchId) ?? "").localeCompare(kickoffById.get(b.matchId) ?? ""),
+      );
+    if (mine.length === 0) continue;
+    const exact = mine.filter((p) => p.exactHit).length;
+    const pct = Math.round((exact / mine.length) * 100);
+    exactPct.push({ user, value: pct, displayValue: `${pct}% exactos` });
+  }
+```
+
+Then delete the `const ra = pickWinner(streak, (a, b) => a > b);` line and the whole `const racha: Fact = { ... };` block, and change the return:
+
+```ts
+  return { francotirador, trampa, trampaMatchId };
+```
+
+- [ ] **Step 7: Update the existing racha test + wire `computeStats`**
+
+In `src/lib/stats.test.ts`, the `"accuracy facts"` describe has a test `"racha is the longest consecutive outcome-hit streak"`. Replace its body to use the new builder:
+
+```ts
+  it("racha is the longest consecutive outcome-hit streak", () => {
+    const { rachaCaliente } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(rachaCaliente.winner?.user.id).toBe("u1");
+    expect(rachaCaliente.winner?.value).toBe(2);
+  });
+```
+
+In `src/lib/stats.ts` `computeStats`, add after the `accuracy` line:
+
+```ts
+  const streak = buildStreakFacts(profiles, predictions, matches, finalized);
+```
+
+In the `facts` array, replace `accuracy.racha,` with `streak.rachaCaliente,` and append the other three (they carry `category: "rachas"`, skipped by the generic loop but needed in the bundle for `RachasSection`):
+
+```ts
+    streak.sequia, streak.enLlamas, streak.enSequia,
+```
+
+- [ ] **Step 8: Run the full suite**
+
+Run: `npx tsc --noEmit && npx vitest run src/lib/stats.test.ts`
+Expected: no type errors; all tests PASS.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/lib/stats.ts src/lib/stats.test.ts
+git commit -m "feat(stats): consolidate streaks into buildStreakFacts (racha + sequía + current)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 14: StreakCard component + Rachas section
+
+**Files:**
+- Modify: `src/components/stats/fact-card.tsx` (add `StreakCard`)
+- Modify: `src/screens/estadisticas.tsx` (add `factById`, `RachasSection`, render it)
+
+- [ ] **Step 1: Add the `StreakCard` component**
+
+In `src/components/stats/fact-card.tsx` (imports for `Card`, `Lock`, `ui`, `cn`, `Fact` already exist), add:
+
+```tsx
+export function StreakCard({ fact, tone, onOpen }: { fact: Fact; tone: "hot" | "cold"; onOpen: (fact: Fact) => void }) {
+  const accent = tone === "hot" ? "text-app-green" : "text-app-red";
+  const tint = tone === "hot" ? "border-app-green/30 bg-app-green/10" : "border-app-red/30 bg-app-red/10";
+
+  if (!fact.available) {
+    return (
+      <Card className={cn(ui.panel, "flex flex-col gap-1 p-4 opacity-60")}>
+        <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-app-muted">
+          <span className="text-base grayscale">{fact.emoji}</span> {fact.title}
+        </span>
+        <p className="mt-1 flex items-center gap-1 text-xs font-bold text-app-muted">
+          <Lock size={12} /> {fact.unavailableHint}
+        </p>
+      </Card>
+    );
+  }
+
+  const value = fact.winner?.value ?? 0;
+  const name = fact.winner?.user.displayName;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(fact)}
+      className={cn("flex flex-col rounded-lg border p-4 text-left shadow-app-panel hover:bg-app-surface-2", tint)}
+    >
+      <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-app-muted">
+        <span className="text-base">{fact.emoji}</span> {fact.title}
+      </span>
+      <strong className={cn("mt-2 text-4xl font-black leading-none", accent)}>{value}</strong>
+      {name
+        ? <strong className="mt-2 block truncate text-sm font-black text-app-text">{name}</strong>
+        : <span className="mt-2 block truncate text-sm font-bold text-app-muted">{fact.headline}</span>}
+      {fact.winner?.displayValue && <small className="block truncate text-xs font-bold text-app-muted">{fact.winner.displayValue}</small>}
+    </button>
+  );
+}
+```
+
+- [ ] **Step 2: Render the Rachas section in the screen**
+
+In `src/screens/estadisticas.tsx`:
+
+Add `StreakCard` to the import from `@/components/stats/fact-card`:
+```ts
+import { BreakdownTable, FactCard, StatDrawer, StreakCard } from "@/components/stats/fact-card";
+```
+
+Inside `EstadisticasScreen`, add a lookup map (near `factsByCategory`):
+```ts
+  const factById = useMemo(() => new Map(bundle.facts.map((f) => [f.id, f])), [bundle.facts]);
+```
+
+Render `<RachasSection ... />` right after the `CATEGORY_ORDER.map(...)` block and before `<StatDrawer ...>`:
+```tsx
+      <RachasSection factById={factById} onOpen={setActiveFact} />
+```
+
+Add the component at module scope (next to `HeroRow`):
+```tsx
+function RachasSection({ factById, onOpen }: { factById: Map<string, Fact>; onOpen: (fact: Fact) => void }) {
+  const racha = factById.get("racha");
+  const sequia = factById.get("sequia");
+  const enLlamas = factById.get("en-llamas");
+  const enSequia = factById.get("en-sequia");
+  if (!racha || !sequia || !enLlamas || !enSequia) return null;
+  return (
+    <section className="grid gap-2.5">
+      <h2 className={cn(ui.label, "text-sm")}>Rachas</h2>
+      <div className="grid gap-2.5">
+        <span className={ui.label}>Récord histórico</span>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <StreakCard fact={racha} tone="hot" onOpen={onOpen} />
+          <StreakCard fact={sequia} tone="cold" onOpen={onOpen} />
+        </div>
+        <span className={cn(ui.label, "mt-1")}>Ahora mismo</span>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <StreakCard fact={enLlamas} tone="hot" onOpen={onOpen} />
+          <StreakCard fact={enSequia} tone="cold" onOpen={onOpen} />
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+- [ ] **Step 3: Verify build + lint + manual smoke**
+
+Run:
+```bash
+npx tsc --noEmit
+npm run lint
+```
+Expected: clean.
+
+Then `npm run dev`, open `/estadisticas`, and confirm:
+- A distinct "Rachas" section renders with two labelled rows ("Récord histórico", "Ahora mismo").
+- Hot cards show a green number/tint, cold cards a red number/tint.
+- The four cards no longer appear inside "Puntería y rachas" (only `racha` moved out).
+- Tapping a streak card opens the drawer with the ranked `BarStat`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/components/stats/fact-card.tsx src/screens/estadisticas.tsx
+git commit -m "feat(stats): Rachas section with hot/cold StreakCard pairs
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 15: Final full verification
+
+- [ ] **Step 1: Run the complete gate**
+
+```bash
+npx tsc --noEmit
+npm run lint
+npx vitest run src/lib/stats.test.ts
+npm run build
+```
+Expected: all green.
+
+- [ ] **Step 2: Confirm no orphaned `racha` references**
+
+Run: `grep -rn "accuracy.racha\|\.racha\b" src/lib src/screens src/components`
+Expected: only `streak.rachaCaliente` / `rachaCaliente` usages; no `accuracy.racha`.
+
+---
+
 ## Self-Review notes (addressed)
 
 - **Spec coverage:** all 10 cards have a task (2–11); category + wiring in Task 2; helpers in Task 1; integration in Task 12. Coverage map in the spec is satisfied.
 - **Type consistency:** builder return field names (`audazPremiada`, `rebeldeRazon`, `profetaSolitario`, `visionarioConfirmado`, `sorpresa`, `decepcion`, `ojoClinico`, `metodoPaga`, `manadaSabia`, `grupoCantado`) are used identically in `computeStats` wiring. `FactId` string literals match the `id` fields. `modalGroupPositions`, `crowdOutcomeByMatch`, `GROUP_SLOTS`, `TeamTally`, `HistogramBin`, `round1`, `pickWinner`, `topTies`, `topTeamHeadline` are all defined/exported in `stats.ts` before use.
 - **Reused helpers within the builder:** `crowd` (Task 3) is reused by `manada-sabia` (Task 9); `modal` (Task 5) is reused by `grupo-cantado` (Task 10); `overachievers`/`underachievers`/`sortGap` (Task 6) reused by `decepcion` (Task 7). These ordering dependencies are noted in each task. When implementing out of order, ensure the shared variable exists (it lives in the same function scope).
 - **No placeholders:** every code step contains complete code.
+- **Rachas section (Tasks 13–15):** new `rachas` category + `buildStreakFacts` (4 facts: `racha` moved, `sequia`, `en-llamas`, `en-sequia`), `racha` consolidated out of `buildAccuracyFacts` (return becomes `{ francotirador, trampa, trampaMatchId }`, kickoff sort kept so `matches` stays used), `computeStats` wires `streak.rachaCaliente` into `racha`'s old slot + appends the three new facts. UI: `StreakCard` (hot=`app-green`, cold=`app-red`) + `RachasSection` (two labelled pairs), `rachas` omitted from `CATEGORY_ORDER` so the generic loop skips it and the section is rendered bespoke from `factById`. Builder field names (`rachaCaliente`/`sequia`/`enLlamas`/`enSequia`) and fact ids (`racha`/`sequia`/`en-llamas`/`en-sequia`) are consistent across builder, `computeStats`, and `RachasSection`.
