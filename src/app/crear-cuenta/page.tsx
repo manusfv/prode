@@ -37,21 +37,28 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { display_name: name || email.split("@")[0] } },
       });
       if (error) {
         setMessage(error.message);
+        setSubmitting(false);
         return;
       }
-      // If Supabase creates a session immediately, AppShell redirects to the
-      // pending screen. If email confirmation is required, this message stays.
+      if (data.session) {
+        // Signed in immediately: AppShell redirects to the pending screen.
+        // Keep the button busy through the navigation.
+        return;
+      }
+      // Email confirmation required: no redirect, so release the button.
       setMessage("Cuenta creada. Te vamos a aprobar para participar.");
       setPassword("");
       setConfirm("");
-    } finally {
+      setSubmitting(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo crear la cuenta.");
       setSubmitting(false);
     }
   }

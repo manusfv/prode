@@ -217,6 +217,18 @@ input {
   font: inherit;
 }
 
+/* iOS Safari zooms the page in whenever a focused form control's font-size is
+   under 16px. Utility classes (e.g. the base Input's md:text-sm) can leak a
+   sub-16px size on wide phones/tablets, so enforce a 16px floor on touch-sized
+   viewports to keep focus from triggering the auto-zoom. */
+@media (max-width: 1024px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 button {
   cursor: pointer;
   transition:
