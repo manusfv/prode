@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Info } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -29,6 +30,7 @@ type StandingsView = "overall" | Stage;
 export function LeaderboardScreen() {
   const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser } = useApp();
   const [view, setView] = useState<StandingsView>("overall");
+  const [preview, setPreview] = useState(false);
 
   // If the selected stage stops being revealed (admin toggled it off), fall back
   // to the accumulated view so a hidden stage's standings aren't shown.
@@ -40,10 +42,10 @@ export function LeaderboardScreen() {
 
   const rows = useMemo(() => {
     if (view === "overall") {
-      return getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages });
+      return getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages, includeProvisional: preview });
     }
-    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches, groups });
-  }, [view, predictions, profiles, groupPredictions, matches, groups, standingsStages]);
+    return getStageLeaderboard(view, { predictions, profiles, groupPredictions, matches, groups, includeProvisional: preview });
+  }, [view, predictions, profiles, groupPredictions, matches, groups, standingsStages, preview]);
 
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
@@ -51,7 +53,8 @@ export function LeaderboardScreen() {
   const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
 
   const anyGroupProvisional = useMemo(() => groups.some(isGroupProvisional), [groups]);
-  const showProvisionalNote = anyGroupProvisional && (view === "overall" || view === "groups");
+  const canPreview = anyGroupProvisional && standingsStages.has("groups");
+  const showPreviewToggle = canPreview && (view === "overall" || view === "groups");
 
   return (
     <Card className={cn(ui.panel, "p-4")}>
@@ -96,11 +99,23 @@ export function LeaderboardScreen() {
             ))}
           </TabsList>
         </Tabs>
+        {showPreviewToggle && (
+          <Button
+            type="button"
+            variant={preview ? "default" : "outline"}
+            size="sm"
+            aria-pressed={preview}
+            onClick={() => setPreview((value) => !value)}
+            className="w-full shrink-0 sm:w-auto"
+          >
+            {preview ? "Vista previa activa" : "Si los grupos terminaran hoy"}
+          </Button>
+        )}
       </div>
 
-      {showProvisionalNote && (
+      {preview && canPreview && (
         <p className="mt-3 rounded-lg border border-app-amber/40 bg-app-amber/10 px-3 py-2 text-xs font-bold text-app-amber">
-          Incluye posiciones de grupos <strong className="font-black">provisionales</strong>; pueden cambiar.
+          Mostrando cómo quedaría la tabla <strong className="font-black">si los grupos terminaran hoy</strong>. No es el resultado final.
         </p>
       )}
       {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}

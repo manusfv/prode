@@ -146,7 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }).find(
         (row) => row.user.id === currentUser?.id,
       ),
-    [predictions, profiles, groupPredictions, matches, standingsStages, currentUser],
+    [predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser],
   );
 
   const refreshSupabaseData = useCallback(async () => {
