@@ -20,6 +20,7 @@ import type {
   Profile,
   Stage,
   StageFlag,
+  StageVisibility,
 } from "@/lib/types";
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
@@ -88,7 +89,7 @@ export async function savePredictionAction(input: SavePredictionInput) {
   const [profileResult, matchResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("matches").select("*").eq("id", input.matchId).single(),
-    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", "open"),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -142,7 +143,7 @@ export async function saveGroupPredictionAction(input: SaveGroupPredictionInput)
   const [profileResult, groupResult, stagesResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.userId).single(),
     supabase.from("groups").select("*").eq("group_label", input.groupLabel).single(),
-    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", true),
+    supabase.from("stages").select("stage, predictions_open").eq("predictions_open", "open"),
   ]);
 
   if (profileResult.error) return { ok: false, message: profileResult.error.message };
@@ -319,13 +320,19 @@ export async function updateDisplayNameAction(displayName: string) {
 type UpdateStageFlagInput = {
   stage: Stage;
   flag: StageFlag;
-  value: boolean;
+  value: StageVisibility;
 };
 
 const STAGE_FLAG_COLUMN: Record<StageFlag, "predictions_open" | "results_open" | "standings_open"> = {
   predictions: "predictions_open",
   results: "results_open",
   standings: "standings_open",
+};
+
+const STAGE_FLAG_MESSAGE: Record<StageVisibility, string> = {
+  open: "Etapa abierta.",
+  admin: "Etapa en vista previa (solo admin).",
+  closed: "Etapa cerrada.",
 };
 
 export async function updateStageFlagAction(input: UpdateStageFlagInput) {
@@ -338,15 +345,16 @@ export async function updateStageFlagAction(input: UpdateStageFlagInput) {
   const column = STAGE_FLAG_COLUMN[input.flag];
   const update: Record<string, unknown> = { [column]: input.value };
   if (input.flag === "predictions") {
-    update.opened_at = input.value ? new Date().toISOString() : null;
-    update.opened_by = input.value ? admin.userId : null;
+    const opened = input.value === "open";
+    update.opened_at = opened ? new Date().toISOString() : null;
+    update.opened_by = opened ? admin.userId : null;
   }
 
   const { error } = await supabase.from("stages").update(update).eq("stage", input.stage);
   if (error) return { ok: false, message: error.message };
 
   revalidatePath("/");
-  return { ok: true, message: input.value ? "Etapa habilitada." : "Etapa deshabilitada." };
+  return { ok: true, message: STAGE_FLAG_MESSAGE[input.value] };
 }
 
 export async function createMatchAction(input: CreateMatchInput) {
