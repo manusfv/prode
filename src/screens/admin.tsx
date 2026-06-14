@@ -29,12 +29,27 @@ import {
   stageLabels,
   stageOrder,
 } from "@/lib/tournament";
-import type { Group, Match, MatchLifecycleStatus, Stage } from "@/lib/types";
+import type { Group, Match, MatchLifecycleStatus, Stage, StageVisibility } from "@/lib/types";
 import { compareGroups, getAdminLifecycleStatus, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp, type CreateMatchActionInput } from "@/components/app-context";
 import { LoadingLabel } from "@/components/badges";
+
+const VISIBILITY_CYCLE: Record<StageVisibility, StageVisibility> = {
+  closed: "admin",
+  admin: "open",
+  open: "closed",
+};
+
+const VISIBILITY_META: Record<
+  StageVisibility,
+  { variant: "default" | "outline"; tint: string; title: string }
+> = {
+  closed: { variant: "outline", tint: "", title: "cerrado" },
+  admin: { variant: "outline", tint: "border-app-amber text-app-amber", title: "solo admin" },
+  open: { variant: "default", tint: "", title: "abierto" },
+};
 
 // Group matches no longer exist; admins only create knockout fixtures.
 const creatableStages = stageOrder.filter((stage) => stage !== "groups");
@@ -413,9 +428,9 @@ export function AdminScreen() {
               {stageOrder.map((stage) => {
                 const stageState = stages.find((item) => item.stage === stage);
                 const flags = [
-                  { flag: "predictions" as const, label: "Predicciones", value: Boolean(stageState?.predictionsOpen) },
-                  { flag: "results" as const, label: "Resultados", value: Boolean(stageState?.resultsOpen) },
-                  { flag: "standings" as const, label: "Standings", value: Boolean(stageState?.standingsOpen) },
+                  { flag: "predictions" as const, label: "Predicciones", value: stageState?.predictionsOpen ?? "closed" },
+                  { flag: "results" as const, label: "Resultados", value: stageState?.resultsOpen ?? "closed" },
+                  { flag: "standings" as const, label: "Standings", value: stageState?.standingsOpen ?? "closed" },
                 ];
 
                 return (
@@ -426,13 +441,16 @@ export function AdminScreen() {
                     <div className="flex flex-wrap gap-1.5">
                       {flags.map(({ flag, label, value }) => {
                         const key = `stage-${stage}-${flag}`;
+                        const meta = VISIBILITY_META[value];
                         return (
                           <Button
                             key={flag}
-                            variant={value ? "default" : "outline"}
+                            variant={meta.variant}
                             size="sm"
+                            className={meta.tint}
+                            title={`${label}: ${meta.title}`}
                             disabled={Boolean(pendingAdminAction)}
-                            onClick={() => runAdminAction(key, () => updateStageFlag(stage, flag, !value))}
+                            onClick={() => runAdminAction(key, () => updateStageFlag(stage, flag, VISIBILITY_CYCLE[value]))}
                           >
                             <LoadingLabel loading={pendingAdminAction === key} label={label} />
                           </Button>
