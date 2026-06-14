@@ -77,13 +77,13 @@ export function EstadisticasScreen() {
   const raceSeries = bundle.pointsRace.keys.map((key, i) => ({ key, color: RACE_PALETTE[i % RACE_PALETTE.length]! }));
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <PersonalCardView card={bundle.personal} userName={currentUser.displayName} />
 
-      <section className="grid gap-2.5">
+      <section className="grid grid-cols-1 gap-2.5">
         <h2 className={cn(ui.label, "text-sm")}>Los pronósticos de la familia</h2>
         <HeroRow bundle={bundle} />
-        <div className="grid gap-2.5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
           <Card className={cn(ui.panel, "p-4 lg:col-span-2")}>
             <h3 className="m-0 text-sm font-black">La carrera</h3>
             <p className="mb-3 text-xs font-bold text-app-muted">Puntos acumulados por fecha</p>
@@ -147,9 +147,9 @@ export function EstadisticasScreen() {
         const facts = factsByCategory.get(category) ?? [];
         if (facts.length === 0) return null;
         return (
-          <section key={category} className="grid gap-2.5">
+          <section key={category} className="grid grid-cols-1 gap-2.5">
             <h2 className={cn(ui.label, "text-sm")}>{CATEGORY_LABELS[category]}</h2>
-            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
               {facts.map((fact) => <FactCard key={fact.id} fact={fact} onOpen={setActiveFact} />)}
             </div>
           </section>
