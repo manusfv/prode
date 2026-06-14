@@ -73,7 +73,6 @@ export function ResultsScreen() {
   const isGroups = activeStage === "groups";
   const count = isGroups ? sortedGroups.length : stageMatches.length;
 
-  const anyGroupProvisional = useMemo(() => groups.some(isGroupProvisional), [groups]);
   const [previewGroups, setPreviewGroups] = useState(false);
 
   return (
@@ -86,7 +85,7 @@ export function ResultsScreen() {
           <h2 className="mt-1 text-3xl font-black leading-none">Resultados</h2>
         </div>
         <div className="flex items-center gap-3 max-lg:w-full max-lg:justify-between">
-          {isGroups && anyGroupProvisional && (
+          {isGroups && (
             <Button
               type="button"
               variant={previewGroups ? "default" : "outline"}

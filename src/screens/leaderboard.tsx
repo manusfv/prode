@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isGroupProvisional, stageLabels, stageOrder } from "@/lib/tournament";
+import { stageLabels, stageOrder } from "@/lib/tournament";
 import type { Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type LeaderboardRow } from "@/lib/standings";
@@ -52,8 +52,7 @@ export function LeaderboardScreen() {
 
   const viewLabel = view === "overall" ? "Acumulado" : stageLabels[view];
 
-  const anyGroupProvisional = useMemo(() => groups.some(isGroupProvisional), [groups]);
-  const canPreview = anyGroupProvisional && standingsStages.has("groups");
+  const canPreview = standingsStages.has("groups");
   const showPreviewToggle = canPreview && (view === "overall" || view === "groups");
 
   return (
