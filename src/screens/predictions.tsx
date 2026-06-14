@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Copy,
   Minus,
   PanelRightOpen,
   Plus,
@@ -24,6 +25,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   formatKickoff,
   formatRelativeTime,
@@ -705,6 +712,156 @@ function EarnedPoints({ finalized, points }: { finalized: boolean; points: numbe
   return <span className="shrink-0 text-sm font-black text-app-green">{points ?? 0} pts</span>;
 }
 
+type CopyFormat = "flags" | "names" | "csv";
+
+const COPY_FORMATS: { value: CopyFormat; label: string }[] = [
+  { value: "flags", label: "Solo banderas" },
+  { value: "names", label: "Banderas y nombres" },
+  { value: "csv", label: "CSV" },
+];
+
+const csvField = (value: string) =>
+  /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+
+const toCsv = (rows: string[][]) => rows.map((row) => row.map(csvField).join(",")).join("\n");
+
+function CopyMenu({ build, label }: { build: (format: CopyFormat) => string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copy = async (format: CopyFormat) => {
+    try {
+      await navigator.clipboard.writeText(build(format));
+      setCopied(true);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  return (
+    <div className="absolute top-3 right-12 flex items-center rounded-md border border-app-line bg-app-surface/80 shadow-app-card">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-r-none"
+        title={label}
+        onClick={() => void copy("names")}
+      >
+        {copied ? <Check /> : <Copy />}
+        <span className="sr-only">{label}</span>
+      </Button>
+      <span className="h-4 w-px shrink-0 bg-app-line" aria-hidden />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button type="button" variant="ghost" size="icon-sm" className="rounded-l-none" title="Más formatos">
+              <ChevronDown />
+              <span className="sr-only">Más formatos</span>
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end" className="bg-app-panel-strong/75 supports-backdrop-filter:backdrop-blur-md">
+          {COPY_FORMATS.map((format) => (
+            <DropdownMenuItem key={format.value} onClick={() => void copy(format.value)}>
+              {format.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+function buildMatchCopyText(
+  match: Match,
+  matchPredictions: Prediction[],
+  profiles: Profile[],
+  teams: Team[],
+  format: CopyFormat,
+): string {
+  const approved = profiles.filter((profile) => profile.approved);
+  const shortName = (teamId: string) =>
+    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
+  const predictionFor = (profile: Profile) =>
+    matchPredictions.find((item) => item.userId === profile.id);
+
+  if (format === "csv") {
+    const homeLabel = getTeamLabel(match.homeTeamId, teams, match.homeSeed);
+    const awayLabel = getTeamLabel(match.awayTeamId, teams, match.awaySeed);
+    const rows: string[][] = [["Jugador", homeLabel, awayLabel, "Clasifica"]];
+    for (const profile of approved) {
+      const prediction = predictionFor(profile);
+      rows.push([
+        profile.displayName,
+        prediction ? String(prediction.homeScore) : "",
+        prediction ? String(prediction.awayScore) : "",
+        prediction?.winnerTeamId ? getTeamLabel(prediction.winnerTeamId, teams) : "",
+      ]);
+    }
+    return toCsv(rows);
+  }
+
+  const team = (teamId: string) =>
+    format === "flags" ? getTeamFlag(teamId, teams) : `${getTeamFlag(teamId, teams)} ${shortName(teamId)}`;
+  const header = `${stageLabels[match.stage]} · ${getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs ${getTeamLabel(match.awayTeamId, teams, match.awaySeed)}`;
+  const lines = approved.map((profile) => {
+    const prediction = predictionFor(profile);
+    if (!prediction) return `${profile.displayName}: Sin pronóstico`;
+    const winner = prediction.winnerTeamId ? ` · clasifica ${team(prediction.winnerTeamId)}` : "";
+    return `${profile.displayName}: ${prediction.homeScore}-${prediction.awayScore}${winner}`;
+  });
+  return [header, "", ...lines].join("\n");
+}
+
+function buildGroupCopyText(
+  group: Group,
+  groupPredictions: GroupPrediction[],
+  profiles: Profile[],
+  teams: Team[],
+  format: CopyFormat,
+): string {
+  const approved = profiles.filter((profile) => profile.approved);
+  const shortName = (teamId: string) =>
+    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
+  const predictionFor = (profile: Profile) =>
+    groupPredictions.find((item) => item.userId === profile.id);
+
+  if (format === "csv") {
+    const rows: string[][] = [["Jugador", ...POSITION_LABELS]];
+    for (const profile of approved) {
+      const prediction = predictionFor(profile);
+      const order = prediction ? groupOrderTeams(prediction) : [];
+      rows.push([
+        profile.displayName,
+        ...POSITION_LABELS.map((_, index) => {
+          const teamId = order[index];
+          return teamId ? getTeamLabel(teamId, teams) : "";
+        }),
+      ]);
+    }
+    return toCsv(rows);
+  }
+
+  const team = (teamId: string) =>
+    format === "flags" ? getTeamFlag(teamId, teams) : `${getTeamFlag(teamId, teams)} ${shortName(teamId)}`;
+  const header = `${stageLabels.groups} · Grupo ${group.groupLabel}`;
+  const lines = approved.map((profile) => {
+    const prediction = predictionFor(profile);
+    if (!prediction) return `${profile.displayName}: Sin pronóstico`;
+    const order = groupOrderTeams(prediction)
+      .map((teamId) => (teamId ? team(teamId) : "—"))
+      .join(" · ");
+    return `${profile.displayName}: ${order}`;
+  });
+  return [header, "", ...lines].join("\n");
+}
+
 export function PredictionDrawer({
   match,
   predictions,
@@ -738,6 +895,10 @@ export function PredictionDrawer({
                 {getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs {getTeamLabel(match.awayTeamId, teams, match.awaySeed)}
               </SheetTitle>
             </SheetHeader>
+            <CopyMenu
+              label="Copiar pronósticos"
+              build={(format) => buildMatchCopyText(match, matchPredictions, profiles, teams, format)}
+            />
             <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = matchPredictions.find((item) => item.userId === profile.id);
@@ -801,6 +962,10 @@ function GroupDrawer({
                 Grupo {group.groupLabel}
               </SheetTitle>
             </SheetHeader>
+            <CopyMenu
+              label="Copiar pronósticos"
+              build={(format) => buildGroupCopyText(group, predictions, profiles, teams, format)}
+            />
             <div className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto overscroll-contain px-4 pb-4">
               {profiles.filter((profile) => profile.approved).map((profile) => {
                 const prediction = predictions.find((item) => item.userId === profile.id);
