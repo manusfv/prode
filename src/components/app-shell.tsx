@@ -81,6 +81,7 @@ import {
   type SaveState,
 } from "./app-context";
 import { PredictionDrawer } from "@/screens/predictions";
+import { NovedadesModal } from "@/components/novedades-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -627,6 +628,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           teams={teams}
           onClose={() => setDrawerMatch(null)}
         />
+        <NovedadesModal />
       </main>
     </AppContext.Provider>
   );

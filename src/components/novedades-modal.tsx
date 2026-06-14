@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { BarChart3, Sparkles, TimerReset, type LucideIcon } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ui, tabRoutes } from "@/lib/ui-tokens";
+import { cn } from "@/lib/utils";
+
+// Bump this whenever there are new novedades to show everyone again.
+const NOVEDADES_VERSION = "2026-06-stats-provisional";
+const STORAGE_KEY = "prode-novedades-seen";
+
+type Novedad = {
+  icon: LucideIcon;
+  title: string;
+  body: string;
+  href?: string;
+  cta?: string;
+};
+
+const novedades: Novedad[] = [
+  {
+    icon: TimerReset,
+    title: "Resultados provisionales",
+    body: "Activá el botón de resultados provisionales en la tabla familiar para que también tenga en cuenta los grupos que todavía no están definidos. Así vas viendo cómo va quedando el prode antes de que los resultados sean definitivos.",
+  },
+  {
+    icon: BarChart3,
+    title: "Nueva sección de Estadísticas",
+    body: "Sumamos una sección de Estadísticas con rankings, rachas y las apuestas más audaces del clan. Pasá a curiosear.",
+    href: tabRoutes.stats,
+    cta: "Ver Estadísticas",
+  },
+];
+
+export function NovedadesModal() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(STORAGE_KEY) !== NOVEDADES_VERSION) {
+        setOpen(true);
+      }
+    } catch {
+      // localStorage unavailable (private mode, etc.) — just skip.
+    }
+  }, []);
+
+  function dismiss() {
+    setOpen(false);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, NOVEDADES_VERSION);
+    } catch {
+      // ignore write failures
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) dismiss();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <span className={cn(ui.label, "mb-1 inline-flex items-center gap-1.5 text-app-green")}>
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            Novedades
+          </span>
+          <DialogTitle>¿Qué hay de nuevo?</DialogTitle>
+          <DialogDescription>Un par de cosas que sumamos al prode.</DialogDescription>
+        </DialogHeader>
+
+        <ul className="flex flex-col gap-3 p-5 pt-4">
+          {novedades.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.title} className={cn(ui.panelPlain, "flex gap-3 p-3.5")}>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-app-surface-2 text-app-green">
+                  <Icon className="size-4.5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-black leading-tight text-app-text">{item.title}</p>
+                  <p className="mt-1 text-sm leading-snug text-app-muted">{item.body}</p>
+                  {item.href && (
+                    <Button
+                      render={<Link href={item.href} />}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2.5"
+                      onClick={dismiss}
+                    >
+                      {item.cta}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        <DialogFooter>
+          <Button onClick={dismiss}>Entendido</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
