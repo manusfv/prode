@@ -86,6 +86,43 @@ export function StatDrawer({
   );
 }
 
+export function StreakCard({ fact, tone, onOpen }: { fact: Fact; tone: "hot" | "cold"; onOpen: (fact: Fact) => void }) {
+  const accent = tone === "hot" ? "text-app-green" : "text-app-red";
+  const tint = tone === "hot" ? "border-app-green/30 bg-app-green/10" : "border-app-red/30 bg-app-red/10";
+
+  if (!fact.available) {
+    return (
+      <Card className={cn(ui.panel, "flex flex-col gap-1 p-4 opacity-60")}>
+        <span className={cn(ui.label, "flex items-center gap-1.5")}>
+          <span className="text-base grayscale">{fact.emoji}</span> {fact.title}
+        </span>
+        <p className="mt-1 flex items-center gap-1 text-xs font-bold text-app-muted">
+          <Lock size={12} /> {fact.unavailableHint}
+        </p>
+      </Card>
+    );
+  }
+
+  const value = fact.winner?.value ?? 0;
+  const name = fact.winner?.user.displayName;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(fact)}
+      className={cn("flex flex-col rounded-lg border p-4 text-left shadow-app-panel hover:bg-app-surface-2", tint)}
+    >
+      <span className={cn(ui.label, "flex items-center gap-1.5")}>
+        <span className="text-base">{fact.emoji}</span> {fact.title}
+      </span>
+      <strong className={cn("mt-2 text-4xl font-black leading-none", accent)}>{value}</strong>
+      {name
+        ? <strong className="mt-2 block truncate text-sm font-black text-app-text">{name}</strong>
+        : <span className="mt-2 block truncate text-sm font-bold text-app-muted">{fact.headline}</span>}
+      {fact.winner?.displayValue && <small className="block truncate text-xs font-bold text-app-muted">{fact.winner.displayValue}</small>}
+    </button>
+  );
+}
+
 export function BreakdownTable({ fact }: { fact: Fact }) {
   if (fact.series.length === 0) return null;
   return (

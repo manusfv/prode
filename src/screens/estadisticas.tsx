@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useApp } from "@/components/app-context";
 import { BarStat, ConsensusBoard, Histogram, LineStat, MatchSplit, SimilarityGrid, StackedAccuracy, TeamThermometer } from "@/components/stats/charts";
 import { chartColors } from "@/components/ui/chart";
-import { BreakdownTable, FactCard, StatDrawer } from "@/components/stats/fact-card";
+import { BreakdownTable, FactCard, StatDrawer, StreakCard } from "@/components/stats/fact-card";
 import { computeStats, predictedOutcome, type Fact, type FactCategory } from "@/lib/stats";
 import { getTeamLabel } from "@/lib/tournament";
 import { ui } from "@/lib/ui-tokens";
@@ -50,6 +50,8 @@ export function EstadisticasScreen() {
     }
     return map;
   }, [bundle.facts]);
+
+  const factById = useMemo(() => new Map(bundle.facts.map((f) => [f.id, f])), [bundle.facts]);
 
   const matchById = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
 
@@ -158,6 +160,8 @@ export function EstadisticasScreen() {
         );
       })}
 
+      <RachasSection factById={factById} onOpen={setActiveFact} />
+
       <StatDrawer fact={activeFact} onClose={() => setActiveFact(null)}>
         {activeFact && (
           <>
@@ -169,6 +173,31 @@ export function EstadisticasScreen() {
         )}
       </StatDrawer>
     </div>
+  );
+}
+
+function RachasSection({ factById, onOpen }: { factById: Map<string, Fact>; onOpen: (fact: Fact) => void }) {
+  const racha = factById.get("racha");
+  const sequia = factById.get("sequia");
+  const enLlamas = factById.get("en-llamas");
+  const enSequia = factById.get("en-sequia");
+  if (!racha || !sequia || !enLlamas || !enSequia) return null;
+  return (
+    <section className="grid gap-2.5">
+      <h2 className={cn(ui.label, "text-sm")}>Rachas</h2>
+      <div className="grid gap-2.5">
+        <span className={ui.label}>Récord histórico</span>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <StreakCard fact={racha} tone="hot" onOpen={onOpen} />
+          <StreakCard fact={sequia} tone="cold" onOpen={onOpen} />
+        </div>
+        <span className={cn(ui.label, "mt-1")}>Ahora mismo</span>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <StreakCard fact={enLlamas} tone="hot" onOpen={onOpen} />
+          <StreakCard fact={enSequia} tone="cold" onOpen={onOpen} />
+        </div>
+      </div>
+    </section>
   );
 }
 
