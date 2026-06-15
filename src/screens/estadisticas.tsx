@@ -21,7 +21,7 @@ const RACE_PALETTE = [
 const CATEGORY_LABELS: Record<FactCategory, string> = {
   optimismo: "Optimismo y goles",
   manada: "Manada vs. rebelde",
-  punteria: "Puntería y rachas",
+  punteria: "Puntería",
   fidelidad: "Fidelidad de equipo",
   comportamiento: "Comportamiento",
   veredicto: "El veredicto",
