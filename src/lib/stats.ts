@@ -896,7 +896,33 @@ export function buildVerdictFacts(
     coWinners: [], series: [], teamSeries: decepcionSeries, valueDetail: "peor de lo esperado",
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion };
+  // ---- 7 · El ojo clínico (goal-volume realism) ----
+  const goalError: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions.filter((p) => p.userId === user.id && finalizedMatches.has(p.matchId));
+    const scored = mine.filter((p) => {
+      const m = matchById.get(p.matchId);
+      return m && m.homeScore !== null && m.awayScore !== null;
+    });
+    if (scored.length === 0) continue;
+    let totalErr = 0;
+    for (const p of scored) {
+      const m = matchById.get(p.matchId)!;
+      totalErr += Math.abs((p.homeScore + p.awayScore) - (m.homeScore! + m.awayScore!));
+    }
+    const avg = round1(totalErr / scored.length);
+    goalError.push({ user, value: avg, displayValue: `${avg} goles de error promedio` });
+  }
+  const ojoWin = pickWinner(goalError, (a, b) => a < b);
+  const ojoClinico: Fact = {
+    id: "ojo-clinico", category: "veredicto", title: "El ojo clínico", emoji: "🔬",
+    blurb: "Quien mejor le calcula el ritmo goleador a los partidos.", requires: "results",
+    available: goalError.length > 0, unavailableHint: VERDICT_MATCH_HINT, chartKind: "bar", unitSuffix: "goles",
+    winner: ojoWin.winner, coWinners: ojoWin.coWinners,
+    series: [...goalError].sort((a, b) => a.value - b.value),
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico };
 }
 
 export function buildBehaviorFacts(
@@ -1255,6 +1281,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.visionarioConfirmado,
     verdict.sorpresa,
     verdict.decepcion,
+    verdict.ojoClinico,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length

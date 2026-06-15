@@ -683,6 +683,19 @@ describe("verdict facts", () => {
     expect(decepcion.teamSeries?.[0]).toMatchObject({ teamId: "arg", count: 3 });
   });
 
+  it("ojo-clinico ranks the lowest average goal-total error (ascending)", () => {
+    const m1 = match("m1", { status: "finalized", homeScore: 2, awayScore: 1 });
+    const preds = [pred("u1", "m1", 2, 1), pred("u2", "m1", 0, 0)];
+    const { ojoClinico } = buildVerdictFacts(
+      vProfiles, preds, [], [m1], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(ojoClinico.available).toBe(true);
+    expect(ojoClinico.winner?.user.displayName).toBe("Ana");
+    expect(ojoClinico.winner?.value).toBe(0);
+    expect(ojoClinico.series[0]?.user.id).toBe("u1"); // sorted ascending
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },
