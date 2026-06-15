@@ -667,6 +667,22 @@ describe("verdict facts", () => {
     expect(sorpresa.teamSeries?.[0]?.count).toBeGreaterThan(0);
   });
 
+  it("decepcion ranks teams that finished lower than the family expected", () => {
+    const gps = [
+      vgrp("u1", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u2", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u3", "A", ["arg", "bra", "uru", "chi"]),
+    ];
+    const groups = [vgroup("A", ["uru", "bra", "chi", "arg"], true)]; // arg actually last
+    const { decepcion } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(decepcion.available).toBe(true);
+    expect(decepcion.headline).toContain("Argentina");
+    expect(decepcion.teamSeries?.[0]).toMatchObject({ teamId: "arg", count: 3 });
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },

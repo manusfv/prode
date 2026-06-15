@@ -884,7 +884,19 @@ export function buildVerdictFacts(
     coWinners: [], series: [], teamSeries: sorpresaSeries, valueDetail: "mejor de lo esperado",
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa };
+  const decepcionSeries = sortGap(underachievers);
+  const decepcion: Fact = {
+    id: "decepcion", category: "veredicto", title: "La decepción de la familia", emoji: "🥀",
+    blurb: "El equipo que la familia bancó y quedó más abajo de lo cantado.", requires: "results",
+    available: finalizedGroups.size > 0, unavailableHint: VERDICT_GROUP_HINT, chartKind: "thermometer", unitSuffix: "puestos",
+    headline: decepcionSeries.length > 0 ? topTeamHeadline(decepcionSeries) : "Ningún fiasco: todos cumplieron",
+    winner: decepcionSeries[0]
+      ? { user: approved[0]!, value: decepcionSeries[0].count, displayValue: `cayó ${decepcionSeries[0].count} ${decepcionSeries[0].count === 1 ? "puesto" : "puestos"}` }
+      : undefined,
+    coWinners: [], series: [], teamSeries: decepcionSeries, valueDetail: "peor de lo esperado",
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion };
 }
 
 export function buildBehaviorFacts(
@@ -1242,6 +1254,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.profetaSolitario,
     verdict.visionarioConfirmado,
     verdict.sorpresa,
+    verdict.decepcion,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length
