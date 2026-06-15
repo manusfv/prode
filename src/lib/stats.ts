@@ -949,7 +949,43 @@ export function buildVerdictFacts(
     ],
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico, manadaSabia };
+  // ---- 9 · El grupo cantado ¿se cumplió? ----
+  // Per finalized group with consensus, how many of the 4 slots the family's
+  // modal order matched reality. Headline = the most-agreed group + its score.
+  const cantadoBins: HistogramBin[] = [];
+  let cantadoBest: { label: string; matched: number; agreement: number } | null = null;
+  for (const label of finalizedGroups) {
+    const group = groupByLabel.get(label);
+    const picks = revealedGp.filter((g) => g.groupLabel === label);
+    if (!group || picks.length < 2) continue;
+    const order = actualOrder(group);
+    let matched = 0;
+    let agreeSum = 0;
+    GROUP_SLOTS.forEach((_, i) => {
+      const consensus = modal.get(`${label}:${i}`);
+      if (consensus && consensus === order[i]) matched += 1;
+      // agreement = share of pickers on the modal team at this slot
+      const slot = GROUP_SLOTS[i]!;
+      const votes = picks.filter((p) => (p[slot] as string | null) === consensus).length;
+      agreeSum += consensus ? votes / picks.length : 0;
+    });
+    cantadoBins.push({ label, count: matched });
+    const agreement = agreeSum / GROUP_SLOTS.length;
+    if (!cantadoBest || agreement > cantadoBest.agreement) cantadoBest = { label, matched, agreement };
+  }
+  cantadoBins.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const grupoCantado: Fact = {
+    id: "grupo-cantado", category: "veredicto", title: "El grupo cantado ¿se cumplió?", emoji: "🎵",
+    blurb: "El grupo más cantado por la familia, ¿salió como dijeron?", requires: "results",
+    available: cantadoBins.length > 0, unavailableHint: VERDICT_GROUP_HINT, chartKind: "histogram", unitSuffix: "",
+    headline: cantadoBest ? `Grupo ${cantadoBest.label}: la familia cantó ${cantadoBest.matched}/4` : undefined,
+    winner: cantadoBest
+      ? { user: approved[0]!, value: cantadoBest.matched, displayValue: `${cantadoBest.matched} de 4 aciertos` }
+      : undefined,
+    coWinners: [], series: [], bins: cantadoBins, valueDetail: "de 4 aciertos",
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico, manadaSabia, grupoCantado };
 }
 
 export function buildBehaviorFacts(
@@ -1310,6 +1346,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.decepcion,
     verdict.ojoClinico,
     verdict.manadaSabia,
+    verdict.grupoCantado,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length

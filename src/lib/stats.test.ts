@@ -708,6 +708,22 @@ describe("verdict facts", () => {
     expect(manadaSabia.bins?.find((b) => b.label === "La manada acertó")?.count).toBe(1);
   });
 
+  it("grupo-cantado counts how many slots the consensus order got right", () => {
+    const gps = [
+      vgrp("u1", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u2", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u3", "A", ["arg", "bra", "uru", "chi"]),
+    ];
+    const groups = [vgroup("A", ["arg", "bra", "uru", "chi"], true)];
+    const { grupoCantado } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(grupoCantado.available).toBe(true);
+    expect(grupoCantado.bins?.find((b) => b.label === "A")?.count).toBe(4);
+    expect(grupoCantado.headline).toContain("4/4");
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },
