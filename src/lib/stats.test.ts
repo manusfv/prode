@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite, modalGroupPositions } from "./stats";
-import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite, modalGroupPositions, buildVerdictFacts } from "./stats";
+import type { Group, GroupPrediction, Match, Prediction, Profile, Team } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
 const now = new Date("2026-06-12T12:00:00.000Z");
@@ -536,5 +536,68 @@ describe("computeStats", () => {
       { groupLabel: "A", flag: "🇦🇷", name: "Argentina" },
       { groupLabel: "B", flag: "🇧🇷", name: "Brasil" },
     ]);
+  });
+});
+
+describe("verdict facts", () => {
+  const vTeams: Team[] = [
+    { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
+    { id: "bra", name: "Brasil", shortName: "BRA", flag: "🇧🇷" },
+    { id: "uru", name: "Uruguay", shortName: "URU", flag: "🇺🇾" },
+    { id: "chi", name: "Chile", shortName: "CHI", flag: "🇨🇱" },
+  ];
+  const vProfiles: Profile[] = [
+    { id: "u1", displayName: "Ana", email: "a@x.com", approved: true, role: "user" },
+    { id: "u2", displayName: "Beto", email: "b@x.com", approved: true, role: "user" },
+    { id: "u3", displayName: "Caro", email: "c@x.com", approved: true, role: "user" },
+  ];
+  function vgrp(userId: string, label: string, order: [string, string, string, string], exactPositions = 0): GroupPrediction {
+    return {
+      id: `${userId}-${label}`, userId, groupLabel: label,
+      firstTeamId: order[0], secondTeamId: order[1], thirdTeamId: order[2], fourthTeamId: order[3],
+      points: null, exactPositions,
+      createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+  }
+  // group A finished arg,bra,uru,chi (real result on the Group object)
+  function vgroup(label: string, order: [string, string, string, string], finalized: boolean): Group {
+    return {
+      groupLabel: label, locksAt: "2026-06-01T00:00:00.000Z",
+      firstTeamId: order[0], secondTeamId: order[1], thirdTeamId: order[2], fourthTeamId: order[3],
+      resultFinalizedAt: finalized ? "2026-06-10T00:00:00.000Z" : null, resultFinalizedBy: finalized ? "u1" : null,
+    };
+  }
+
+  it("audaz-premiada credits lone 1st picks that actually finished 1st", () => {
+    const gps = [
+      vgrp("u1", "A", ["uru", "arg", "bra", "chi"]),
+      vgrp("u2", "A", ["arg", "uru", "bra", "chi"]),
+      vgrp("u3", "A", ["arg", "uru", "bra", "chi"]),
+    ];
+    const groups = [vgroup("A", ["uru", "arg", "bra", "chi"], true)];
+    const { audazPremiada } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(audazPremiada.available).toBe(true);
+    expect(audazPremiada.winner?.user.displayName).toBe("Ana");
+    expect(audazPremiada.winner?.value).toBe(1);
+    expect(audazPremiada.winner?.displayValue).toContain("Uruguay");
+  });
+
+  it("audaz-premiada shows a 'todavía' headline when no lone pick landed", () => {
+    const gps = [
+      vgrp("u1", "A", ["chi", "arg", "bra", "uru"]),
+      vgrp("u2", "A", ["arg", "uru", "bra", "chi"]),
+      vgrp("u3", "A", ["arg", "uru", "bra", "chi"]),
+    ];
+    const groups = [vgroup("A", ["arg", "uru", "bra", "chi"], true)];
+    const { audazPremiada } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(audazPremiada.available).toBe(true);
+    expect(audazPremiada.winner).toBeUndefined();
+    expect(audazPremiada.headline).toContain("todavía");
   });
 });

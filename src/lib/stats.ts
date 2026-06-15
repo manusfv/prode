@@ -672,6 +672,77 @@ export function buildGroupRankingFacts(
   return { grupoMuerte, grupoUnanime, colista, visionario, profeta, dreamTable };
 }
 
+const VERDICT_GROUP_HINT = "Se revela cuando se cargan los resultados de los grupos";
+const VERDICT_MATCH_HINT = "Se revela a medida que se cargan los resultados";
+
+export function buildVerdictFacts(
+  profiles: Profile[],
+  predictions: Prediction[],
+  groupPredictions: GroupPrediction[],
+  matches: Match[],
+  groups: Group[],
+  teams: Team[],
+  revealedMatches: Set<string>,
+  finalizedMatches: Set<string>,
+  revealedGroups: Set<string>,
+  finalizedGroups: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const approvedIds = new Set(approved.map((p) => p.id));
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const teamName = (id: string) => teamById.get(id)?.name ?? id;
+  const teamLabel = (id: string) => `${teamById.get(id)?.flag ?? "🏳️"} ${teamName(id)}`;
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+  const groupByLabel = new Map(groups.map((g) => [g.groupLabel, g]));
+  const actualOrder = (g: Group) => [g.firstTeamId, g.secondTeamId, g.thirdTeamId, g.fourthTeamId];
+
+  const revealedGp = groupPredictions.filter(
+    (g) => revealedGroups.has(g.groupLabel) && approvedIds.has(g.userId) && g.firstTeamId,
+  );
+
+  // ---- 1 · Apuesta audaz premiada ----
+  // Per person, count their lone 1st picks (no other approved person picked that
+  // team 1st in that group) that fall in a finalized group AND actually finished 1st.
+  const premiada: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = revealedGp.filter((g) => g.userId === user.id && finalizedGroups.has(g.groupLabel));
+    if (mine.length === 0) continue;
+    let hits = 0;
+    let firstHitTeam: string | null = null;
+    let lastTeam: string | null = null;
+    let lastPos: number | null = null;
+    for (const g of mine) {
+      const others = revealedGp.filter(
+        (o) => o.groupLabel === g.groupLabel && o.userId !== user.id && o.firstTeamId === g.firstTeamId,
+      ).length;
+      if (others > 0) continue; // not a lone pick
+      lastTeam = g.firstTeamId!;
+      const order = actualOrder(groupByLabel.get(g.groupLabel)!);
+      lastPos = order.indexOf(g.firstTeamId!) + 1;
+      if (order[0] === g.firstTeamId) { hits += 1; if (!firstHitTeam) firstHitTeam = g.firstTeamId!; }
+    }
+    if (lastTeam === null) continue; // had no lone picks in finalized groups
+    const displayValue =
+      hits === 0 ? `${teamLabel(lastTeam)} · quedó ${lastPos}º`
+      : hits === 1 ? `${teamLabel(firstHitTeam!)} · salió 1º ✅`
+      : `${hits} picks solitarios clavados`;
+    premiada.push({ user, value: hits, displayValue });
+  }
+  premiada.sort((a, b) => b.value - a.value);
+  const premiadaMax = premiada[0]?.value ?? 0;
+  const audazPremiada: Fact = {
+    id: "audaz-premiada", category: "veredicto", title: "La apuesta audaz premiada", emoji: "🎯",
+    blurb: "El que se la jugó solo a un 1º de grupo… y la clavó.", requires: "results",
+    available: premiada.length > 0, unavailableHint: VERDICT_GROUP_HINT, chartKind: "bar", unitSuffix: "",
+    winner: premiadaMax > 0 ? premiada[0] : undefined,
+    coWinners: premiadaMax > 0 ? topTies(premiada) : [],
+    series: premiada,
+    headline: premiadaMax > 0 ? undefined : "Nadie clavó su pick solitario… todavía",
+  };
+
+  return { audazPremiada };
+}
+
 export function buildBehaviorFacts(
   profiles: Profile[],
   predictions: Prediction[],
@@ -1008,6 +1079,10 @@ export function computeStats(input: StatsInput): StatsBundle {
   const participation = buildParticipation(profiles, predictions, revealed);
   const goalMargin = buildGoalMargin(predictions, revealed);
   const groupRanking = buildGroupRankingFacts(profiles, groupPredictions, teams, revealedGroups, finalizedGroups);
+  const verdict = buildVerdictFacts(
+    profiles, predictions, groupPredictions, matches, groups, teams,
+    revealed, finalized, revealedGroups, finalizedGroups,
+  );
   const twinOpposite = pickTwinAndOpposite(similarity, currentUserId);
 
   const facts: Fact[] = [
@@ -1018,6 +1093,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     loyalty.masQuerido, loyalty.masOdiado, loyalty.favoritoFamilia,
     loyalty.apuestaAudaz, loyalty.apuestaSegura, groupRanking.colista,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
+    verdict.audazPremiada,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length
