@@ -812,7 +812,35 @@ export function buildVerdictFacts(
     headline: profetaMax > 0 ? undefined : "Nadie clavó un exacto en soledad… todavía",
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario };
+  // ---- 4 · El visionario confirmado ----
+  const modal = modalGroupPositions(revealedGp, teamName);
+  const visionDiv: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = revealedGp.filter((g) => g.userId === user.id && finalizedGroups.has(g.groupLabel));
+    if (mine.length === 0) continue;
+    let correctDivergent = 0;
+    for (const g of mine) {
+      const order = actualOrder(groupByLabel.get(g.groupLabel)!);
+      GROUP_SLOTS.forEach((slot, i) => {
+        const mineTeam = g[slot] as string | null;
+        const consensus = modal.get(`${g.groupLabel}:${i}`);
+        if (mineTeam && consensus && mineTeam !== consensus && mineTeam === order[i]) correctDivergent += 1;
+      });
+    }
+    visionDiv.push({
+      user, value: correctDivergent,
+      displayValue: `${correctDivergent} ${correctDivergent === 1 ? "casillero" : "casilleros"} que clavaste contra la corriente`,
+    });
+  }
+  visionDiv.sort((a, b) => b.value - a.value);
+  const visionarioConfirmado: Fact = {
+    id: "visionario-confirmado", category: "veredicto", title: "El visionario confirmado", emoji: "🔮",
+    blurb: "Armó los grupos distinto a todos… y le salió bien.", requires: "results",
+    available: visionDiv.length > 0, unavailableHint: VERDICT_GROUP_HINT, chartKind: "bar", unitSuffix: "",
+    winner: visionDiv[0], coWinners: topTies(visionDiv), series: visionDiv,
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado };
 }
 
 export function buildBehaviorFacts(
@@ -1168,6 +1196,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.audazPremiada,
     verdict.rebeldeRazon,
     verdict.profetaSolitario,
+    verdict.visionarioConfirmado,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length

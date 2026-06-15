@@ -630,6 +630,26 @@ describe("verdict facts", () => {
     expect(profetaSolitario.winner).toBeUndefined();
   });
 
+  it("visionario-confirmado counts divergent slots the person got right", () => {
+    // u1 picks ["uru", "arg", "bra", "chi"]; consensus (u2+u3) is ["arg", "uru", "bra", "chi"].
+    // Actual order is ["uru", "arg", "bra", "chi"].
+    // u1 diverges from consensus at slots 0 (uru vs arg) and 1 (arg vs uru), and is correct on both.
+    const gps = [
+      vgrp("u1", "A", ["uru", "arg", "bra", "chi"]),
+      vgrp("u2", "A", ["arg", "uru", "bra", "chi"]),
+      vgrp("u3", "A", ["arg", "uru", "bra", "chi"]),
+    ];
+    const groups = [vgroup("A", ["uru", "arg", "bra", "chi"], true)];
+    const { visionarioConfirmado } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(visionarioConfirmado.available).toBe(true);
+    expect(visionarioConfirmado.winner?.user.displayName).toBe("Ana");
+    expect(visionarioConfirmado.winner?.value).toBe(2);
+    expect(visionarioConfirmado.series.find((s) => s.user.id === "u2")?.value).toBe(0);
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },
