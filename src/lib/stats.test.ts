@@ -512,6 +512,22 @@ describe("computeStats", () => {
     expect(Array.isArray(bundle.dreamTable)).toBe(true);
   });
 
+  it("includes all 10 verdict facts in the bundle", () => {
+    const now = new Date("2026-06-12T12:00:00.000Z");
+    const bundle = computeStats({
+      profiles: seedProfiles, predictions: seedPreds, groupPredictions: seedGroupPreds,
+      matches: seedMatches, groups: seedGroups, teams: seedTeams,
+      currentUserId: "u1", standingsStages: new Set(["groups"]), now,
+    });
+    const ids = new Set(bundle.facts.map((f) => f.id));
+    for (const id of [
+      "audaz-premiada", "rebelde-razon", "profeta-solitario", "visionario-confirmado",
+      "sorpresa", "decepcion", "ojo-clinico", "metodo-paga", "manada-sabia", "grupo-cantado",
+    ]) {
+      expect(ids.has(id as never)).toBe(true);
+    }
+  });
+
   it("surfaces the user's own group champions even with no match predictions and no locks", () => {
     const teams = [
       { id: "arg", name: "Argentina", shortName: "ARG", flag: "🇦🇷" },
