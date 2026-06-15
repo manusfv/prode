@@ -15,3 +15,8 @@ Read it before adding or editing UI. Key rules:
 
 If a className combo repeats 3+ times, promote it to `ui-tokens.ts` and update the
 design-system doc.
+
+## Novedades modal
+
+When you add a new user-facing feature, ask whether to update the Novedades modal
+(`src/components/novedades-modal.tsx`) with an entry for it.
