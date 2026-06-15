@@ -724,6 +724,22 @@ describe("verdict facts", () => {
     expect(grupoCantado.headline).toContain("4/4");
   });
 
+  it("metodo-paga compares exact-hit % of madrugadores vs último-minuto", () => {
+    const m1 = match("m1", { status: "finalized", kickoffUtc: "2026-06-10T00:00:00.000Z", homeScore: 1, awayScore: 0 });
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 1, 0), updatedAt: "2026-06-05T00:00:00.000Z", exactHit: true },
+      { ...pred("u2", "m1", 3, 3), updatedAt: "2026-06-09T23:00:00.000Z", exactHit: false },
+    ];
+    const { metodoPaga } = buildVerdictFacts(
+      [vProfiles[0]!, vProfiles[1]!], preds, [], [m1], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(metodoPaga.available).toBe(true);
+    expect(metodoPaga.bins?.find((b) => b.label === "Madrugadores")?.count).toBe(100);
+    expect(metodoPaga.bins?.find((b) => b.label === "Último minuto")?.count).toBe(0);
+    expect(metodoPaga.headline).toContain("temprano");
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },

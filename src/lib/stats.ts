@@ -985,7 +985,56 @@ export function buildVerdictFacts(
     coWinners: [], series: [], bins: cantadoBins, valueDetail: "de 4 aciertos",
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico, manadaSabia, grupoCantado };
+  // ---- 10 · ¿El método paga? (lead-time bucket vs exact-hit accuracy) ----
+  const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
+  type Habit = { lead: number; exactPct: number };
+  const habits: Habit[] = [];
+  for (const user of approved) {
+    const revealedMine = predictions.filter((p) => p.userId === user.id && revealedMatches.has(p.matchId));
+    const finalMine = predictions.filter((p) => p.userId === user.id && finalizedMatches.has(p.matchId));
+    if (revealedMine.length === 0 || finalMine.length === 0) continue;
+    let totalLead = 0;
+    for (const p of revealedMine) {
+      const kickoff = kickoffById.get(p.matchId);
+      if (kickoff) totalLead += (new Date(kickoff).getTime() - new Date(p.updatedAt).getTime()) / 3_600_000;
+    }
+    const lead = totalLead / revealedMine.length;
+    const exactPct = Math.round((finalMine.filter((p) => p.exactHit).length / finalMine.length) * 100);
+    habits.push({ lead, exactPct });
+  }
+  habits.sort((a, b) => a.lead - b.lead);
+  let metodoPaga: Fact;
+  if (habits.length < 2) {
+    metodoPaga = {
+      id: "metodo-paga", category: "veredicto", title: "¿El método paga?", emoji: "⏱️",
+      blurb: "¿Cargar temprano o sobre la hora rinde más puntería?", requires: "results",
+      available: false, unavailableHint: VERDICT_MATCH_HINT, chartKind: "histogram", unitSuffix: "%",
+      winner: undefined, coWinners: [], series: [],
+    };
+  } else {
+    const sorted = [...habits].map((h) => h.lead).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+    const early = habits.filter((h) => h.lead >= median);
+    const late = habits.filter((h) => h.lead < median);
+    const avg = (rows: Habit[]) => rows.length ? Math.round(rows.reduce((t, h) => t + h.exactPct, 0) / rows.length) : 0;
+    const earlyPct = avg(early);
+    const latePct = avg(late);
+    metodoPaga = {
+      id: "metodo-paga", category: "veredicto", title: "¿El método paga?", emoji: "⏱️",
+      blurb: "¿Cargar temprano o sobre la hora rinde más puntería?", requires: "results",
+      available: true, unavailableHint: VERDICT_MATCH_HINT, chartKind: "histogram", unitSuffix: "%",
+      headline: earlyPct >= latePct ? "Cargar temprano paga" : "Mejor sobre la hora",
+      winner: { user: approved[0]!, value: Math.max(earlyPct, latePct), displayValue: `${Math.max(earlyPct, latePct)}% de exactos` },
+      coWinners: [], series: [],
+      bins: [
+        { label: "Madrugadores", count: earlyPct },
+        { label: "Último minuto", count: latePct },
+      ],
+    };
+  }
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico, manadaSabia, grupoCantado, metodoPaga };
 }
 
 export function buildBehaviorFacts(
@@ -1347,6 +1396,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.ojoClinico,
     verdict.manadaSabia,
     verdict.grupoCantado,
+    verdict.metodoPaga,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length
