@@ -922,7 +922,34 @@ export function buildVerdictFacts(
     series: [...goalError].sort((a, b) => a.value - b.value),
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico };
+  // ---- 8 · ¿La manada sabía? (family-level: crowd majority correctness) ----
+  let manadaHits = 0;
+  let manadaTotal = 0;
+  for (const matchId of finalizedMatches) {
+    const m = matchById.get(matchId);
+    if (!m || m.homeScore === null || m.awayScore === null) continue;
+    const majority = crowd.get(matchId);
+    if (!majority) continue;
+    manadaTotal += 1;
+    if (majority === predictedOutcome(m.homeScore, m.awayScore)) manadaHits += 1;
+  }
+  const manadaPct = manadaTotal > 0 ? Math.round((manadaHits / manadaTotal) * 100) : 0;
+  const manadaSabia: Fact = {
+    id: "manada-sabia", category: "veredicto", title: "¿La manada sabía?", emoji: "🐑",
+    blurb: "Cuando la familia votó en masa, ¿tenía razón?", requires: "results",
+    available: manadaTotal > 0, unavailableHint: VERDICT_MATCH_HINT, chartKind: "histogram", unitSuffix: "",
+    headline: `La mayoría acertó ${manadaPct}% de los partidos`,
+    winner: manadaTotal > 0
+      ? { user: approved[0]!, value: manadaPct, displayValue: `${manadaHits} de ${manadaTotal} partidos` }
+      : undefined,
+    coWinners: [], series: [],
+    bins: [
+      { label: "La manada acertó", count: manadaHits },
+      { label: "La manada falló", count: manadaTotal - manadaHits },
+    ],
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa, decepcion, ojoClinico, manadaSabia };
 }
 
 export function buildBehaviorFacts(
@@ -1282,6 +1309,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.sorpresa,
     verdict.decepcion,
     verdict.ojoClinico,
+    verdict.manadaSabia,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length

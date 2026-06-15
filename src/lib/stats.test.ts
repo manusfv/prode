@@ -696,6 +696,18 @@ describe("verdict facts", () => {
     expect(ojoClinico.series[0]?.user.id).toBe("u1"); // sorted ascending
   });
 
+  it("manada-sabia reports how often the crowd majority was right", () => {
+    const m1 = match("m1", { status: "finalized", homeScore: 2, awayScore: 0 });
+    const preds = [pred("u1", "m1", 1, 0), pred("u2", "m1", 2, 0), pred("u3", "m1", 0, 1)];
+    const { manadaSabia } = buildVerdictFacts(
+      vProfiles, preds, [], [m1], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(manadaSabia.available).toBe(true);
+    expect(manadaSabia.headline).toContain("100%");
+    expect(manadaSabia.bins?.find((b) => b.label === "La manada acertó")?.count).toBe(1);
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },
