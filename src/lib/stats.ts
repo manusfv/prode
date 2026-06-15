@@ -740,7 +740,32 @@ export function buildVerdictFacts(
     headline: premiadaMax > 0 ? undefined : "Nadie clavó su pick solitario… todavía",
   };
 
-  return { audazPremiada };
+  // ---- 2 · El rebelde tenía razón ----
+  const { crowd } = crowdOutcomeByMatch(predictions, revealedMatches);
+  const rebelHits: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions.filter(
+      (p) => p.userId === user.id && finalizedMatches.has(p.matchId),
+    );
+    let contrarian = 0;
+    let correct = 0;
+    for (const p of mine) {
+      if (predictedOutcome(p.homeScore, p.awayScore) === crowd.get(p.matchId)) continue;
+      contrarian += 1;
+      if (p.outcomeHit) correct += 1;
+    }
+    if (contrarian === 0) continue;
+    rebelHits.push({ user, value: correct, displayValue: `${correct} de ${contrarian} a contramano` });
+  }
+  rebelHits.sort((a, b) => b.value - a.value);
+  const rebeldeRazon: Fact = {
+    id: "rebelde-razon", category: "veredicto", title: "El rebelde tenía razón", emoji: "✊",
+    blurb: "Fue contra la familia… y los partidos le dieron la razón.", requires: "results",
+    available: rebelHits.length > 0, unavailableHint: VERDICT_MATCH_HINT, chartKind: "bar", unitSuffix: "",
+    winner: rebelHits[0], coWinners: topTies(rebelHits), series: rebelHits,
+  };
+
+  return { audazPremiada, rebeldeRazon };
 }
 
 export function buildBehaviorFacts(
@@ -1094,6 +1119,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     loyalty.apuestaAudaz, loyalty.apuestaSegura, groupRanking.colista,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
     verdict.audazPremiada,
+    verdict.rebeldeRazon,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length

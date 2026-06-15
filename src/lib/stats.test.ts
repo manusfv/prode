@@ -600,4 +600,19 @@ describe("verdict facts", () => {
     expect(audazPremiada.winner).toBeUndefined();
     expect(audazPremiada.headline).toContain("todavía");
   });
+
+  it("rebelde-razon counts against-the-crowd calls that were correct", () => {
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 2, 0), outcomeHit: true },
+      { ...pred("u2", "m1", 1, 0), outcomeHit: true },
+      { ...pred("u3", "m1", 0, 2), outcomeHit: true }, // contrarian + correct
+    ];
+    const { rebeldeRazon } = buildVerdictFacts(
+      vProfiles, preds, [], [], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(rebeldeRazon.available).toBe(true);
+    expect(rebeldeRazon.winner?.user.displayName).toBe("Caro");
+    expect(rebeldeRazon.winner?.value).toBe(1);
+  });
 });
