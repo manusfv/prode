@@ -650,6 +650,23 @@ describe("verdict facts", () => {
     expect(visionarioConfirmado.series.find((s) => s.user.id === "u2")?.value).toBe(0);
   });
 
+  it("sorpresa ranks teams that finished higher than the family expected", () => {
+    const gps = [
+      vgrp("u1", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u2", "A", ["arg", "bra", "uru", "chi"]),
+      vgrp("u3", "A", ["arg", "bra", "chi", "uru"]),
+    ];
+    const groups = [vgroup("A", ["uru", "arg", "bra", "chi"], true)]; // uru actually 1st
+    const { sorpresa } = buildVerdictFacts(
+      vProfiles, [], gps, [], groups, vTeams,
+      new Set(), new Set(), new Set(["A"]), new Set(["A"]),
+    );
+    expect(sorpresa.available).toBe(true);
+    expect(sorpresa.headline).toContain("Uruguay");
+    expect(sorpresa.teamSeries?.[0]).toMatchObject({ teamId: "uru" });
+    expect(sorpresa.teamSeries?.[0]?.count).toBeGreaterThan(0);
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },

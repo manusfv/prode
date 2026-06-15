@@ -840,7 +840,51 @@ export function buildVerdictFacts(
     winner: visionDiv[0], coWinners: topTies(visionDiv), series: visionDiv,
   };
 
-  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado };
+  // ---- 5 · La sorpresa / 6 · La decepción (shared expectation vs reality) ----
+  // For each team in a finalized group: expectedPos = rounded avg of positions the
+  // family assigned it across revealed picks; actualPos = real finishing slot.
+  type TeamGap = { teamId: string; name: string; flag: string; gained: number };
+  const overachievers: TeamGap[] = [];
+  const underachievers: TeamGap[] = [];
+  for (const label of finalizedGroups) {
+    const group = groupByLabel.get(label);
+    if (!group) continue;
+    const order = actualOrder(group);
+    const picks = revealedGp.filter((g) => g.groupLabel === label);
+    for (let actualIdx = 0; actualIdx < order.length; actualIdx += 1) {
+      const teamId = order[actualIdx];
+      if (!teamId) continue;
+      const positions: number[] = [];
+      for (const p of picks) {
+        const slot = [p.firstTeamId, p.secondTeamId, p.thirdTeamId, p.fourthTeamId].indexOf(teamId);
+        if (slot >= 0) positions.push(slot + 1);
+      }
+      if (positions.length === 0) continue;
+      const expectedPos = Math.round(positions.reduce((t, n) => t + n, 0) / positions.length);
+      const actualPos = actualIdx + 1;
+      const gap = expectedPos - actualPos; // positive = finished higher than expected
+      const t = teamById.get(teamId);
+      const entry = { teamId, name: teamName(teamId), flag: t?.flag ?? "🏳️", gained: Math.abs(gap) };
+      if (gap > 0) overachievers.push(entry);
+      else if (gap < 0) underachievers.push(entry);
+    }
+  }
+  const sortGap = (rows: TeamGap[]) =>
+    [...rows].sort((a, b) => b.gained - a.gained || a.name.localeCompare(b.name))
+      .map((r) => ({ teamId: r.teamId, name: r.name, flag: r.flag, count: r.gained } as TeamTally));
+  const sorpresaSeries = sortGap(overachievers);
+  const sorpresa: Fact = {
+    id: "sorpresa", category: "veredicto", title: "La sorpresa de la familia", emoji: "🚀",
+    blurb: "El equipo que la familia subestimó y terminó más arriba.", requires: "results",
+    available: finalizedGroups.size > 0, unavailableHint: VERDICT_GROUP_HINT, chartKind: "thermometer", unitSuffix: "puestos",
+    headline: sorpresaSeries.length > 0 ? topTeamHeadline(sorpresaSeries) : "La familia la vio venir: sin sorpresas",
+    winner: sorpresaSeries[0]
+      ? { user: approved[0]!, value: sorpresaSeries[0].count, displayValue: `subió ${sorpresaSeries[0].count} ${sorpresaSeries[0].count === 1 ? "puesto" : "puestos"}` }
+      : undefined,
+    coWinners: [], series: [], teamSeries: sorpresaSeries, valueDetail: "mejor de lo esperado",
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario, visionarioConfirmado, sorpresa };
 }
 
 export function buildBehaviorFacts(
@@ -1197,6 +1241,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     verdict.rebeldeRazon,
     verdict.profetaSolitario,
     verdict.visionarioConfirmado,
+    verdict.sorpresa,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length
