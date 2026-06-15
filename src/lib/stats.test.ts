@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite, modalGroupPositions } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -316,6 +316,28 @@ describe("group ranking facts", () => {
     expect(dreamTable).toHaveLength(2);
     expect(dreamTable[0]).toMatchObject({ groupLabel: "A", teamId: "arg", votes: 2, total: 3 });
     expect(dreamTable[1]).toMatchObject({ groupLabel: "B", teamId: "uru", votes: 3, total: 3 });
+  });
+});
+
+describe("modalGroupPositions helper", () => {
+  function grp(userId: string, label: string, order: [string, string, string, string]): GroupPrediction {
+    return {
+      id: `${userId}-${label}`, userId, groupLabel: label,
+      firstTeamId: order[0], secondTeamId: order[1], thirdTeamId: order[2], fourthTeamId: order[3],
+      points: null, exactPositions: 0,
+      createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+  }
+  it("returns the most-voted team per group:slot, ignoring <2-picker groups", () => {
+    const gps = [
+      grp("u1", "A", ["arg", "bra", "uru", "chi"]),
+      grp("u2", "A", ["arg", "uru", "bra", "chi"]),
+      grp("u3", "B", ["bra", "arg", "uru", "chi"]), // single picker -> ignored
+    ];
+    const modal = modalGroupPositions(gps, (id) => id);
+    expect(modal.get("A:0")).toBe("arg"); // arg 1st twice
+    expect(modal.get("A:3")).toBe("chi"); // chi 4th twice
+    expect(modal.has("B:0")).toBe(false); // only one picker in B
   });
 });
 

@@ -24,8 +24,9 @@ const CATEGORY_LABELS: Record<FactCategory, string> = {
   punteria: "Puntería y rachas",
   fidelidad: "Fidelidad de equipo",
   comportamiento: "Comportamiento",
+  veredicto: "El veredicto",
 };
-const CATEGORY_ORDER: FactCategory[] = ["optimismo", "manada", "punteria", "fidelidad", "comportamiento"];
+const CATEGORY_ORDER: FactCategory[] = ["optimismo", "manada", "punteria", "fidelidad", "comportamiento", "veredicto"];
 
 export function EstadisticasScreen() {
   const { profiles, predictions, groupPredictions, matches, groups, teams, currentUser, standingsStages, now } = useApp();

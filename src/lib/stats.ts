@@ -5,7 +5,7 @@ import { getGroupStatus, getMatchStatus } from "./tournament";
 import { getLeaderboard } from "./standings";
 
 export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit" | "thermometer";
-export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento";
+export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento" | "veredicto";
 
 export type FactId =
   | "optimista" | "candado" | "sin-empates"
@@ -13,7 +13,9 @@ export type FactId =
   | "francotirador" | "racha" | "trampa"
   | "mas-querido" | "mas-odiado" | "apuesta-audaz" | "apuesta-segura" | "favorito-familia"
   | "grupo-muerte" | "grupo-unanime" | "colista" | "visionario" | "profeta-grupos"
-  | "madrugador" | "ultimo-minuto" | "indeciso";
+  | "madrugador" | "ultimo-minuto" | "indeciso"
+  | "audaz-premiada" | "rebelde-razon" | "profeta-solitario" | "visionario-confirmado"
+  | "sorpresa" | "decepcion" | "ojo-clinico" | "metodo-paga" | "manada-sabia" | "grupo-cantado";
 
 export type PersonValue = {
   user: Profile;
@@ -115,6 +117,36 @@ function topTeamHeadline(tally: TeamTally[]): string | undefined {
   return formatList(tied.map((t) => `${t.flag} ${t.name}`));
 }
 
+const GROUP_SLOTS: Array<keyof GroupPrediction> = ["firstTeamId", "secondTeamId", "thirdTeamId", "fourthTeamId"];
+
+// Family consensus team per `${groupLabel}:${slotIndex}`. Needs ≥2 pickers in the
+// group (a lone picker has no "consensus"). Ties broken by team name.
+export function modalGroupPositions(
+  revealed: GroupPrediction[],
+  teamName: (id: string) => string,
+): Map<string, string> {
+  const byGroup = new Map<string, GroupPrediction[]>();
+  for (const g of revealed) {
+    const list = byGroup.get(g.groupLabel) ?? [];
+    list.push(g);
+    byGroup.set(g.groupLabel, list);
+  }
+  const modal = new Map<string, string>();
+  for (const [label, picks] of byGroup) {
+    if (picks.length < 2) continue;
+    GROUP_SLOTS.forEach((slot, i) => {
+      const tally = new Map<string, number>();
+      for (const p of picks) {
+        const teamId = p[slot] as string | null;
+        if (teamId) tally.set(teamId, (tally.get(teamId) ?? 0) + 1);
+      }
+      const top = [...tally.entries()].sort((a, b) => b[1] - a[1] || teamName(a[0]).localeCompare(teamName(b[0])))[0];
+      if (top) modal.set(`${label}:${i}`, top[0]);
+    });
+  }
+  return modal;
+}
+
 export function buildOptimismFacts(
   profiles: Profile[],
   predictions: Prediction[],
@@ -177,7 +209,7 @@ export function predictedOutcome(home: number, away: number): Outcome {
   return "draw";
 }
 
-function crowdOutcomeByMatch(predictions: Prediction[], revealed: Set<string>) {
+export function crowdOutcomeByMatch(predictions: Prediction[], revealed: Set<string>) {
   const byMatch = new Map<string, Map<Outcome, number>>();
   for (const p of predictions) {
     if (!revealed.has(p.matchId)) continue;
