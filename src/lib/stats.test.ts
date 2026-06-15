@@ -601,6 +601,35 @@ describe("verdict facts", () => {
     expect(audazPremiada.headline).toContain("todavía");
   });
 
+  it("profeta-solitario credits lone exact scorelines that hit", () => {
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 3, 1), exactHit: true },
+      { ...pred("u2", "m1", 1, 0), exactHit: false },
+      { ...pred("u3", "m1", 1, 0), exactHit: false },
+    ];
+    const m1 = match("m1", { homeTeamId: "arg", awayTeamId: "bra" });
+    const { profetaSolitario } = buildVerdictFacts(
+      vProfiles, preds, [], [m1], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(profetaSolitario.available).toBe(true);
+    expect(profetaSolitario.winner?.user.displayName).toBe("Ana");
+    expect(profetaSolitario.winner?.value).toBe(1);
+  });
+
+  it("profeta-solitario ignores shared scorelines even if exact", () => {
+    const preds: Prediction[] = [
+      { ...pred("u1", "m1", 1, 0), exactHit: true },
+      { ...pred("u2", "m1", 1, 0), exactHit: true },
+    ];
+    const m1 = match("m1");
+    const { profetaSolitario } = buildVerdictFacts(
+      vProfiles, preds, [], [m1], [], vTeams,
+      new Set(["m1"]), new Set(["m1"]), new Set(), new Set(),
+    );
+    expect(profetaSolitario.winner).toBeUndefined();
+  });
+
   it("rebelde-razon counts against-the-crowd calls that were correct", () => {
     const preds: Prediction[] = [
       { ...pred("u1", "m1", 2, 0), outcomeHit: true },

@@ -765,7 +765,54 @@ export function buildVerdictFacts(
     winner: rebelHits[0], coWinners: topTies(rebelHits), series: rebelHits,
   };
 
-  return { audazPremiada, rebeldeRazon };
+  // ---- 3 · El profeta solitario ----
+  // Per finalized match, scorelines predicted by exactly one approved person; if
+  // that lone prediction was an exact hit, credit the person.
+  const loneExact = new Map<string, { count: number; firstLabel: string | null }>();
+  for (const matchId of finalizedMatches) {
+    const forMatch = predictions.filter((p) => approvedIds.has(p.userId) && p.matchId === matchId);
+    const byScore = new Map<string, Prediction[]>();
+    for (const p of forMatch) {
+      const key = `${p.homeScore}-${p.awayScore}`;
+      const list = byScore.get(key) ?? [];
+      list.push(p);
+      byScore.set(key, list);
+    }
+    for (const [key, list] of byScore) {
+      if (list.length !== 1) continue;
+      const p = list[0]!;
+      if (!p.exactHit) continue;
+      const m = matchById.get(matchId);
+      const label = m ? `${key} en ${teamName(m.homeTeamId ?? "")}–${teamName(m.awayTeamId ?? "")}` : key;
+      const cur = loneExact.get(p.userId) ?? { count: 0, firstLabel: null };
+      cur.count += 1;
+      if (!cur.firstLabel) cur.firstLabel = label;
+      loneExact.set(p.userId, cur);
+    }
+  }
+  const profeta: PersonValue[] = approved
+    .filter((u) => predictions.some((p) => p.userId === u.id && finalizedMatches.has(p.matchId)))
+    .map((user) => {
+      const e = loneExact.get(user.id);
+      const count = e?.count ?? 0;
+      const displayValue = count === 0 ? "Sin exactos en soledad"
+        : count === 1 ? e!.firstLabel!
+        : `${count} exactos en soledad`;
+      return { user, value: count, displayValue };
+    })
+    .sort((a, b) => b.value - a.value);
+  const profetaMax = profeta[0]?.value ?? 0;
+  const profetaSolitario: Fact = {
+    id: "profeta-solitario", category: "veredicto", title: "El profeta solitario", emoji: "🦅",
+    blurb: "El único que cantó ese resultado exacto… y entró.", requires: "results",
+    available: profeta.length > 0, unavailableHint: VERDICT_MATCH_HINT, chartKind: "bar", unitSuffix: "",
+    winner: profetaMax > 0 ? profeta[0] : undefined,
+    coWinners: profetaMax > 0 ? topTies(profeta) : [],
+    series: profeta,
+    headline: profetaMax > 0 ? undefined : "Nadie clavó un exacto en soledad… todavía",
+  };
+
+  return { audazPremiada, rebeldeRazon, profetaSolitario };
 }
 
 export function buildBehaviorFacts(
@@ -1120,6 +1167,7 @@ export function computeStats(input: StatsInput): StatsBundle {
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
     verdict.audazPremiada,
     verdict.rebeldeRazon,
+    verdict.profetaSolitario,
   ];
 
   const groupAvgGoals = optimism.optimista.series.length
