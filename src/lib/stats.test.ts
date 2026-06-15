@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite, modalGroupPositions, buildVerdictFacts } from "./stats";
+import { revealedMatchIds, finalizedMatchIds, revealedGroupLabels, finalizedGroupLabels, buildOptimismFacts, buildScorelineHistogram, buildConsensusFacts, predictedOutcome, buildAccuracyFacts, buildTeamLoyaltyFacts, buildGroupRankingFacts, buildBehaviorFacts, buildSimilarityMatrix, buildPointsRace, buildAccuracyBreakdown, buildParticipation, buildGoalMargin, computeStats, pickTwinAndOpposite, modalGroupPositions, buildVerdictFacts, buildStreakFacts } from "./stats";
 import type { Group, GroupPrediction, Match, Prediction, Profile, Team } from "./types";
 import { matches as seedMatches, groups as seedGroups, predictions as seedPreds, groupPredictions as seedGroupPreds, profiles as seedProfiles, teams as seedTeams } from "./seed";
 
@@ -166,9 +166,9 @@ describe("accuracy facts", () => {
   });
 
   it("racha is the longest consecutive outcome-hit streak", () => {
-    const { racha } = buildAccuracyFacts(profiles, preds, matches, finalized);
-    expect(racha.winner?.user.id).toBe("u1");
-    expect(racha.winner?.value).toBe(2);
+    const { rachaCaliente } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(rachaCaliente.winner?.user.id).toBe("u1");
+    expect(rachaCaliente.winner?.value).toBe(2);
   });
 
   it("is unavailable with no finalized matches", () => {
@@ -769,5 +769,54 @@ describe("verdict facts", () => {
     expect(rebeldeRazon.available).toBe(true);
     expect(rebeldeRazon.winner?.user.displayName).toBe("Caro");
     expect(rebeldeRazon.winner?.value).toBe(1);
+  });
+});
+
+describe("streak facts", () => {
+  function fmatch(id: string, kickoff: string): Match {
+    return {
+      id, matchNo: 1, stage: "round16", homeTeamId: "arg", awayTeamId: "fra",
+      kickoffUtc: kickoff, status: "finalized",
+      homeScore: 1, awayScore: 0, winnerTeamId: "arg",
+      finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null,
+    };
+  }
+  function scored(userId: string, matchId: string, outcome: boolean): Prediction {
+    return { ...pred(userId, matchId, 1, 0), outcomeHit: outcome };
+  }
+  // chronological order m1<m2<m3<m4. Ana: hit,hit,miss,hit. Beto: miss,miss,miss,hit.
+  const matches = [
+    fmatch("m1", "2026-06-01T00:00:00.000Z"), fmatch("m2", "2026-06-02T00:00:00.000Z"),
+    fmatch("m3", "2026-06-03T00:00:00.000Z"), fmatch("m4", "2026-06-04T00:00:00.000Z"),
+  ];
+  const finalized = new Set(["m1", "m2", "m3", "m4"]);
+  const preds = [
+    scored("u1", "m1", true), scored("u1", "m2", true), scored("u1", "m3", false), scored("u1", "m4", true),
+    scored("u2", "m1", false), scored("u2", "m2", false), scored("u2", "m3", false), scored("u2", "m4", true),
+  ];
+
+  it("racha caliente = longest run of correct outcomes (HAD)", () => {
+    const { rachaCaliente } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(rachaCaliente.id).toBe("racha");
+    expect(rachaCaliente.winner?.user.displayName).toBe("Ana");
+    expect(rachaCaliente.winner?.value).toBe(2);
+  });
+
+  it("sequia = longest run of misses (HAD)", () => {
+    const { sequia } = buildStreakFacts(profiles, preds, matches, finalized);
+    expect(sequia.winner?.user.displayName).toBe("Beto");
+    expect(sequia.winner?.value).toBe(3);
+  });
+
+  it("en llamas = current ongoing hit run, en sequia = current ongoing miss run", () => {
+    const { enLlamas, enSequia } = buildStreakFacts(profiles, preds, matches, finalized);
+    // both end on a hit (m4) -> current hit run 1 each, current miss run 0
+    expect(enLlamas.winner?.value).toBe(1);
+    expect(enSequia.winner).toBeUndefined();
+    expect(enSequia.headline).toContain("Sin rachas");
+  });
+
+  it("is unavailable with no finalized matches", () => {
+    expect(buildStreakFacts(profiles, preds, matches, new Set()).rachaCaliente.available).toBe(false);
   });
 });

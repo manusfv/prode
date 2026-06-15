@@ -5,7 +5,7 @@ import { getGroupStatus, getMatchStatus } from "./tournament";
 import { getLeaderboard } from "./standings";
 
 export type ChartKind = "bar" | "histogram" | "line" | "heatmap" | "matrix" | "matchSplit" | "thermometer";
-export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento" | "veredicto";
+export type FactCategory = "optimismo" | "manada" | "punteria" | "fidelidad" | "comportamiento" | "veredicto" | "rachas";
 
 export type FactId =
   | "optimista" | "candado" | "sin-empates"
@@ -15,7 +15,8 @@ export type FactId =
   | "grupo-muerte" | "grupo-unanime" | "colista" | "visionario" | "profeta-grupos"
   | "madrugador" | "ultimo-minuto" | "indeciso"
   | "audaz-premiada" | "rebelde-razon" | "profeta-solitario" | "visionario-confirmado"
-  | "sorpresa" | "decepcion" | "ojo-clinico" | "metodo-paga" | "manada-sabia" | "grupo-cantado";
+  | "sorpresa" | "decepcion" | "ojo-clinico" | "metodo-paga" | "manada-sabia" | "grupo-cantado"
+  | "sequia" | "en-llamas" | "en-sequia";
 
 export type PersonValue = {
   user: Profile;
@@ -303,7 +304,6 @@ export function buildAccuracyFacts(
   const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
 
   const exactPct: PersonValue[] = [];
-  const streak: PersonValue[] = [];
   for (const user of approved) {
     const mine = predictions
       .filter((p) => p.userId === user.id && finalized.has(p.matchId))
@@ -314,14 +314,6 @@ export function buildAccuracyFacts(
     const exact = mine.filter((p) => p.exactHit).length;
     const pct = Math.round((exact / mine.length) * 100);
     exactPct.push({ user, value: pct, displayValue: `${pct}% exactos` });
-
-    let best = 0;
-    let run = 0;
-    for (const p of mine) {
-      run = p.outcomeHit ? run + 1 : 0;
-      if (run > best) best = run;
-    }
-    streak.push({ user, value: best, displayValue: `${best} seguidos` });
   }
 
   // La trampa: finalized match with lowest share of correct outcomes.
@@ -338,7 +330,6 @@ export function buildAccuracyFacts(
   const available = exactPct.length > 0;
   const hint = "Se revela a medida que se cargan los resultados";
   const fr = pickWinner(exactPct, (a, b) => a > b);
-  const ra = pickWinner(streak, (a, b) => a > b);
 
   const francotirador: Fact = {
     id: "francotirador", category: "punteria", title: "El francotirador", emoji: "🎯",
@@ -347,13 +338,6 @@ export function buildAccuracyFacts(
     winner: fr.winner, coWinners: fr.coWinners,
     series: [...exactPct].sort((a, b) => b.value - a.value),
   };
-  const racha: Fact = {
-    id: "racha", category: "punteria", title: "La racha caliente", emoji: "🔥",
-    blurb: "Más aciertos de resultado seguidos", requires: "results",
-    available, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
-    winner: ra.winner, coWinners: ra.coWinners,
-    series: [...streak].sort((a, b) => b.value - a.value),
-  };
   const trampa: Fact = {
     id: "trampa", category: "punteria", title: "La trampa", emoji: "🪤",
     blurb: "El partido que casi todos erraron", requires: "results",
@@ -361,7 +345,59 @@ export function buildAccuracyFacts(
     winner: undefined, coWinners: [], series: [],
   };
 
-  return { francotirador, racha, trampa, trampaMatchId };
+  return { francotirador, trampa, trampaMatchId };
+}
+
+export function buildStreakFacts(
+  profiles: Profile[],
+  predictions: Prediction[],
+  matches: Match[],
+  finalized: Set<string>,
+) {
+  const approved = approvedProfiles(profiles);
+  const kickoffById = new Map(matches.map((m) => [m.id, m.kickoffUtc]));
+
+  const bestHit: PersonValue[] = [];
+  const bestMiss: PersonValue[] = [];
+  const curHit: PersonValue[] = [];
+  const curMiss: PersonValue[] = [];
+  for (const user of approved) {
+    const mine = predictions
+      .filter((p) => p.userId === user.id && finalized.has(p.matchId))
+      .sort((a, b) => (kickoffById.get(a.matchId) ?? "").localeCompare(kickoffById.get(b.matchId) ?? ""));
+    if (mine.length === 0) continue;
+    let bH = 0, bM = 0, rH = 0, rM = 0;
+    for (const p of mine) {
+      if (p.outcomeHit) { rH += 1; rM = 0; } else { rM += 1; rH = 0; }
+      if (rH > bH) bH = rH;
+      if (rM > bM) bM = rM;
+    }
+    bestHit.push({ user, value: bH, displayValue: `${bH} al hilo` });
+    bestMiss.push({ user, value: bM, displayValue: `${bM} errados al hilo` });
+    curHit.push({ user, value: rH, displayValue: rH > 0 ? `${rH} al hilo (en curso)` : "sin racha activa" });
+    curMiss.push({ user, value: rM, displayValue: rM > 0 ? `${rM} errados (en curso)` : "sin sequía activa" });
+  }
+  const hint = "Se revela a medida que se cargan los resultados";
+
+  const streakFact = (id: FactId, title: string, emoji: string, blurb: string, series: PersonValue[]): Fact => {
+    const sorted = [...series].sort((a, b) => b.value - a.value);
+    const max = sorted[0]?.value ?? 0;
+    return {
+      id, category: "rachas", title, emoji, blurb, requires: "results",
+      available: sorted.length > 0, unavailableHint: hint, chartKind: "bar", unitSuffix: "",
+      winner: max > 0 ? sorted[0] : undefined,
+      coWinners: max > 0 ? topTies(sorted) : [],
+      series: sorted,
+      headline: max > 0 ? undefined : "Sin rachas todavía",
+    };
+  };
+
+  return {
+    rachaCaliente: streakFact("racha", "La racha caliente", "🔥", "Más aciertos de resultado al hilo", bestHit),
+    sequia: streakFact("sequia", "La sequía", "🏜️", "La peor racha de errores al hilo", bestMiss),
+    enLlamas: streakFact("en-llamas", "En llamas", "⚡", "La racha de aciertos más larga en curso", curHit),
+    enSequia: streakFact("en-sequia", "En sequía", "🥶", "La peor racha de errores en curso", curMiss),
+  };
 }
 
 export type TeamTally = { teamId: string; name: string; flag: string; count: number };
@@ -1362,6 +1398,7 @@ export function computeStats(input: StatsInput): StatsBundle {
   const optimism = buildOptimismFacts(profiles, predictions, revealed);
   const consensus = buildConsensusFacts(profiles, predictions, revealed);
   const accuracy = buildAccuracyFacts(profiles, predictions, matches, finalized);
+  const streak = buildStreakFacts(profiles, predictions, matches, finalized);
   const loyalty = buildTeamLoyaltyFacts(profiles, groupPredictions, predictions, matches, teams, revealedGroups, revealed);
   const behavior = buildBehaviorFacts(profiles, predictions, matches, revealed);
   const scoreline = buildScorelineHistogram(predictions, revealed);
@@ -1383,7 +1420,9 @@ export function computeStats(input: StatsInput): StatsBundle {
     optimism.optimista, optimism.candado, optimism.sinEmpates,
     consensus.rebelde, consensus.delMonton, consensus.partidoDividido,
     groupRanking.grupoMuerte, groupRanking.grupoUnanime, groupRanking.visionario,
-    accuracy.francotirador, accuracy.racha, accuracy.trampa, groupRanking.profeta,
+    accuracy.francotirador, accuracy.trampa, groupRanking.profeta,
+    streak.rachaCaliente,
+    streak.sequia, streak.enLlamas, streak.enSequia,
     loyalty.masQuerido, loyalty.masOdiado, loyalty.favoritoFamilia,
     loyalty.apuestaAudaz, loyalty.apuestaSegura, groupRanking.colista,
     behavior.madrugador, behavior.ultimoMinuto, behavior.indeciso,
