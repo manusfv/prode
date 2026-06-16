@@ -14,6 +14,7 @@ function match(id: string, over: Partial<Match> = {}): Match {
     status: "open",
     homeScore: null, awayScore: null, winnerTeamId: null,
     finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null,
+    finalizedSource: null,
     ...over,
   };
 }
@@ -36,7 +37,7 @@ describe("visibility helpers", () => {
   });
 
   it("revealedGroupLabels includes locked and finalized groups only", () => {
-    const open: Group = { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null };
+    const open: Group = { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null, resultSource: null };
     const locked: Group = { ...open, groupLabel: "B", locksAt: "2026-06-01T00:00:00.000Z" };
     const labels = revealedGroupLabels([open, locked], now);
     expect(labels.has("A")).toBe(false);
@@ -44,7 +45,7 @@ describe("visibility helpers", () => {
   });
 
   it("finalizedGroupLabels includes only groups whose result is finalized", () => {
-    const open: Group = { groupLabel: "A", locksAt: "2026-06-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null };
+    const open: Group = { groupLabel: "A", locksAt: "2026-06-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null, resultSource: null };
     const done: Group = { ...open, groupLabel: "B", resultFinalizedAt: "2026-06-10T00:00:00.000Z" };
     const labels = finalizedGroupLabels([open, done], now);
     expect(labels.has("A")).toBe(false);
@@ -146,6 +147,7 @@ describe("accuracy facts", () => {
       homeScore: 1, awayScore: 0, winnerTeamId: "arg",
       finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1",
       updatedAt: null, updatedBy: null,
+      finalizedSource: null,
     };
   }
   function scored(userId: string, matchId: string, exact: boolean, outcome: boolean): Prediction {
@@ -534,8 +536,8 @@ describe("computeStats", () => {
       { id: "bra", name: "Brasil", shortName: "BRA", flag: "🇧🇷" },
     ];
     const openGroups: Group[] = [
-      { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null },
-      { groupLabel: "B", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null },
+      { groupLabel: "A", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null, resultSource: null },
+      { groupLabel: "B", locksAt: "2026-07-01T00:00:00.000Z", firstTeamId: null, secondTeamId: null, thirdTeamId: null, fourthTeamId: null, resultFinalizedAt: null, resultFinalizedBy: null, resultSource: null },
     ];
     const groupPreds: GroupPrediction[] = [
       { id: "g1", userId: "u1", groupLabel: "A", firstTeamId: "arg", secondTeamId: null, thirdTeamId: null, fourthTeamId: null, points: null, exactPositions: 0, createdAt: "", updatedAt: "" },
@@ -581,6 +583,7 @@ describe("verdict facts", () => {
       groupLabel: label, locksAt: "2026-06-01T00:00:00.000Z",
       firstTeamId: order[0], secondTeamId: order[1], thirdTeamId: order[2], fourthTeamId: order[3],
       resultFinalizedAt: finalized ? "2026-06-10T00:00:00.000Z" : null, resultFinalizedBy: finalized ? "u1" : null,
+      resultSource: null,
     };
   }
 
@@ -779,6 +782,7 @@ describe("streak facts", () => {
       kickoffUtc: kickoff, status: "finalized",
       homeScore: 1, awayScore: 0, winnerTeamId: "arg",
       finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null,
+      finalizedSource: null,
     };
   }
   function scored(userId: string, matchId: string, outcome: boolean): Prediction {

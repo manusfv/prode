@@ -233,6 +233,10 @@ export async function saveGroupStandingsAction(input: SaveGroupStandingsInput) {
       fourth_team_id: input.fourthTeamId,
       result_finalized_at: input.finalize ? now : null,
       result_finalized_by: input.finalize ? admin.userId : null,
+      // Any admin save (even a provisional, non-finalized one) is an intentional
+      // human edit, so it permanently claims the row: the auto-sync job only
+      // writes rows whose result_source is null or 'auto', never 'admin'.
+      result_source: "admin",
       updated_at: now,
     })
     .eq("group_label", input.groupLabel)
@@ -554,6 +558,7 @@ export async function finalizeMatchAction(input: FinalizeMatchInput) {
       winner_team_id: input.winnerTeamId,
       finalized_at: match.finalizedAt,
       finalized_by: finalizedBy,
+      finalized_source: input.status === "finalized" ? "admin" : null,
       updated_at: new Date().toISOString(),
       updated_by: admin.userId,
     })
@@ -735,6 +740,7 @@ function mapMatch(row: {
   finalized_by: string | null;
   updated_at: string | null;
   updated_by: string | null;
+  finalized_source?: "admin" | "auto" | null;
 }): Match {
   return {
     id: row.id,
@@ -756,6 +762,7 @@ function mapMatch(row: {
     finalizedBy: row.finalized_by,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
+    finalizedSource: row.finalized_source ?? null,
   };
 }
 
@@ -796,6 +803,7 @@ function mapGroup(row: {
   fourth_team_id: string | null;
   result_finalized_at: string | null;
   result_finalized_by: string | null;
+  result_source?: "admin" | "auto" | null;
 }): Group {
   return {
     groupLabel: row.group_label,
@@ -806,6 +814,7 @@ function mapGroup(row: {
     fourthTeamId: row.fourth_team_id,
     resultFinalizedAt: row.result_finalized_at,
     resultFinalizedBy: row.result_finalized_by,
+    resultSource: row.result_source ?? null,
   };
 }
 

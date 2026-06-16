@@ -40,6 +40,7 @@ export const groups: Group[] = [
     fourthTeamId: null,
     resultFinalizedAt: null,
     resultFinalizedBy: null,
+    resultSource: null,
   },
   {
     groupLabel: "B",
@@ -50,6 +51,7 @@ export const groups: Group[] = [
     fourthTeamId: "uru",
     resultFinalizedAt: "2026-06-08T00:00:00.000Z",
     resultFinalizedBy: "u1",
+    resultSource: null,
   },
 ];
 
@@ -73,6 +75,7 @@ export const matches: Match[] = [
     finalizedBy: null,
     updatedAt: null,
     updatedBy: null,
+    finalizedSource: null,
   },
   {
     id: "m5",
@@ -93,6 +96,7 @@ export const matches: Match[] = [
     finalizedBy: null,
     updatedAt: null,
     updatedBy: null,
+    finalizedSource: null,
   },
 ];
 

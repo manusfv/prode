@@ -17,6 +17,7 @@ const knockoutMatch: Match = {
   finalizedBy: null,
   updatedAt: null,
   updatedBy: null,
+  finalizedSource: null,
 };
 
 function draft(overrides: Partial<PredictionDraft>): PredictionDraft {
@@ -80,6 +81,7 @@ describe("getGroupStatus", () => {
     fourthTeamId: null,
     resultFinalizedAt: null,
     resultFinalizedBy: null,
+    resultSource: null,
   };
 
   it("is open before the lock time", () => {
@@ -116,6 +118,7 @@ function testGroup(overrides: Partial<Group> = {}): Group {
     fourthTeamId: null,
     resultFinalizedAt: null,
     resultFinalizedBy: null,
+    resultSource: null,
     ...overrides,
   };
 }

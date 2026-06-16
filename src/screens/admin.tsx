@@ -34,7 +34,7 @@ import { compareGroups, getAdminLifecycleStatus, ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 import { useApp, type CreateMatchActionInput } from "@/components/app-context";
-import { LoadingLabel } from "@/components/badges";
+import { AutoBadge, LoadingLabel } from "@/components/badges";
 
 const VISIBILITY_CYCLE: Record<StageVisibility, StageVisibility> = {
   closed: "admin",
@@ -531,7 +531,10 @@ function GroupAdminCard({
   return (
     <div className="grid gap-3 rounded-lg border border-app-line bg-app-surface p-4">
       <div className="flex items-center justify-between gap-2">
-        <strong className="text-sm font-black">Grupo {group.groupLabel}</strong>
+        <span className="flex items-center gap-2">
+          <strong className="text-sm font-black">Grupo {group.groupLabel}</strong>
+          {group.resultSource === "auto" && <AutoBadge />}
+        </span>
         <small className="text-xs font-bold text-app-muted">
           {status === "finalized"
             ? "Finalizado"

@@ -16,6 +16,7 @@ const baseMatch: Match = {
   finalizedBy: null,
   updatedAt: null,
   updatedBy: null,
+  finalizedSource: null,
 };
 
 const baseGroup: Group = {
@@ -27,6 +28,7 @@ const baseGroup: Group = {
   fourthTeamId: null,
   resultFinalizedAt: null,
   resultFinalizedBy: null,
+  resultSource: null,
 };
 
 describe("getDefaultResultStage", () => {

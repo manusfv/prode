@@ -10,8 +10,8 @@ const profiles: Profile[] = [
 ];
 
 const matches: Match[] = [
-  { id: "m1", matchNo: 1, stage: "round32", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-01T00:00:00.000Z", homeScore: 1, awayScore: 0, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null },
-  { id: "m2", matchNo: 2, stage: "round16", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-02T00:00:00.000Z", homeScore: 2, awayScore: 1, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null },
+  { id: "m1", matchNo: 1, stage: "round32", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-01T00:00:00.000Z", homeScore: 1, awayScore: 0, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null, finalizedSource: null },
+  { id: "m2", matchNo: 2, stage: "round16", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-02T00:00:00.000Z", homeScore: 2, awayScore: 1, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null, finalizedSource: null },
 ];
 
 function pred(id: string, userId: string, matchId: string, points: number, exact = false): Prediction {
@@ -29,10 +29,10 @@ const groupPredictions: GroupPrediction[] = [
 ];
 
 const finalizedGroups: Group[] = [
-  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: "2026-06-10T00:00:00.000Z", resultFinalizedBy: "admin" },
+  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: "2026-06-10T00:00:00.000Z", resultFinalizedBy: "admin", resultSource: null },
 ];
 const provisionalGroups: Group[] = [
-  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: null, resultFinalizedBy: null },
+  { groupLabel: "A", locksAt: null, firstTeamId: "a", secondTeamId: "b", thirdTeamId: "c", fourthTeamId: "d", resultFinalizedAt: null, resultFinalizedBy: null, resultSource: null },
 ];
 
 describe("getLeaderboard (revealed-scoped)", () => {

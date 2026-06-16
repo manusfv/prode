@@ -175,3 +175,15 @@ export function LoadingLabel({ loading, icon, label }: { loading: boolean; icon?
     </>
   );
 }
+
+export function AutoBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="rounded-full bg-app-blue/10 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-app-blue"
+      aria-label="Resultado cargado automáticamente"
+    >
+      Auto
+    </Badge>
+  );
+}
