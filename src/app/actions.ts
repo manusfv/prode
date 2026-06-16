@@ -233,6 +233,7 @@ export async function saveGroupStandingsAction(input: SaveGroupStandingsInput) {
       fourth_team_id: input.fourthTeamId,
       result_finalized_at: input.finalize ? now : null,
       result_finalized_by: input.finalize ? admin.userId : null,
+      result_source: "admin",
       updated_at: now,
     })
     .eq("group_label", input.groupLabel)
@@ -554,6 +555,7 @@ export async function finalizeMatchAction(input: FinalizeMatchInput) {
       winner_team_id: input.winnerTeamId,
       finalized_at: match.finalizedAt,
       finalized_by: finalizedBy,
+      finalized_source: input.status === "finalized" ? "admin" : null,
       updated_at: new Date().toISOString(),
       updated_by: admin.userId,
     })
