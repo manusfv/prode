@@ -2,7 +2,7 @@ name: Sync results
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "15,45 * * * *"
   workflow_dispatch: {}
 
 jobs:
