@@ -37,7 +37,21 @@ function buildLeaderboard({ profiles, predictions, groupPredictions }: Leaderboa
       return a.user.displayName.localeCompare(b.user.displayName);
     });
 
-  return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  // Standard competition ranking ("1, 1, 3"): rows tied on the visible merit
+  // columns (points, exact hits, outcome hits) share a position; the next
+  // distinct row jumps past the tie. The remaining sort keys (firstUpdatedAt,
+  // name) only stabilise ordering and don't break a tie.
+  let lastRank = 0;
+  return rows.map((row, index) => {
+    const prev = index > 0 ? rows[index - 1]! : null;
+    const tiedWithPrev =
+      prev !== null &&
+      prev.points === row.points &&
+      prev.exactHits === row.exactHits &&
+      prev.outcomeHits === row.outcomeHits;
+    lastRank = tiedWithPrev ? lastRank : index + 1;
+    return { ...row, rank: lastRank };
+  });
 }
 
 export type LeaderboardRow = ReturnType<typeof buildLeaderboard>[number];

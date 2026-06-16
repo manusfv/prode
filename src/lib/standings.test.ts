@@ -55,6 +55,21 @@ describe("getLeaderboard (revealed-scoped)", () => {
     expect(rows[0].user.id).toBe("u1"); // 15 > 3
     expect(rows[0].rank).toBe(1);
   });
+
+  it("gives tied participants the same rank and skips the next (1, 1, 3)", () => {
+    const tiedProfiles: Profile[] = [
+      { id: "a", displayName: "A", email: "a@x.com", approved: true, role: "user" },
+      { id: "b", displayName: "B", email: "b@x.com", approved: true, role: "user" },
+      { id: "c", displayName: "C", email: "c@x.com", approved: true, role: "user" },
+    ];
+    const tiedPredictions: Prediction[] = [
+      pred("a1", "a", "m1", 80),
+      pred("b1", "b", "m1", 80),
+      pred("c1", "c", "m1", 78),
+    ];
+    const rows = getLeaderboard({ predictions: tiedPredictions, profiles: tiedProfiles, groupPredictions: [], matches, groups: finalizedGroups, standingsStages: new Set(["round32"]) });
+    expect(rows.map((r) => r.rank)).toEqual([1, 1, 3]);
+  });
 });
 
 describe("getStageLeaderboard", () => {
