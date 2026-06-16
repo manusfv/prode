@@ -55,6 +55,7 @@ type MatchRow = {
   finalized_by: string | null;
   updated_at: string | null;
   updated_by: string | null;
+  finalized_source: "admin" | "auto" | null;
 };
 
 type PredictionRow = {
@@ -80,6 +81,7 @@ type GroupRow = {
   fourth_team_id: string | null;
   result_finalized_at: string | null;
   result_finalized_by: string | null;
+  result_source: "admin" | "auto" | null;
 };
 
 type GroupPredictionRow = {
@@ -228,6 +230,7 @@ function mapMatch(row: MatchRow): Match {
     finalizedBy: row.finalized_by,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
+    finalizedSource: row.finalized_source ?? null,
   };
 }
 
@@ -247,7 +250,7 @@ function mapPrediction(row: PredictionRow): Prediction {
   };
 }
 
-function mapGroup(row: GroupRow): Group {
+export function mapGroup(row: GroupRow): Group {
   return {
     groupLabel: row.group_label,
     locksAt: row.locks_at,
@@ -257,10 +260,11 @@ function mapGroup(row: GroupRow): Group {
     fourthTeamId: row.fourth_team_id,
     resultFinalizedAt: row.result_finalized_at,
     resultFinalizedBy: row.result_finalized_by,
+    resultSource: row.result_source ?? null,
   };
 }
 
-function mapGroupPrediction(row: GroupPredictionRow): GroupPrediction {
+export function mapGroupPrediction(row: GroupPredictionRow): GroupPrediction {
   return {
     id: row.id,
     userId: row.user_id,
