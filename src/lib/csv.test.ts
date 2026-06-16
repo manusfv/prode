@@ -75,6 +75,7 @@ function match(overrides: Partial<Match>): Match {
     finalizedBy: null,
     updatedAt: null,
     updatedBy: null,
+    finalizedSource: null,
     ...overrides,
   };
 }

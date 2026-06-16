@@ -485,6 +485,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       fourthTeamId: input.fourthTeamId,
       resultFinalizedAt: input.finalize ? new Date().toISOString() : null,
       resultFinalizedBy: input.finalize ? currentUser.id : null,
+      resultSource: null,
     };
 
     setGroups((items) =>

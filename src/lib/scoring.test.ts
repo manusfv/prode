@@ -34,6 +34,7 @@ const groupMatch: Match = {
   finalizedBy: "admin",
   updatedAt: null,
   updatedBy: null,
+  finalizedSource: null,
 };
 
 const knockoutMatch: Match = {
@@ -149,6 +150,7 @@ const finalizedGroup: Group = {
   fourthTeamId: "ksa",
   resultFinalizedAt: "2026-06-25T00:00:00.000Z",
   resultFinalizedBy: "admin",
+  resultSource: null,
 };
 
 function groupPrediction(overrides: Partial<GroupPrediction>): GroupPrediction {
