@@ -49,6 +49,7 @@ export type Match = {
   finalizedBy: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
+  finalizedSource: "admin" | "auto" | null;
 };
 
 export type Prediction = {
@@ -92,6 +93,7 @@ export type Group = {
   fourthTeamId: string | null;
   resultFinalizedAt: string | null;
   resultFinalizedBy: string | null;
+  resultSource: "admin" | "auto" | null;
 };
 
 export type GroupPrediction = {
