@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -27,5 +28,18 @@ export async function createSupabaseServerClient() {
         });
       },
     },
+  });
+}
+
+/**
+ * Service-role client for system jobs (the sync route). Bypasses RLS, so it must
+ * only ever be constructed inside server-only code gated by CRON_SECRET.
+ */
+export function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
