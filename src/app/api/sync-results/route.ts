@@ -52,6 +52,10 @@ export async function GET(request: Request) {
   const ingest = await ingestStandings(db, results);
   if (!ingest.ok) return NextResponse.json({ error: ingest.message }, { status: 500 });
 
+  // Override only the team positions with the freshly-written values so recalc
+  // scores against the new standings. resultFinalizedAt/resultSource stay at
+  // their pre-write values here, which is fine because recalc reads only the
+  // team order — don't rely on those flags being current in writtenGroups.
   const writtenGroups = groups
     .filter((g) => results.some((r) => r.groupLabel === g.groupLabel))
     .map((g) => {
