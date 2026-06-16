@@ -39,4 +39,17 @@ describe("ingestStandings", () => {
     await ingestStandings(fakeDb(calls), [{ ...complete, complete: false }]);
     expect(calls[0].values.result_finalized_at).toBeNull();
   });
+
+  it("surfaces a DB write failure", async () => {
+    const failingDb = {
+      from() {
+        return {
+          select() { return { in: async () => ({ data: [], error: null }) }; },
+          update() { return { eq: async () => ({ error: { message: "write failed" } }) }; },
+        };
+      },
+    };
+    const result = await ingestStandings(failingDb, [complete]);
+    expect(result).toEqual({ ok: false, message: "write failed" });
+  });
 });

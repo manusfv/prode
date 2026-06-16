@@ -23,7 +23,7 @@ export async function recalcGroupPredictions(db: SyncDb, groups: Group[]): Promi
     const group = groupByLabel.get(prediction.groupLabel);
     if (!group) return null;
     const score = scoreGroupPredictionOrNull(group, prediction);
-    return db
+    return await db
       .from("group_predictions")
       .update({ points: score.points, exact_positions: score.exactPositions, updated_at: updatedAt })
       .eq("id", prediction.id);

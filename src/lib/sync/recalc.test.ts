@@ -54,4 +54,30 @@ describe("recalcGroupPredictions", () => {
     expect(result.ok).toBe(true);
     expect(updates).toEqual([]);
   });
+
+  it("surfaces a DB write failure", async () => {
+    const failingDb: SyncDb = {
+      from() {
+        return {
+          select() {
+            return {
+              in: async () => ({
+                data: [{
+                  id: "gp1", user_id: "u1", group_label: "A",
+                  first_team_id: "mex", second_team_id: "kor", third_team_id: "cze", fourth_team_id: "rsa",
+                  points: null, exact_positions: 0, created_at: "", updated_at: "",
+                }],
+                error: null,
+              }),
+            };
+          },
+          update() {
+            return { eq: async () => ({ error: { message: "write failed" } }) };
+          },
+        };
+      },
+    };
+    const result = await recalcGroupPredictions(failingDb, [finalizedGroup()]);
+    expect(result).toEqual({ ok: false, message: "write failed" });
+  });
 });
