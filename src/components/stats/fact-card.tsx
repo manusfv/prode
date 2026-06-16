@@ -76,7 +76,10 @@ export function StatDrawer({
     <>
       {/* Mobile: bottom sheet, full width */}
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-hidden sm:hidden" overlayClassName="sm:hidden">{body}</SheetContent>
+        {/* Cap below the sticky mobile toolbar (~3.5rem) so the top edge — and the
+            absolute close button — never tucks under it on short screens. dvh tracks
+            the browser chrome. */}
+        <SheetContent side="bottom" className="max-h-[calc(100dvh-5rem)] overflow-hidden sm:hidden" overlayClassName="sm:hidden">{body}</SheetContent>
       </Sheet>
       {/* Desktop: right drawer, widened */}
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
