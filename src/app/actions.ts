@@ -233,6 +233,9 @@ export async function saveGroupStandingsAction(input: SaveGroupStandingsInput) {
       fourth_team_id: input.fourthTeamId,
       result_finalized_at: input.finalize ? now : null,
       result_finalized_by: input.finalize ? admin.userId : null,
+      // Any admin save (even a provisional, non-finalized one) is an intentional
+      // human edit, so it permanently claims the row: the auto-sync job only
+      // writes rows whose result_source is null or 'auto', never 'admin'.
       result_source: "admin",
       updated_at: now,
     })
