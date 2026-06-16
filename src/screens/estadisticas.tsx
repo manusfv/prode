@@ -223,7 +223,7 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
   if (!card.hasData) {
     return (
       <Card className={cn(ui.panel, "p-4")}>
-        <h2 className="m-0 text-base font-black">Tus stats, {userName}</h2>
+        <h2 className="m-0 text-base font-black">Tus estadísticas, {userName}</h2>
         <p className="mt-1 text-sm font-bold text-app-muted">Todavía no cargaste pronósticos. ¡Andá a la pestaña Pronósticos!</p>
       </Card>
     );
@@ -236,7 +236,7 @@ function PersonalCardView({ card, userName }: { card: ReturnType<typeof computeS
   ];
   return (
     <Card className={cn(ui.panel, "p-4")}>
-      <h2 className="m-0 text-base font-black">Tus stats, {userName}</h2>
+      <h2 className="m-0 text-base font-black">Tus estadísticas, {userName}</h2>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-lg border border-app-line bg-app-surface px-2.5 py-2">
