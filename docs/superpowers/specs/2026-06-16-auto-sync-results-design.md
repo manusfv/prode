@@ -134,8 +134,15 @@ Each is a small, independently testable unit.
 **4. Scheduler — `.github/workflows/sync-results.yml`**
 - `schedule: cron('*/30 * * * *')` + `workflow_dispatch` for manual runs.
 - One `curl` to the production route with the `CRON_SECRET` repo secret. Free,
-  version-controlled, runs even when the app is idle. Vercel Cron is the paid
-  alternative (Hobby caps cron at once/day).
+  version-controlled, runs even when the app is idle.
+- Chosen over the alternatives for **observability**: the sync's JSON summary
+  lands in the run log, which matters most during the initial shake-out and the
+  group-stage backfill. The scheduler is swappable without touching anything else
+  (it just calls the route), so we can move later if we want.
+- Free alternative: **Supabase pg_cron + pg_net** — more punctual (DB-internal,
+  no GitHub scheduling lag), keeps everything in Supabase, but pg_net responses
+  are awkward to inspect. Swap-in = one SQL `cron.schedule(...)` calling the route.
+- Paid alternative: Vercel Cron (Hobby caps cron at once/day; Pro lifts it).
 
 ### Schema changes
 
