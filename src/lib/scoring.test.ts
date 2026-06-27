@@ -35,6 +35,7 @@ const groupMatch: Match = {
   updatedAt: null,
   updatedBy: null,
   finalizedSource: null,
+  feedMatchId: null,
 };
 
 const knockoutMatch: Match = {

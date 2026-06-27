@@ -76,6 +76,7 @@ export const matches: Match[] = [
     updatedAt: null,
     updatedBy: null,
     finalizedSource: null,
+    feedMatchId: null,
   },
   {
     id: "m5",
@@ -97,6 +98,7 @@ export const matches: Match[] = [
     updatedAt: null,
     updatedBy: null,
     finalizedSource: null,
+    feedMatchId: null,
   },
 ];
 

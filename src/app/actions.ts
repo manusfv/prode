@@ -787,6 +787,7 @@ function mapMatch(row: {
   updated_at: string | null;
   updated_by: string | null;
   finalized_source?: "admin" | "auto" | null;
+  feed_match_id?: string | null;
 }): Match {
   return {
     id: row.id,
@@ -809,6 +810,7 @@ function mapMatch(row: {
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
     finalizedSource: row.finalized_source ?? null,
+    feedMatchId: row.feed_match_id ?? null,
   };
 }
 

@@ -18,6 +18,7 @@ const knockoutMatch: Match = {
   updatedAt: null,
   updatedBy: null,
   finalizedSource: null,
+  feedMatchId: null,
 };
 
 function draft(overrides: Partial<PredictionDraft>): PredictionDraft {

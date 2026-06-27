@@ -14,7 +14,7 @@ function match(id: string, over: Partial<Match> = {}): Match {
     status: "open",
     homeScore: null, awayScore: null, winnerTeamId: null,
     finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null,
-    finalizedSource: null,
+    finalizedSource: null, feedMatchId: null,
     ...over,
   };
 }
@@ -147,7 +147,7 @@ describe("accuracy facts", () => {
       homeScore: 1, awayScore: 0, winnerTeamId: "arg",
       finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1",
       updatedAt: null, updatedBy: null,
-      finalizedSource: null,
+      finalizedSource: null, feedMatchId: null,
     };
   }
   function scored(userId: string, matchId: string, exact: boolean, outcome: boolean): Prediction {
@@ -782,7 +782,7 @@ describe("streak facts", () => {
       kickoffUtc: kickoff, status: "finalized",
       homeScore: 1, awayScore: 0, winnerTeamId: "arg",
       finalizedAt: "2026-06-11T00:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null,
-      finalizedSource: null,
+      finalizedSource: null, feedMatchId: null,
     };
   }
   function scored(userId: string, matchId: string, outcome: boolean): Prediction {

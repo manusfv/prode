@@ -56,6 +56,7 @@ type MatchRow = {
   updated_at: string | null;
   updated_by: string | null;
   finalized_source: "admin" | "auto" | null;
+  feed_match_id: string | null;
 };
 
 type PredictionRow = {
@@ -209,7 +210,7 @@ function mapStage(row: StageRow): StageState {
   };
 }
 
-function mapMatch(row: MatchRow): Match {
+export function mapMatch(row: MatchRow): Match {
   return {
     id: row.id,
     matchNo: row.match_no,
@@ -231,10 +232,11 @@ function mapMatch(row: MatchRow): Match {
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
     finalizedSource: row.finalized_source ?? null,
+    feedMatchId: row.feed_match_id ?? null,
   };
 }
 
-function mapPrediction(row: PredictionRow): Prediction {
+export function mapPrediction(row: PredictionRow): Prediction {
   return {
     id: row.id,
     userId: row.user_id,

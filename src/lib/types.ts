@@ -50,6 +50,7 @@ export type Match = {
   updatedAt: string | null;
   updatedBy: string | null;
   finalizedSource: "admin" | "auto" | null;
+  feedMatchId: string | null;
 };
 
 export type Prediction = {

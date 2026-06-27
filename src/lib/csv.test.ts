@@ -76,6 +76,7 @@ function match(overrides: Partial<Match>): Match {
     updatedAt: null,
     updatedBy: null,
     finalizedSource: null,
+    feedMatchId: null,
     ...overrides,
   };
 }

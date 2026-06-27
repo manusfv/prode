@@ -17,6 +17,7 @@ const baseMatch: Match = {
   updatedAt: null,
   updatedBy: null,
   finalizedSource: null,
+  feedMatchId: null,
 };
 
 const baseGroup: Group = {

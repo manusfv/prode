@@ -21,7 +21,7 @@ function stage(partial: Partial<StageState> & { stage: StageState["stage"] }): S
 const finalizedMatch: Match = {
   id: "m1", matchNo: 1, stage: "round32", homeTeamId: "a", awayTeamId: "b",
   kickoffUtc: "2026-06-01T00:00:00.000Z", status: "finalized", homeScore: 1, awayScore: 0,
-  winnerTeamId: "a", finalizedAt: "2026-06-01T02:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null, finalizedSource: null,
+  winnerTeamId: "a", finalizedAt: "2026-06-01T02:00:00.000Z", finalizedBy: "u1", updatedAt: null, updatedBy: null, finalizedSource: null, feedMatchId: null,
 };
 
 const stages: StageState[] = [
