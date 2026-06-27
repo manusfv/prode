@@ -58,15 +58,16 @@ export function RulesScreen() {
           subtitle="Eliminación directa: 16avos, octavos, cuartos, semis, 3er puesto y final."
         >
           <li>
-            <strong>3 puntos</strong> por el resultado exacto y <strong>1 punto</strong>{" "}
-            por acertar ganador, empate o clasificado.
+            El puntaje sube por ronda. Cada partido suma por acertar el{" "}
+            <strong>resultado exacto</strong> o, en su defecto, el{" "}
+            <strong>ganador o empate</strong>:
           </li>
-          <li>
-            Los pronósticos se pueden editar hasta el inicio de cada partido.
-          </li>
-          <li>
-            Si pronosticás empate, tenés que elegir quién clasifica.
-          </li>
+          <li>16avos: <strong>25</strong> exacto · <strong>10</strong> ganador/empate</li>
+          <li>Octavos: <strong>50</strong> exacto · <strong>30</strong> ganador/empate</li>
+          <li>Cuartos: <strong>80</strong> exacto · <strong>60</strong> ganador/empate</li>
+          <li>Semis: <strong>110</strong> exacto · <strong>90</strong> ganador/empate</li>
+          <li>3er puesto y final: <strong>150</strong> exacto · <strong>120</strong> ganador/empate</li>
+          <li>Los pronósticos se pueden editar hasta el inicio de cada partido.</li>
         </Section>
       </div>
     </Card>

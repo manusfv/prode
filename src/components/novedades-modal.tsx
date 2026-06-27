@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Sparkles, TimerReset, type LucideIcon } from "lucide-react";
+import { BarChart3, Medal, Sparkles, TimerReset, type LucideIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -17,7 +17,7 @@ import { ui, tabRoutes } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 // Bump this whenever there are new novedades to show everyone again.
-const NOVEDADES_VERSION = "2026-06-stats-provisional";
+const NOVEDADES_VERSION = "2026-06-stage-scoring";
 const STORAGE_KEY = "prode-novedades-seen";
 
 type Novedad = {
@@ -29,6 +29,11 @@ type Novedad = {
 };
 
 const novedades: Novedad[] = [
+  {
+    icon: Medal,
+    title: "Puntajes por etapa",
+    body: "Los cruces ahora valen más a medida que avanza el torneo: desde 16avos hasta la final, acertar suma cada vez más puntos. Y si pronosticás un empate, ya no hace falta elegir quién clasifica.",
+  },
   {
     icon: TimerReset,
     title: "Resultados provisionales",
