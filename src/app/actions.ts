@@ -438,6 +438,9 @@ export async function updateMatchTeamsAction(input: UpdateMatchTeamsInput) {
       // A real team always wins over a seed label, mirroring createMatchAction.
       home_seed: input.homeTeamId ? null : input.homeSeed?.trim() || null,
       away_seed: input.awayTeamId ? null : input.awaySeed?.trim() || null,
+      // Freeze the row from auto: a manual matchup edit is the reversible safety
+      // net, so the feed sync hands off once a human has touched it.
+      finalized_source: "admin",
       updated_at: new Date().toISOString(),
       updated_by: admin.userId,
     })

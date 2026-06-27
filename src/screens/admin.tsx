@@ -407,7 +407,7 @@ export function AdminScreen() {
                 <div key={match.id} className="data-row admin-row">
                   <span>#{match.matchNo}</span>
                   <strong>{getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs {getTeamLabel(match.awayTeamId, teams, match.awaySeed)}</strong>
-                  <span>{stageLabels[match.stage]}</span>
+                  <span>{stageLabels[match.stage]}{match.finalizedSource === "auto" && <AutoBadge />}</span>
                   <span>{match.city ?? "Sede TBD"}</span>
                   <Select value={draft.status ?? "open"} onValueChange={(value) => updateDraft(match.id, { status: value as Match["status"] })}>
                     <SelectTrigger className="admin-status-select"><SelectValue /></SelectTrigger>
