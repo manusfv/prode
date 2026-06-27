@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { mapGroup } from "@/lib/supabase-data";
-import { fetchStandings } from "@/lib/sync/football-data";
+import { mapGroup, mapMatch } from "@/lib/supabase-data";
+import { fetchStandings, fetchKnockoutMatches } from "@/lib/sync/football-data";
 import { ingestStandings } from "@/lib/sync/ingest";
+import { ingestMatches } from "@/lib/sync/ingest-matches";
 import { matchStandings } from "@/lib/sync/match-standings";
+import { matchFixtures } from "@/lib/sync/match-fixtures";
 import { recalcGroupPredictions } from "@/lib/sync/recalc";
+import { recalcMatchPredictions } from "@/lib/sync/recalc-matches";
 import type { SyncDb } from "@/lib/sync/types";
 
 export const dynamic = "force-dynamic";
@@ -94,14 +97,70 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: recalc.message }, { status: 500 });
   }
 
+  // ---- Knockout matches path (orthogonal to standings; touches only `matches`) ----
+  let knockoutFeed;
+  try {
+    knockoutFeed = await fetchKnockoutMatches(token);
+  } catch (error) {
+    console.error(`${LOG} matches feed fetch failed:`, error);
+    return NextResponse.json({ error: String(error) }, { status: 502 });
+  }
+
+  const matchesResult = await supabase.from("matches").select("*");
+  if (matchesResult.error) {
+    console.error(`${LOG} reading matches failed:`, matchesResult.error.message);
+    return NextResponse.json({ error: matchesResult.error.message }, { status: 500 });
+  }
+  const knockoutMatches = (matchesResult.data ?? [])
+    .map(mapMatch)
+    .filter((m) => m.stage !== "groups");
+
+  const matchMatch = matchFixtures(knockoutFeed, knockoutMatches, knownIds);
+  if (matchMatch.unmatched.length > 0) {
+    console.warn(`${LOG} unmatched knockout entries:`, matchMatch.unmatched);
+  }
+
+  const matchIngest = await ingestMatches(db, matchMatch.results);
+  if (!matchIngest.ok) {
+    console.error(`${LOG} match ingest failed:`, matchIngest.message);
+    return NextResponse.json({ error: matchIngest.message }, { status: 500 });
+  }
+
+  // Apply the freshly-written state onto the read matches so recalc scores
+  // against current scores/status (mirrors writtenGroups above).
+  const writtenMatches = knockoutMatches
+    .filter((m) => matchMatch.results.some((r) => r.matchId === m.id))
+    .map((m) => {
+      const r = matchMatch.results.find((res) => res.matchId === m.id)!;
+      return {
+        ...m,
+        homeTeamId: r.homeTeamId ?? m.homeTeamId,
+        awayTeamId: r.awayTeamId ?? m.awayTeamId,
+        homeScore: r.finalize ? r.homeScore : m.homeScore,
+        awayScore: r.finalize ? r.awayScore : m.awayScore,
+        winnerTeamId: r.finalize ? r.winnerTeamId : m.winnerTeamId,
+        status: r.finalize ? ("finalized" as const) : m.status,
+      };
+    });
+  const matchRecalc = await recalcMatchPredictions(db, writtenMatches);
+  if (!matchRecalc.ok) {
+    console.error(`${LOG} match recalc failed:`, matchRecalc.message);
+    return NextResponse.json({ error: matchRecalc.message }, { status: 500 });
+  }
+
   console.log(
     `${LOG} ok — provisional=${ingest.provisional} finalized=${ingest.finalized} ` +
-      `predictionsUpdated=${recalc.updated} unmatched=${unmatched.length}`,
+      `predictionsUpdated=${recalc.updated} unmatched=${unmatched.length} ` +
+      `matchesFilled=${matchIngest.filled} matchesFinalized=${matchIngest.finalized} ` +
+      `matchPredictionsUpdated=${matchRecalc.updated} matchUnmatched=${matchMatch.unmatched.length}`,
   );
   return NextResponse.json({
     ok: true,
     groups: { provisional: ingest.provisional, finalized: ingest.finalized },
     predictionsUpdated: recalc.updated,
     unmatched,
+    matches: { filled: matchIngest.filled, finalized: matchIngest.finalized },
+    matchPredictionsUpdated: matchRecalc.updated,
+    matchUnmatched: matchMatch.unmatched,
   });
 }
