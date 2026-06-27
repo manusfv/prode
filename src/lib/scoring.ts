@@ -10,6 +10,18 @@ import type {
 } from "./types";
 import { getGroupStatus, getMatchStatus, hasGroupOrder, inferWinner, needsAdvancer } from "./tournament";
 
+// Per-stage knockout points: [outcome, exact]. Groups use position scoring
+// (GROUP_POSITION_POINTS) and have no per-match predictions, so their entry is 0/0.
+export const STAGE_POINTS: Record<Stage, { outcome: number; exact: number }> = {
+  groups: { outcome: 0, exact: 0 },
+  round32: { outcome: 10, exact: 25 },
+  round16: { outcome: 30, exact: 50 },
+  quarter: { outcome: 60, exact: 80 },
+  semi: { outcome: 90, exact: 110 },
+  third: { outcome: 120, exact: 150 },
+  final: { outcome: 120, exact: 150 },
+};
+
 export type ScoreResult = {
   points: number;
   exactHit: boolean;
@@ -81,12 +93,14 @@ export function scorePrediction(match: Match, prediction: Prediction): ScoreResu
     return { points: 0, exactHit: false, outcomeHit: false };
   }
 
+  const { outcome, exact } = STAGE_POINTS[match.stage];
+
   const exactHit =
     prediction.homeScore === match.homeScore &&
     prediction.awayScore === match.awayScore;
 
   if (exactHit) {
-    return { points: 3, exactHit: true, outcomeHit: true };
+    return { points: exact, exactHit: true, outcomeHit: true };
   }
 
   const predictedOutcome = getOutcome(
@@ -97,7 +111,7 @@ export function scorePrediction(match: Match, prediction: Prediction): ScoreResu
   const officialOutcome = getOutcome(match.homeScore, match.awayScore, match.winnerTeamId);
   const outcomeHit = predictedOutcome !== null && predictedOutcome === officialOutcome;
 
-  return { points: outcomeHit ? 1 : 0, exactHit: false, outcomeHit };
+  return { points: outcomeHit ? outcome : 0, exactHit: false, outcomeHit };
 }
 
 export function canSavePrediction({

@@ -20,8 +20,8 @@ const profile: Profile = {
 const groupMatch: Match = {
   id: "m1",
   matchNo: 1,
-  stage: "groups",
-  group: "A",
+  stage: "round32",
+  group: undefined,
   homeTeamId: "arg",
   awayTeamId: "mex",
   kickoffUtc: "2026-06-12T22:00:00.000Z",
@@ -66,17 +66,17 @@ function prediction(overrides: Partial<Prediction>): Prediction {
 }
 
 describe("scorePrediction", () => {
-  it("gives 3 points for exact score", () => {
+  it("gives exact-result points for the stage", () => {
     expect(scorePrediction(groupMatch, prediction({ homeScore: 2, awayScore: 1 }))).toEqual({
-      points: 3,
+      points: 25,
       exactHit: true,
       outcomeHit: true,
     });
   });
 
-  it("gives 1 point for correct group-stage outcome", () => {
+  it("gives outcome points for a correct result", () => {
     expect(scorePrediction(groupMatch, prediction({ homeScore: 3, awayScore: 0 }))).toEqual({
-      points: 1,
+      points: 10,
       exactHit: false,
       outcomeHit: true,
     });
@@ -97,7 +97,7 @@ describe("scorePrediction", () => {
         prediction({ matchId: "m2", homeScore: 2, awayScore: 2, winnerTeamId: "arg" }),
       ),
     ).toEqual({
-      points: 1,
+      points: 30,
       exactHit: false,
       outcomeHit: true,
     });
@@ -123,7 +123,7 @@ describe("canSavePrediction", () => {
         match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
         draft: { homeScore: 1, awayScore: 0, winnerTeamId: null },
         profile,
-        openStages: new Set(["groups"]),
+        openStages: new Set(["round32"]),
         now: new Date("2026-06-13T00:00:00.000Z"),
       }),
     ).toEqual({ ok: false, reason: "El partido ya está cerrado." });
@@ -135,7 +135,7 @@ describe("canSavePrediction", () => {
         match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
         draft: { homeScore: 1, awayScore: 0, winnerTeamId: null },
         profile: { ...profile, approved: false },
-        openStages: new Set(["groups"]),
+        openStages: new Set(["round32"]),
         now: new Date("2026-06-10T00:00:00.000Z"),
       }),
     ).toEqual({ ok: false, reason: "Tu usuario todavía no está aprobado." });

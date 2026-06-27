@@ -40,8 +40,8 @@ describe("recalcMatchPredictions", () => {
     const updates: Update[] = [];
     const res = await recalcMatchPredictions(fakeDb(updates) as never, [baseMatch({})]);
     expect(res).toEqual({ ok: true, updated: 1 });
-    // Exact 2-1 hit = 3 points (per scorePrediction).
-    expect(updates[0].values).toMatchObject({ points: 3, exact_hit: true, outcome_hit: true });
+    // Exact 2-1 hit on round32 = 25 points (per scorePrediction / STAGE_POINTS).
+    expect(updates[0].values).toMatchObject({ points: 25, exact_hit: true, outcome_hit: true });
   });
 
   it("nulls points when the match is not finalized", async () => {
