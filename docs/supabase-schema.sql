@@ -61,7 +61,6 @@ create table public.predictions (
   match_id uuid not null references public.matches(id) on delete cascade,
   home_score integer not null check (home_score >= 0),
   away_score integer not null check (away_score >= 0),
-  winner_team_id text references public.teams(id),
   points integer,
   exact_hit boolean not null default false,
   outcome_hit boolean not null default false,
@@ -250,10 +249,6 @@ with check (
       )
       and m.home_team_id is not null
       and m.away_team_id is not null
-      and (
-        predictions.home_score <> predictions.away_score
-        or predictions.winner_team_id in (m.home_team_id, m.away_team_id)
-      )
   )
 );
 
@@ -282,10 +277,6 @@ with check (
       )
       and m.home_team_id is not null
       and m.away_team_id is not null
-      and (
-        predictions.home_score <> predictions.away_score
-        or predictions.winner_team_id in (m.home_team_id, m.away_team_id)
-      )
   )
 );
 
