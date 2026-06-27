@@ -120,18 +120,19 @@ export async function GET(request: Request) {
     console.warn(`${LOG} unmatched knockout entries:`, matchMatch.unmatched);
   }
 
-  const matchIngest = await ingestMatches(db, matchMatch.results);
+  const matchIngest = await ingestMatches(db, { updates: matchMatch.updates, inserts: matchMatch.inserts });
   if (!matchIngest.ok) {
     console.error(`${LOG} match ingest failed:`, matchIngest.message);
     return NextResponse.json({ error: matchIngest.message }, { status: 500 });
   }
 
   // Apply the freshly-written state onto the read matches so recalc scores
-  // against current scores/status (mirrors writtenGroups above).
+  // against current scores/status (mirrors writtenGroups above). Only existing
+  // fixtures (updates) can carry predictions; inserts are brand-new, no recalc.
   const writtenMatches = knockoutMatches
-    .filter((m) => matchMatch.results.some((r) => r.matchId === m.id))
+    .filter((m) => matchMatch.updates.some((r) => r.matchId === m.id))
     .map((m) => {
-      const r = matchMatch.results.find((res) => res.matchId === m.id)!;
+      const r = matchMatch.updates.find((res) => res.matchId === m.id)!;
       return {
         ...m,
         homeTeamId: r.homeTeamId ?? m.homeTeamId,
@@ -151,7 +152,7 @@ export async function GET(request: Request) {
   console.log(
     `${LOG} ok — provisional=${ingest.provisional} finalized=${ingest.finalized} ` +
       `predictionsUpdated=${recalc.updated} unmatched=${unmatched.length} ` +
-      `matchesFilled=${matchIngest.filled} matchesFinalized=${matchIngest.finalized} ` +
+      `matchesInserted=${matchIngest.inserted} matchesFilled=${matchIngest.filled} matchesFinalized=${matchIngest.finalized} ` +
       `matchPredictionsUpdated=${matchRecalc.updated} matchUnmatched=${matchMatch.unmatched.length}`,
   );
   return NextResponse.json({
@@ -159,7 +160,7 @@ export async function GET(request: Request) {
     groups: { provisional: ingest.provisional, finalized: ingest.finalized },
     predictionsUpdated: recalc.updated,
     unmatched,
-    matches: { filled: matchIngest.filled, finalized: matchIngest.finalized },
+    matches: { inserted: matchIngest.inserted, filled: matchIngest.filled, finalized: matchIngest.finalized },
     matchPredictionsUpdated: matchRecalc.updated,
     matchUnmatched: matchMatch.unmatched,
   });

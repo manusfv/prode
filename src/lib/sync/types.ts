@@ -32,6 +32,7 @@ export type SyncDb = {
     update(values: Record<string, unknown>): {
       eq(column: string, value: string): PromiseLike<DbResult>;
     };
+    insert(values: Record<string, unknown>): PromiseLike<DbResult>;
   };
 };
 
@@ -48,7 +49,7 @@ export type FeedMatch = {
   winner: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
 };
 
-/** Desired DB state for one knockout fixture after a sync run. */
+/** Desired DB state for an existing knockout fixture after a sync run (an update). */
 export type MatchResult = {
   matchId: string;
   feedId: number;
@@ -59,5 +60,20 @@ export type MatchResult = {
   awayScore: number | null;
   winnerTeamId: string | null;
   /** True only when the feed reports the match FINISHED with both scores present. */
+  finalize: boolean;
+};
+
+/** A knockout fixture the feed knows about that we don't have yet (an insert). */
+export type MatchInsert = {
+  /** Canonical match number assigned by stage + kickoff order (e.g. 73..104). */
+  matchNo: number;
+  stage: Stage;
+  feedId: number;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  kickoffUtc: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  winnerTeamId: string | null;
   finalize: boolean;
 };

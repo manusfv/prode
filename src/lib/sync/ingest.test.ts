@@ -12,6 +12,7 @@ function fakeDb(calls: Call[]) {
         update(values: Record<string, unknown>) {
           return { eq: async (eqColumn: string, eqValue: string) => { calls.push({ values, eqColumn, eqValue }); return { error: null }; } };
         },
+        insert: async () => ({ error: null }),
       };
     },
   };
@@ -46,6 +47,7 @@ describe("ingestStandings", () => {
         return {
           select() { return { in: async () => ({ data: [], error: null }) }; },
           update() { return { eq: async () => ({ error: { message: "write failed" } }) }; },
+          insert: async () => ({ error: null }),
         };
       },
     };

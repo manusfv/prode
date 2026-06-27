@@ -34,6 +34,7 @@ function fakeDb(updates: Record<string, unknown>[]): SyncDb {
           updates.push(values);
           return { eq: async () => ({ error: null }) };
         },
+        insert: async () => ({ error: null }),
       };
     },
   };
@@ -74,6 +75,7 @@ describe("recalcGroupPredictions", () => {
           update() {
             return { eq: async () => ({ error: { message: "write failed" } }) };
           },
+          insert: async () => ({ error: null }),
         };
       },
     };
