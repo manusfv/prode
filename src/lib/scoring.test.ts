@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Group, GroupPrediction, Match, Prediction, Profile } from "./types";
+import type { Group, GroupPrediction, Match, Prediction, Profile, Stage } from "./types";
 import {
   canSaveGroupPrediction,
   canSavePrediction,
@@ -17,7 +17,7 @@ const profile: Profile = {
   role: "user",
 };
 
-const groupMatch: Match = {
+const round32Match: Match = {
   id: "m1",
   matchNo: 1,
   stage: "round32",
@@ -39,7 +39,7 @@ const groupMatch: Match = {
 };
 
 const knockoutMatch: Match = {
-  ...groupMatch,
+  ...round32Match,
   id: "m2",
   stage: "round16",
   group: undefined,
@@ -66,7 +66,7 @@ function prediction(overrides: Partial<Prediction>): Prediction {
 
 describe("scorePrediction", () => {
   it("gives exact-result points for the stage", () => {
-    expect(scorePrediction(groupMatch, prediction({ homeScore: 2, awayScore: 1 }))).toEqual({
+    expect(scorePrediction(round32Match, prediction({ homeScore: 2, awayScore: 1 }))).toEqual({
       points: 25,
       exactHit: true,
       outcomeHit: true,
@@ -74,7 +74,7 @@ describe("scorePrediction", () => {
   });
 
   it("gives outcome points for a correct result", () => {
-    expect(scorePrediction(groupMatch, prediction({ homeScore: 3, awayScore: 0 }))).toEqual({
+    expect(scorePrediction(round32Match, prediction({ homeScore: 3, awayScore: 0 }))).toEqual({
       points: 10,
       exactHit: false,
       outcomeHit: true,
@@ -82,7 +82,7 @@ describe("scorePrediction", () => {
   });
 
   it("gives 0 points for a wrong prediction", () => {
-    expect(scorePrediction(groupMatch, prediction({ homeScore: 0, awayScore: 1 }))).toEqual({
+    expect(scorePrediction(round32Match, prediction({ homeScore: 0, awayScore: 1 }))).toEqual({
       points: 0,
       exactHit: false,
       outcomeHit: false,
@@ -101,13 +101,31 @@ describe("scorePrediction", () => {
       outcomeHit: true,
     });
   });
+
+  it("awards the spec points for every knockout stage", () => {
+    const cases: { stage: Stage; outcome: number; exact: number }[] = [
+      { stage: "round32", outcome: 10, exact: 25 },
+      { stage: "round16", outcome: 30, exact: 50 },
+      { stage: "quarter", outcome: 60, exact: 80 },
+      { stage: "semi", outcome: 90, exact: 110 },
+      { stage: "third", outcome: 120, exact: 150 },
+      { stage: "final", outcome: 120, exact: 150 },
+    ];
+    for (const { stage, outcome, exact } of cases) {
+      const match: Match = { ...round32Match, stage, homeScore: 2, awayScore: 1 };
+      // Exact 2-1 → exact points for the stage.
+      expect(scorePrediction(match, prediction({ homeScore: 2, awayScore: 1 })).points).toBe(exact);
+      // Right winner, wrong score → outcome points for the stage.
+      expect(scorePrediction(match, prediction({ homeScore: 3, awayScore: 0 })).points).toBe(outcome);
+    }
+  });
 });
 
 describe("canSavePrediction", () => {
   it("rejects locked match writes", () => {
     expect(
       canSavePrediction({
-        match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
+        match: { ...round32Match, finalizedAt: null, homeScore: null, awayScore: null },
         draft: { homeScore: 1, awayScore: 0 },
         profile,
         openStages: new Set(["round32"]),
@@ -119,7 +137,7 @@ describe("canSavePrediction", () => {
   it("rejects unapproved users", () => {
     expect(
       canSavePrediction({
-        match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
+        match: { ...round32Match, finalizedAt: null, homeScore: null, awayScore: null },
         draft: { homeScore: 1, awayScore: 0 },
         profile: { ...profile, approved: false },
         openStages: new Set(["round32"]),
@@ -251,14 +269,14 @@ describe("getMatchStatus", () => {
   it("auto-closes open matches after kickoff", () => {
     expect(
       getMatchStatus(
-        { ...groupMatch, status: "open", finalizedAt: null, updatedAt: null, updatedBy: null },
+        { ...round32Match, status: "open", finalizedAt: null, updatedAt: null, updatedBy: null },
         new Date("2026-06-12T21:59:00.000Z"),
       ),
     ).toBe("open");
 
     expect(
       getMatchStatus(
-        { ...groupMatch, status: "open", finalizedAt: null, updatedAt: null, updatedBy: null },
+        { ...round32Match, status: "open", finalizedAt: null, updatedAt: null, updatedBy: null },
         new Date("2026-06-12T22:00:00.000Z"),
       ),
     ).toBe("locked");
@@ -268,7 +286,7 @@ describe("getMatchStatus", () => {
     expect(
       getMatchStatus(
         {
-          ...groupMatch,
+          ...round32Match,
           status: "open",
           finalizedAt: null,
           updatedAt: "2026-06-12T22:10:00.000Z",
@@ -280,8 +298,8 @@ describe("getMatchStatus", () => {
   });
 
   it("keeps live and finalized statuses explicit", () => {
-    expect(getMatchStatus({ ...groupMatch, status: "live", finalizedAt: null })).toBe("locked");
-    expect(getMatchStatus({ ...groupMatch, status: "finalized" })).toBe("finalized");
+    expect(getMatchStatus({ ...round32Match, status: "live", finalizedAt: null })).toBe("locked");
+    expect(getMatchStatus({ ...round32Match, status: "finalized" })).toBe("finalized");
   });
 });
 

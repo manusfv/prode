@@ -66,4 +66,4 @@ with check (
   )
 );
 
-alter table public.predictions drop column winner_team_id;
+alter table public.predictions drop column if exists winner_team_id;
