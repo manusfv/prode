@@ -251,9 +251,8 @@ with check (
       and m.home_team_id is not null
       and m.away_team_id is not null
       and (
-        home_score <> away_score
-        or m.stage = 'groups'
-        or winner_team_id in (m.home_team_id, m.away_team_id)
+        predictions.home_score <> predictions.away_score
+        or predictions.winner_team_id in (m.home_team_id, m.away_team_id)
       )
   )
 );
@@ -284,9 +283,8 @@ with check (
       and m.home_team_id is not null
       and m.away_team_id is not null
       and (
-        home_score <> away_score
-        or m.stage = 'groups'
-        or winner_team_id in (m.home_team_id, m.away_team_id)
+        predictions.home_score <> predictions.away_score
+        or predictions.winner_team_id in (m.home_team_id, m.away_team_id)
       )
   )
 );
