@@ -32,19 +32,7 @@ const novedades: Novedad[] = [
   {
     icon: Medal,
     title: "Puntajes por etapa",
-    body: "Los cruces ahora valen más a medida que avanza el torneo: desde 16avos hasta la final, acertar suma cada vez más puntos. Y si pronosticás un empate, ya no hace falta elegir quién clasifica.",
-  },
-  {
-    icon: TimerReset,
-    title: "Resultados provisionales",
-    body: "Activá el botón de resultados provisionales en la tabla familiar para que también tenga en cuenta los grupos que todavía no están definidos. Así vas viendo cómo va quedando el prode antes de que los resultados sean definitivos.",
-  },
-  {
-    icon: BarChart3,
-    title: "Nueva sección de Estadísticas",
-    body: "Sumamos una sección de Estadísticas con rankings, rachas y las apuestas más audaces del clan. Pasá a curiosear.",
-    href: tabRoutes.stats,
-    cta: "Ver Estadísticas",
+    body: "Los cruces ahora valen más a medida que avanza el torneo: desde 16avos hasta la final, acertar suma cada vez más puntos. Y si pronosticás un empate, ya no hace falta elegir quién clasifica. Recorda que el 28 de junio se habilitan los pronósticos de los 16avos!",
   },
 ];
 
