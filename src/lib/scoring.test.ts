@@ -55,7 +55,6 @@ function prediction(overrides: Partial<Prediction>): Prediction {
     matchId: "m1",
     homeScore: 0,
     awayScore: 0,
-    winnerTeamId: null,
     points: null,
     exactHit: false,
     outcomeHit: false,
@@ -90,11 +89,11 @@ describe("scorePrediction", () => {
     });
   });
 
-  it("scores knockout advancer when tied", () => {
+  it("scores a level knockout result as a draw outcome", () => {
     expect(
       scorePrediction(
         knockoutMatch,
-        prediction({ matchId: "m2", homeScore: 2, awayScore: 2, winnerTeamId: "arg" }),
+        prediction({ matchId: "m2", homeScore: 2, awayScore: 2 }),
       ),
     ).toEqual({
       points: 30,
@@ -105,23 +104,11 @@ describe("scorePrediction", () => {
 });
 
 describe("canSavePrediction", () => {
-  it("requires an advancer for tied knockout predictions", () => {
-    expect(
-      canSavePrediction({
-        match: { ...knockoutMatch, finalizedAt: null, homeScore: null, awayScore: null },
-        draft: { homeScore: 1, awayScore: 1, winnerTeamId: null },
-        profile,
-        openStages: new Set(["round16"]),
-        now: new Date("2026-06-10T00:00:00.000Z"),
-      }),
-    ).toEqual({ ok: false, reason: "Elegí quién clasifica." });
-  });
-
   it("rejects locked match writes", () => {
     expect(
       canSavePrediction({
         match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
-        draft: { homeScore: 1, awayScore: 0, winnerTeamId: null },
+        draft: { homeScore: 1, awayScore: 0 },
         profile,
         openStages: new Set(["round32"]),
         now: new Date("2026-06-13T00:00:00.000Z"),
@@ -133,7 +120,7 @@ describe("canSavePrediction", () => {
     expect(
       canSavePrediction({
         match: { ...groupMatch, finalizedAt: null, homeScore: null, awayScore: null },
-        draft: { homeScore: 1, awayScore: 0, winnerTeamId: null },
+        draft: { homeScore: 1, awayScore: 0 },
         profile: { ...profile, approved: false },
         openStages: new Set(["round32"]),
         now: new Date("2026-06-10T00:00:00.000Z"),

@@ -212,7 +212,6 @@ function ResultMatchCard({
               key={entry.profile.id}
               profile={entry.profile}
               prediction={entry.prediction}
-              teams={teams}
               showPoints={finalized}
               isCurrentUser={entry.profile.id === currentUserId}
             />
@@ -337,13 +336,11 @@ function Collapsible({ summary, children }: { summary: ReactNode; children: Reac
 function PredictionComparisonRow({
   profile,
   prediction,
-  teams,
   showPoints,
   isCurrentUser,
 }: {
   profile: Profile;
   prediction?: Prediction;
-  teams: Team[];
   showPoints: boolean;
   isCurrentUser: boolean;
 }) {
@@ -359,7 +356,6 @@ function PredictionComparisonRow({
         <span className="inline-flex items-center gap-2">
           <span className="text-sm font-bold tabular-nums">
             {prediction.homeScore}-{prediction.awayScore}
-            {prediction.winnerTeamId ? ` · ${getTeamLabel(prediction.winnerTeamId, teams)}` : ""}
           </span>
           {showPoints && <PointsPill points={prediction.points ?? 0} />}
         </span>

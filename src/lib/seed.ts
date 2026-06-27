@@ -109,7 +109,6 @@ export const predictions: Prediction[] = [
     matchId: "m4",
     homeScore: 1,
     awayScore: 1,
-    winnerTeamId: "arg",
     points: null,
     exactHit: false,
     outcomeHit: false,

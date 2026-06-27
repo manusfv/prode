@@ -118,7 +118,6 @@ const matchPrediction = (
   matchId: "m1",
   homeScore: 1,
   awayScore: 0,
-  winnerTeamId: null,
   points,
   exactHit,
   outcomeHit: points > 0,

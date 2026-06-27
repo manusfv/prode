@@ -10,7 +10,6 @@ import {
   scorePrediction,
 } from "@/lib/scoring";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { inferWinner } from "@/lib/tournament";
 import type {
   Group,
   GroupPrediction,
@@ -29,7 +28,6 @@ type SavePredictionInput = {
   matchId: string;
   homeScore: number;
   awayScore: number;
-  winnerTeamId: string | null;
 };
 
 type FinalizeMatchInput = {
@@ -109,7 +107,6 @@ export async function savePredictionAction(input: SavePredictionInput) {
   const draft = {
     homeScore: input.homeScore,
     awayScore: input.awayScore,
-    winnerTeamId: input.winnerTeamId,
   };
 
   const permission = canSavePrediction({
@@ -121,15 +118,12 @@ export async function savePredictionAction(input: SavePredictionInput) {
 
   if (!permission.ok) return { ok: false, message: permission.reason };
 
-  const winnerTeamId = inferWinner(match, draft);
-
   const { error } = await supabase.from("predictions").upsert(
     {
       user_id: user.userId,
       match_id: input.matchId,
       home_score: input.homeScore,
       away_score: input.awayScore,
-      winner_team_id: winnerTeamId,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,match_id" },
@@ -823,7 +817,6 @@ function mapPrediction(row: {
   match_id: string;
   home_score: number;
   away_score: number;
-  winner_team_id: string | null;
   points: number | null;
   exact_hit: boolean;
   outcome_hit: boolean;
@@ -836,7 +829,6 @@ function mapPrediction(row: {
     matchId: row.match_id,
     homeScore: row.home_score,
     awayScore: row.away_score,
-    winnerTeamId: row.winner_team_id,
     points: row.points,
     exactHit: row.exact_hit,
     outcomeHit: row.outcome_hit,

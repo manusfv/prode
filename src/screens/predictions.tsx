@@ -39,7 +39,6 @@ import {
   getMatchStatus,
   getTeamFlag,
   getTeamLabel,
-  needsAdvancer,
   stageLabels,
   stageOrder,
   stepScore,
@@ -541,9 +540,7 @@ function MatchCard({
   const isOpen = status === "open" && editableStages.has(match.stage) && match.homeTeamId && match.awayTeamId;
 
   const [draft, setDraft] = useState<PredictionDraft>(() => toDraft(prediction));
-  const savedKey = prediction
-    ? `${prediction.homeScore}-${prediction.awayScore}-${prediction.winnerTeamId ?? ""}`
-    : "";
+  const savedKey = prediction ? `${prediction.homeScore}-${prediction.awayScore}` : "";
   useEffect(() => {
     setDraft(toDraft(prediction));
     // Re-seed only when the saved prediction actually changes (e.g. after a refresh).
@@ -551,24 +548,18 @@ function MatchCard({
   }, [savedKey]);
 
   const applyDraft = (next: PredictionDraft) => {
-    const normalized = needsAdvancer(match, next) ? next : { ...next, winnerTeamId: null };
-    setDraft(normalized);
+    setDraft(next);
 
-    const complete =
-      normalized.homeScore !== null &&
-      normalized.awayScore !== null &&
-      (!needsAdvancer(match, normalized) || normalized.winnerTeamId !== null);
+    const complete = next.homeScore !== null && next.awayScore !== null;
 
     if (complete) {
       onChange(match, {
-        homeScore: normalized.homeScore as number,
-        awayScore: normalized.awayScore as number,
-        winnerTeamId: normalized.winnerTeamId,
+        homeScore: next.homeScore as number,
+        awayScore: next.awayScore as number,
       });
     }
   };
 
-  const showAdvancer = needsAdvancer(match, draft);
   const submittedCount = allPredictions.length;
   const missingCount = profiles.filter((profile) => profile.approved).length - submittedCount;
 
@@ -605,24 +596,6 @@ function MatchCard({
         />
         <TeamBlock className="@max-xl:col-start-1 @max-xl:row-start-2" teamId={match.awayTeamId} seed={match.awaySeed} align="right" teams={teams} />
       </div>
-
-      {showAdvancer && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-app-blue/20 bg-app-blue/5 p-2.5">
-          <span className={ui.label}>Clasifica</span>
-          {[match.homeTeamId, match.awayTeamId].map((teamId) => (
-            <Button
-              key={teamId}
-              variant={draft.winnerTeamId === teamId ? "default" : "outline"}
-              size="sm"
-              className="font-extrabold"
-              disabled={!isOpen}
-              onClick={() => applyDraft({ ...draft, winnerTeamId: teamId })}
-            >
-              {getTeamFlag(teamId, teams)} {getTeamLabel(teamId, teams)}
-            </Button>
-          ))}
-        </div>
-      )}
 
       <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted @max-md:flex-col @max-md:items-start">
         <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
@@ -679,7 +652,6 @@ function toDraft(prediction?: Prediction): PredictionDraft {
   return {
     homeScore: prediction?.homeScore ?? null,
     awayScore: prediction?.awayScore ?? null,
-    winnerTeamId: prediction?.winnerTeamId ?? null,
   };
 }
 
@@ -790,35 +762,29 @@ function buildMatchCopyText(
   format: CopyFormat,
 ): string {
   const approved = profiles.filter((profile) => profile.approved);
-  const shortName = (teamId: string) =>
-    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
   const predictionFor = (profile: Profile) =>
     matchPredictions.find((item) => item.userId === profile.id);
 
   if (format === "csv") {
     const homeLabel = getTeamLabel(match.homeTeamId, teams, match.homeSeed);
     const awayLabel = getTeamLabel(match.awayTeamId, teams, match.awaySeed);
-    const rows: string[][] = [["Jugador", homeLabel, awayLabel, "Clasifica"]];
+    const rows: string[][] = [["Jugador", homeLabel, awayLabel]];
     for (const profile of approved) {
       const prediction = predictionFor(profile);
       rows.push([
         profile.displayName,
         prediction ? String(prediction.homeScore) : "",
         prediction ? String(prediction.awayScore) : "",
-        prediction?.winnerTeamId ? getTeamLabel(prediction.winnerTeamId, teams) : "",
       ]);
     }
     return toCsv(rows);
   }
 
-  const team = (teamId: string) =>
-    format === "flags" ? getTeamFlag(teamId, teams) : `${getTeamFlag(teamId, teams)} ${shortName(teamId)}`;
   const header = `${stageLabels[match.stage]} · ${getTeamLabel(match.homeTeamId, teams, match.homeSeed)} vs ${getTeamLabel(match.awayTeamId, teams, match.awaySeed)}`;
   const lines = approved.map((profile) => {
     const prediction = predictionFor(profile);
     if (!prediction) return `${profile.displayName}: Sin pronóstico`;
-    const winner = prediction.winnerTeamId ? ` · clasifica ${team(prediction.winnerTeamId)}` : "";
-    return `${profile.displayName}: ${prediction.homeScore}-${prediction.awayScore}${winner}`;
+    return `${profile.displayName}: ${prediction.homeScore}-${prediction.awayScore}`;
   });
   return [header, "", ...lines].join("\n");
 }
@@ -883,8 +849,6 @@ export function PredictionDrawer({
     ? predictions.filter((prediction) => prediction.matchId === match.id)
     : [];
   const finalized = Boolean(match && (match.status === "finalized" || match.finalizedAt));
-  const shortName = (teamId: string) =>
-    teams.find((team) => team.id === teamId)?.shortName ?? getTeamLabel(teamId, teams);
 
   return (
     <Sheet open={Boolean(match)} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -915,9 +879,6 @@ export function PredictionDrawer({
                     {prediction ? (
                       <span className="text-sm font-bold text-app-muted">
                         <span className="text-app-text">{prediction.homeScore}-{prediction.awayScore}</span>
-                        {prediction.winnerTeamId
-                          ? ` · clasifica ${getTeamFlag(prediction.winnerTeamId, teams)} ${shortName(prediction.winnerTeamId)}`
-                          : ""}
                       </span>
                     ) : (
                       <span className="text-sm font-bold text-app-muted">Sin pronóstico</span>

@@ -65,7 +65,6 @@ type PredictionRow = {
   match_id: string;
   home_score: number;
   away_score: number;
-  winner_team_id: string | null;
   points: number | null;
   exact_hit: boolean;
   outcome_hit: boolean;
@@ -243,7 +242,6 @@ export function mapPrediction(row: PredictionRow): Prediction {
     matchId: row.match_id,
     homeScore: row.home_score,
     awayScore: row.away_score,
-    winnerTeamId: row.winner_team_id,
     points: row.points,
     exactHit: row.exact_hit,
     outcomeHit: row.outcome_hit,

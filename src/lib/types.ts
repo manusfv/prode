@@ -59,7 +59,6 @@ export type Prediction = {
   matchId: string;
   homeScore: number;
   awayScore: number;
-  winnerTeamId: string | null;
   points: number | null;
   exactHit: boolean;
   outcomeHit: boolean;
@@ -82,7 +81,6 @@ export type StageFlag = "predictions" | "results" | "standings";
 export type PredictionDraft = {
   homeScore: number | null;
   awayScore: number | null;
-  winnerTeamId: string | null;
 };
 
 export type Group = {

@@ -362,8 +362,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       matchId: match.id,
       homeScore: patch.homeScore ?? existing?.homeScore ?? 0,
       awayScore: patch.awayScore ?? existing?.awayScore ?? 0,
-      winnerTeamId:
-        "winnerTeamId" in patch ? patch.winnerTeamId ?? null : existing?.winnerTeamId ?? null,
       points: existing?.points ?? null,
       exactHit: existing?.exactHit ?? false,
       outcomeHit: existing?.outcomeHit ?? false,
@@ -383,7 +381,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         matchId: match.id,
         homeScore: nextPrediction.homeScore,
         awayScore: nextPrediction.awayScore,
-        winnerTeamId: nextPrediction.winnerTeamId,
       }).then((result) => {
         if (!result.ok) {
           setDataMessage(result.message);

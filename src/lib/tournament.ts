@@ -1,4 +1,4 @@
-import type { Group, GroupStatus, Match, MatchStatus, PredictionDraft, Stage, Team } from "./types";
+import type { Group, GroupStatus, Match, MatchStatus, Stage, Team } from "./types";
 
 export const stageLabels: Record<Stage, string> = {
   groups: "Grupos",
@@ -108,19 +108,3 @@ export function stepScore(value: number | null, delta: 1 | -1): number | null {
   return value - 1;
 }
 
-export function needsAdvancer(match: Match, draft: PredictionDraft) {
-  return (
-    match.stage !== "groups" &&
-    draft.homeScore !== null &&
-    draft.awayScore !== null &&
-    draft.homeScore === draft.awayScore &&
-    Boolean(match.homeTeamId && match.awayTeamId)
-  );
-}
-
-export function inferWinner(match: Match, draft: PredictionDraft) {
-  if (draft.homeScore === null || draft.awayScore === null) return null;
-  if (draft.homeScore > draft.awayScore) return match.homeTeamId;
-  if (draft.awayScore > draft.homeScore) return match.awayTeamId;
-  return draft.winnerTeamId;
-}

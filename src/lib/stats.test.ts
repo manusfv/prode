@@ -61,7 +61,7 @@ const profiles: Profile[] = [
 function pred(userId: string, matchId: string, h: number, a: number): Prediction {
   return {
     id: `${userId}-${matchId}`, userId, matchId, homeScore: h, awayScore: a,
-    winnerTeamId: null, points: null, exactHit: false, outcomeHit: false,
+    points: null, exactHit: false, outcomeHit: false,
     createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
   };
 }

@@ -1,29 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Group, Match, PredictionDraft } from "./types";
-import { getGroupStatus, hasGroupOrder, isGroupProvisional, needsAdvancer, stepScore } from "./tournament";
-
-const knockoutMatch: Match = {
-  id: "m2",
-  matchNo: 2,
-  stage: "round16",
-  group: undefined,
-  homeTeamId: "arg",
-  awayTeamId: "mex",
-  kickoffUtc: "2026-06-12T22:00:00.000Z",
-  homeScore: null,
-  awayScore: null,
-  winnerTeamId: null,
-  finalizedAt: null,
-  finalizedBy: null,
-  updatedAt: null,
-  updatedBy: null,
-  finalizedSource: null,
-  feedMatchId: null,
-};
-
-function draft(overrides: Partial<PredictionDraft>): PredictionDraft {
-  return { homeScore: null, awayScore: null, winnerTeamId: null, ...overrides };
-}
+import type { Group } from "./types";
+import { getGroupStatus, hasGroupOrder, isGroupProvisional, stepScore } from "./tournament";
 
 describe("stepScore", () => {
   it("starts at 0 when incrementing from empty", () => {
@@ -45,30 +22,6 @@ describe("stepScore", () => {
 
   it("stays empty when decrementing from empty", () => {
     expect(stepScore(null, -1)).toBeNull();
-  });
-});
-
-describe("needsAdvancer", () => {
-  it("is false when scores are untouched", () => {
-    expect(needsAdvancer(knockoutMatch, draft({}))).toBe(false);
-  });
-
-  it("is false for an entered non-tie", () => {
-    expect(needsAdvancer(knockoutMatch, draft({ homeScore: 2, awayScore: 1 }))).toBe(false);
-  });
-
-  it("is true for an entered knockout tie", () => {
-    expect(needsAdvancer(knockoutMatch, draft({ homeScore: 0, awayScore: 0 }))).toBe(true);
-    expect(needsAdvancer(knockoutMatch, draft({ homeScore: 1, awayScore: 1 }))).toBe(true);
-  });
-
-  it("is false for a group-stage tie", () => {
-    const groupMatch: Match = { ...knockoutMatch, stage: "groups", group: "A" };
-    expect(needsAdvancer(groupMatch, draft({ homeScore: 1, awayScore: 1 }))).toBe(false);
-  });
-
-  it("is false when one side is still empty", () => {
-    expect(needsAdvancer(knockoutMatch, draft({ homeScore: 1, awayScore: null }))).toBe(false);
   });
 });
 

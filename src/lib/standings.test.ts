@@ -15,7 +15,7 @@ const matches: Match[] = [
 ];
 
 function pred(id: string, userId: string, matchId: string, points: number, exact = false): Prediction {
-  return { id, userId, matchId, homeScore: 0, awayScore: 0, winnerTeamId: null, points, exactHit: exact, outcomeHit: !exact, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" };
+  return { id, userId, matchId, homeScore: 0, awayScore: 0, points, exactHit: exact, outcomeHit: !exact, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" };
 }
 
 const predictions: Prediction[] = [

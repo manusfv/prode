@@ -8,7 +8,7 @@ import type {
   Profile,
   Stage,
 } from "./types";
-import { getGroupStatus, getMatchStatus, hasGroupOrder, inferWinner, needsAdvancer } from "./tournament";
+import { getGroupStatus, getMatchStatus, hasGroupOrder } from "./tournament";
 
 // Per-stage knockout points: [outcome, exact]. Groups use position scoring
 // (GROUP_POSITION_POINTS) and have no per-match predictions, so their entry is 0/0.
@@ -103,13 +103,9 @@ export function scorePrediction(match: Match, prediction: Prediction): ScoreResu
     return { points: exact, exactHit: true, outcomeHit: true };
   }
 
-  const predictedOutcome = getOutcome(
-    prediction.homeScore,
-    prediction.awayScore,
-    prediction.winnerTeamId,
-  );
-  const officialOutcome = getOutcome(match.homeScore, match.awayScore, match.winnerTeamId);
-  const outcomeHit = predictedOutcome !== null && predictedOutcome === officialOutcome;
+  const predictedOutcome = getOutcome(prediction.homeScore, prediction.awayScore);
+  const officialOutcome = getOutcome(match.homeScore, match.awayScore);
+  const outcomeHit = predictedOutcome === officialOutcome;
 
   return { points: outcomeHit ? outcome : 0, exactHit: false, outcomeHit };
 }
@@ -149,10 +145,6 @@ export function canSavePrediction({
 
   if (draft.homeScore < 0 || draft.awayScore < 0) {
     return { ok: false, reason: "Los goles no pueden ser negativos." };
-  }
-
-  if (needsAdvancer(match, draft) && !draft.winnerTeamId) {
-    return { ok: false, reason: "Elegí quién clasifica." };
   }
 
   return { ok: true, reason: "Listo para guardar." };
@@ -200,12 +192,8 @@ export function scoreAllForMatch(match: Match, predictions: Prediction[]) {
   });
 }
 
-export function getPredictionWinner(match: Match, draft: PredictionDraft) {
-  return inferWinner(match, draft);
-}
-
-function getOutcome(homeScore: number, awayScore: number, winnerTeamId: string | null) {
+function getOutcome(homeScore: number, awayScore: number) {
   if (homeScore > awayScore) return "home";
   if (awayScore > homeScore) return "away";
-  return winnerTeamId ? `winner:${winnerTeamId}` : "draw";
+  return "draw";
 }

@@ -16,7 +16,7 @@ function baseMatch(over: Partial<Match>): Match {
 // One stored prediction row (snake_case as Supabase returns it).
 const predictionRows = [
   { id: "p1", user_id: "u1", match_id: "m1", home_score: 2, away_score: 1,
-    winner_team_id: "rsa", points: null, exact_hit: false, outcome_hit: false,
+    points: null, exact_hit: false, outcome_hit: false,
     created_at: "x", updated_at: "x" },
 ];
 
