@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { createMatchAction, saveGroupStandingsAction } from "@/app/actions";
+import type { createMatchAction, saveGroupStandingsAction, updateMatchTeamsAction } from "@/app/actions";
 import type {
   Group,
   GroupPrediction,
@@ -16,6 +16,7 @@ import type {
 } from "@/lib/types";
 
 export type CreateMatchActionInput = Parameters<typeof createMatchAction>[0];
+export type UpdateMatchTeamsInput = Parameters<typeof updateMatchTeamsAction>[0];
 export type SaveGroupStandingsInput = Parameters<typeof saveGroupStandingsAction>[0];
 export type SaveState = "saving" | "saved" | "error";
 
@@ -45,6 +46,7 @@ export type AppContextValue = {
   saveGroupStandings: (input: SaveGroupStandingsInput) => Promise<void> | void;
   updateGroupLocksAt: (groupLabel: string, locksAt: string | null) => Promise<void> | void;
   createMatch: (input: CreateMatchActionInput) => Promise<void> | void;
+  updateMatchTeams: (input: UpdateMatchTeamsInput) => Promise<void> | void;
   deleteMatch: (matchId: string) => Promise<void> | void;
   updateStageFlag: (stage: Stage, flag: StageFlag, value: StageVisibility) => Promise<void> | void;
   approveProfile: (profileId: string) => Promise<void> | void;

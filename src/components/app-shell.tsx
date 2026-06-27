@@ -34,6 +34,7 @@ import {
   saveGroupPredictionAction,
   savePredictionAction,
   updateGroupLocksAtAction,
+  updateMatchTeamsAction,
   updateStageFlagAction,
 } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ import {
   type CreateMatchActionInput,
   type SaveGroupStandingsInput,
   type SaveState,
+  type UpdateMatchTeamsInput,
 } from "./app-context";
 import { PredictionDrawer } from "@/screens/predictions";
 import { NovedadesModal } from "@/components/novedades-modal";
@@ -282,6 +284,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   async function createMatch(input: CreateMatchActionInput) {
     const result = await createMatchAction(input);
+    setDataMessage(result.message);
+    if (result.ok) await refreshSupabaseData();
+  }
+
+  async function updateMatchTeams(input: UpdateMatchTeamsInput) {
+    const result = await updateMatchTeamsAction(input);
     setDataMessage(result.message);
     if (result.ok) await refreshSupabaseData();
   }
@@ -564,6 +572,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveGroupStandings,
     updateGroupLocksAt,
     createMatch,
+    updateMatchTeams,
     deleteMatch,
     updateStageFlag,
     approveProfile,

@@ -53,6 +53,14 @@ type CreateMatchInput = {
   city: string | null;
 };
 
+type UpdateMatchTeamsInput = {
+  matchId: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homeSeed: string | null;
+  awaySeed: string | null;
+};
+
 type ImportMatchesCsvInput = {
   csv: string;
 };
@@ -409,6 +417,44 @@ export async function createMatchAction(input: CreateMatchInput) {
 
   revalidatePath("/");
   return { ok: true, message: "Partido agregado." };
+}
+
+export async function updateMatchTeamsAction(input: UpdateMatchTeamsInput) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, message: "Supabase no está configurado." };
+
+  const admin = await requireAdmin(supabase);
+  if (!admin.ok) return admin;
+
+  if (input.homeTeamId && input.awayTeamId && input.homeTeamId === input.awayTeamId) {
+    return { ok: false, message: "Los equipos no pueden ser iguales." };
+  }
+
+  const { data: matchRow, error: updateError } = await supabase
+    .from("matches")
+    .update({
+      home_team_id: input.homeTeamId,
+      away_team_id: input.awayTeamId,
+      // A real team always wins over a seed label, mirroring createMatchAction.
+      home_seed: input.homeTeamId ? null : input.homeSeed?.trim() || null,
+      away_seed: input.awayTeamId ? null : input.awaySeed?.trim() || null,
+      updated_at: new Date().toISOString(),
+      updated_by: admin.userId,
+    })
+    .eq("id", input.matchId)
+    .select("*")
+    .single();
+
+  if (updateError) return { ok: false, message: updateError.message };
+
+  // Re-score any predictions already on this fixture: a stored prediction's
+  // winner_team_id was inferred from the previous teams, so swapping the
+  // matchup can leave it pointing at a team that no longer plays.
+  const recalculation = await recalculatePredictionsForMatches(supabase, [mapMatch(matchRow)]);
+  if (!recalculation.ok) return recalculation;
+
+  revalidatePath("/");
+  return { ok: true, message: "Cruce actualizado." };
 }
 
 export async function deleteMatchAction(matchId: string) {

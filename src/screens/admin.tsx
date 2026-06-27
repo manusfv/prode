@@ -4,6 +4,7 @@ import {
   Download,
   FileUp,
   Lock,
+  Pencil,
   RefreshCcw,
   Trash2,
   UserCheck,
@@ -69,6 +70,13 @@ type AdminMatchDraft = {
   winnerTeamId: string | null;
 };
 
+type MatchupDraft = {
+  homeTeamId: string;
+  awayTeamId: string;
+  homeSeed: string;
+  awaySeed: string;
+};
+
 type NewMatchDraft = {
   matchNo: string;
   stage: Stage;
@@ -114,6 +122,7 @@ export function AdminScreen() {
     deleteMatch,
     updateStageFlag,
     approveProfile,
+    updateMatchTeams,
   } = useApp();
 
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -133,6 +142,8 @@ export function AdminScreen() {
   });
   const [newMatchDraft, setNewMatchDraft] = useState<NewMatchDraft>(emptyNewMatchDraft);
   const [confirmingDeleteMatchId, setConfirmingDeleteMatchId] = useState<string | null>(null);
+  const [editingMatchupId, setEditingMatchupId] = useState<string | null>(null);
+  const [matchupDraft, setMatchupDraft] = useState<MatchupDraft>({ homeTeamId: "", awayTeamId: "", homeSeed: "", awaySeed: "" });
 
   useEffect(() => {
     setDrafts((current) => {
@@ -199,6 +210,30 @@ export function AdminScreen() {
       await createMatch(input);
     });
     setNewMatchDraft({ ...emptyNewMatchDraft, stage: newMatchDraft.stage });
+  }
+
+  function startEditMatchup(match: Match) {
+    setConfirmingDeleteMatchId(null);
+    setEditingMatchupId(match.id);
+    setMatchupDraft({
+      homeTeamId: match.homeTeamId ?? "",
+      awayTeamId: match.awayTeamId ?? "",
+      homeSeed: match.homeSeed ?? "",
+      awaySeed: match.awaySeed ?? "",
+    });
+  }
+
+  async function submitMatchup(matchId: string) {
+    await runAdminAction(`matchup-${matchId}`, () =>
+      updateMatchTeams({
+        matchId,
+        homeTeamId: matchupDraft.homeTeamId || null,
+        awayTeamId: matchupDraft.awayTeamId || null,
+        homeSeed: matchupDraft.homeTeamId ? null : matchupDraft.homeSeed.trim() || null,
+        awaySeed: matchupDraft.awayTeamId ? null : matchupDraft.awaySeed.trim() || null,
+      }),
+    );
+    setEditingMatchupId(null);
   }
 
   async function confirmDeleteMatch(matchId: string) {
@@ -402,6 +437,9 @@ export function AdminScreen() {
                     )}
                   </div>
                   <div className="admin-row-actions">
+                    <Button variant={editingMatchupId === match.id ? "default" : "outline"} disabled={Boolean(pendingAdminAction)} onClick={() => (editingMatchupId === match.id ? setEditingMatchupId(null) : startEditMatchup(match))}>
+                      <LoadingLabel loading={pendingAdminAction === `matchup-${match.id}`} icon={<Pencil size={15} />} label="Editar cruce" />
+                    </Button>
                     <Button disabled={Boolean(pendingAdminAction) || Boolean(draft.status === "finalized" && showWinner && !finalizedDraft.winnerTeamId)} onClick={() => runAdminAction(`finalize-${match.id}`, () => finalizeMatch(finalizedDraft))}>
                       <LoadingLabel loading={pendingAdminAction === `finalize-${match.id}`} label="Guardar" />
                     </Button>
@@ -412,6 +450,46 @@ export function AdminScreen() {
                       <Button variant="ghost" onClick={() => setConfirmingDeleteMatchId(null)}>Cancelar</Button>
                     )}
                   </div>
+                  {editingMatchupId === match.id && (
+                    <div className="col-[1/-1] mt-2.5 grid grid-cols-[repeat(2,minmax(0,1fr))_auto] items-end gap-2.5 border-t border-app-line pt-2.5 max-lg:grid-cols-1">
+                      <label className="grid gap-1">
+                        <span className={ui.label}>Local</span>
+                        <Select value={matchupDraft.homeTeamId || "__seed__"} onValueChange={(value) => setMatchupDraft((current) => ({ ...current, homeTeamId: value && value !== "__seed__" ? value : "" }))}>
+                          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__seed__">Por definir</SelectItem>
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>{team.flag} {team.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {!matchupDraft.homeTeamId && (
+                          <Input placeholder="Ej: Ganador 89" value={matchupDraft.homeSeed} onChange={(event) => setMatchupDraft((current) => ({ ...current, homeSeed: event.target.value }))} />
+                        )}
+                      </label>
+                      <label className="grid gap-1">
+                        <span className={ui.label}>Visitante</span>
+                        <Select value={matchupDraft.awayTeamId || "__seed__"} onValueChange={(value) => setMatchupDraft((current) => ({ ...current, awayTeamId: value && value !== "__seed__" ? value : "" }))}>
+                          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__seed__">Por definir</SelectItem>
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>{team.flag} {team.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {!matchupDraft.awayTeamId && (
+                          <Input placeholder="Ej: 2° Grupo A" value={matchupDraft.awaySeed} onChange={(event) => setMatchupDraft((current) => ({ ...current, awaySeed: event.target.value }))} />
+                        )}
+                      </label>
+                      <div className="flex items-end gap-1.5">
+                        <Button disabled={Boolean(pendingAdminAction) || Boolean(matchupDraft.homeTeamId && matchupDraft.homeTeamId === matchupDraft.awayTeamId)} onClick={() => submitMatchup(match.id)}>
+                          <LoadingLabel loading={pendingAdminAction === `matchup-${match.id}`} label="Guardar cruce" />
+                        </Button>
+                        <Button variant="ghost" disabled={Boolean(pendingAdminAction)} onClick={() => setEditingMatchupId(null)}>Cancelar</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

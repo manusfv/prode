@@ -5,6 +5,11 @@
 This project has a **design system**: [`docs/design-system.md`](docs/design-system.md).
 Read it before adding or editing UI. Key rules:
 
+- Style with Tailwind utility classes on the elements, not by adding new rules
+  to `globals.css`. The raw CSS classes still in `globals.css` (e.g. `.admin-row`,
+  `.admin-score-edit`) are legacy — match the Tailwind components like
+  `GroupAdminCard`, and migrate nearby legacy CSS to Tailwind when you touch it
+  rather than extending it.
 - Use `app-*` color tokens only — no raw `white`/`black`/`gray`/hex.
 - Shared className recipes live in the `ui` object in `src/lib/ui-tokens.ts`
   (e.g. `ui.label`, `ui.panel`, `ui.control`) — prefer them over retyping.
