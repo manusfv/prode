@@ -40,6 +40,7 @@ import {
   getMatchStatus,
   getTeamFlag,
   getTeamLabel,
+  isStage,
   stageLabels,
   stageOrder,
   stepScore,
@@ -71,9 +72,6 @@ function isGroupPredictionComplete(prediction?: GroupPrediction): boolean {
       prediction.fourthTeamId,
   );
 }
-
-const isStage = (value: string): value is Stage => stageOrder.includes(value as Stage);
-
 
 export function PredictionsScreen() {
   const {
