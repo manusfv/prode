@@ -619,9 +619,10 @@ function MatchCard({
         <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
         {match.city && <span className="min-w-0 truncate">{match.city}</span>}
         {status === "open" ? (
-          <span className="inline-flex items-center gap-1.5">
-            Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
-          </span>
+          // <span className="inline-flex items-center gap-1.5">
+          //   Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+          // </span>
+          <></>
         ) : (
           <Button
             variant="ghost"
