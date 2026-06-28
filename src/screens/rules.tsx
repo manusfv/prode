@@ -66,7 +66,8 @@ export function RulesScreen() {
           <li>Octavos: <strong>50</strong> exacto · <strong>30</strong> ganador/empate</li>
           <li>Cuartos: <strong>80</strong> exacto · <strong>60</strong> ganador/empate</li>
           <li>Semis: <strong>110</strong> exacto · <strong>90</strong> ganador/empate</li>
-          <li>3er puesto y final: <strong>150</strong> exacto · <strong>120</strong> ganador/empate</li>
+          <li>3er puesto: <strong>110</strong> exacto · <strong>90</strong> ganador/empate</li>
+          <li>Final: <strong>150</strong> exacto · <strong>120</strong> ganador/empate</li>
           <li>Los pronósticos se pueden editar hasta el inicio de cada partido.</li>
         </Section>
       </div>

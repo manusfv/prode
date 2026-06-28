@@ -18,7 +18,7 @@ export const STAGE_POINTS: Record<Stage, { outcome: number; exact: number }> = {
   round16: { outcome: 30, exact: 50 },
   quarter: { outcome: 60, exact: 80 },
   semi: { outcome: 90, exact: 110 },
-  third: { outcome: 120, exact: 150 },
+  third: { outcome: 90, exact: 110 },
   final: { outcome: 120, exact: 150 },
 };
 
