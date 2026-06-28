@@ -197,7 +197,7 @@ function ResultMatchCard({
             <CalendarClock size={14} />
             <span className="truncate">{formatKickoff(match.kickoffUtc)}</span>
           </span>
-          <span className="min-w-0 truncate">{match.city ?? "Sede por definir"}</span>
+          {match.city && <span className="min-w-0 truncate">{match.city}</span>}
         </footer>
       ) : (
         <Collapsible
