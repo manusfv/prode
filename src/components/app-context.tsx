@@ -29,6 +29,7 @@ export type AppContextValue = {
   predictions: Prediction[];
   groups: Group[];
   groupPredictions: GroupPrediction[];
+  publicPredictions: Record<string, number>;
   now: Date;
   isAdmin: boolean;
   saveState: SaveState;

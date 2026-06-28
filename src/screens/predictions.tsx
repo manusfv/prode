@@ -80,6 +80,7 @@ export function PredictionsScreen() {
     predictions,
     groups,
     groupPredictions,
+    publicPredictions,
     profiles,
     teams,
     now,
@@ -189,8 +190,6 @@ export function PredictionsScreen() {
     router.replace(`${pathname}?${params.toString()}`);
   }
 
-
-
   return (
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
       <div className="min-w-0">
@@ -246,6 +245,7 @@ export function PredictionsScreen() {
                   match={match}
                   prediction={currentPredictionMap.get(match.id)}
                   allPredictions={predictions.filter((prediction) => prediction.matchId === match.id)}
+                  predictionCount={publicPredictions[match.id] ?? 0}
                   now={now}
                   teams={teams}
                   profiles={profiles}
@@ -537,6 +537,7 @@ function MatchCard({
   match,
   prediction,
   allPredictions,
+  predictionCount,
   now,
   teams,
   profiles,
@@ -547,6 +548,7 @@ function MatchCard({
   match: Match;
   prediction?: Prediction;
   allPredictions: Prediction[];
+  predictionCount: number;
   now: Date;
   teams: Team[];
   profiles: Profile[];
@@ -577,9 +579,9 @@ function MatchCard({
       });
     }
   };
-
-  const submittedCount = allPredictions.length;
-  const missingCount = profiles.filter((profile) => profile.approved).length - submittedCount;
+  
+  const missingCount = profiles.filter((profile) => profile.approved).length - predictionCount;
+  const missingFromAllPredictions = profiles.filter((profile) => profile.approved).length - allPredictions.length;
 
   return (
     <Card className={cn(
@@ -619,10 +621,9 @@ function MatchCard({
         <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
         {match.city && <span className="min-w-0 truncate">{match.city}</span>}
         {status === "open" ? (
-          // <span className="inline-flex items-center gap-1.5">
-          //   Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
-          // </span>
-          <></>
+          <span className="inline-flex items-center gap-1.5">
+            Pronósticos: {predictionCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+          </span>
         ) : (
           <Button
             variant="ghost"
@@ -631,7 +632,7 @@ function MatchCard({
             onClick={() => onOpenDrawer(match)}
           >
             <PanelRightOpen size={15} />
-            Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+            Pronósticos: {allPredictions.length} cargados · {Math.max(0, missingFromAllPredictions)} sin pronóstico
           </Button>
         )}
       </footer>

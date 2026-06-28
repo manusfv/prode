@@ -131,6 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [predictions, setPredictions] = useState(seedPredictions);
   const [groups, setGroups] = useState<Group[]>(seedGroups);
   const [groupPredictions, setGroupPredictions] = useState<GroupPrediction[]>(seedGroupPredictions);
+  const [publicPredictions, setPublicPredictions] = useState<Record<string, number>>({});
   const [drawerMatch, setDrawerMatch] = useState<Match | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [dataMessage, setDataMessage] = useState("");
@@ -185,6 +186,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setGroups(appData.groups);
       setGroupPredictions(appData.groupPredictions);
       setCurrentUser(appData.profile);
+      setPublicPredictions(appData.publicPredictions);
 
       if (!appData.profile.approved) {
         setDataMessage("Tu usuario está pendiente de aprobación.");
@@ -552,6 +554,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     predictions,
     groups,
     groupPredictions,
+    publicPredictions,
     now,
     isAdmin,
     saveState,

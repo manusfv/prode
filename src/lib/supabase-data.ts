@@ -11,6 +11,8 @@ import type {
   Team,
 } from "./types";
 
+import { SupabaseClient } from "@supabase/supabase-js";
+
 type ProfileRow = {
   id: string;
   email: string;
@@ -107,25 +109,25 @@ export type SupabaseAppData = {
   predictions: Prediction[];
   groups: Group[];
   groupPredictions: GroupPrediction[];
+  publicPredictions: Record<string, number>;
 };
 
-type SupabaseDataClient = {
-  auth: {
-    getUser: () => Promise<{ data: { user: { id: string } | null }; error: { message: string } | null }>;
-  };
-  from: (table: string) => unknown;
-};
+// type SupabaseDataClient = {
+//   auth: {
+//     getUser: () => Promise<{ data: { user: { id: string } | null }; error: { message: string } | null }>;
+//   };
+//   from: (table: string) => unknown;
+//   rpc: (functionName: string, params?: unknown) => PromiseLike<QueryResult>;
+// };
 
 type QueryResult = { data: unknown; error: { message: string } | null };
 type QueryBuilder = PromiseLike<QueryResult> & {
   order: (column: string, options?: { ascending?: boolean }) => PromiseLike<QueryResult>;
   eq: (column: string, value: string) => PromiseLike<QueryResult>;
 };
-type QueryTable = {
-  select: (columns?: string) => QueryBuilder;
-};
 
-export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<SupabaseAppData> {
+
+export async function loadSupabaseAppData(client: SupabaseClient): Promise<SupabaseAppData> {
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw new Error(userError.message);
 
@@ -139,6 +141,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     predictionsResult,
     groupsResult,
     groupPredictionsResult,
+    publicPredictionsResult,
   ] = await Promise.all([
     table(client, "profiles").select("*").order("display_name", { ascending: true }),
     table(client, "teams").select("*").order("name", { ascending: true }),
@@ -147,6 +150,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     table(client, "predictions").select("*").order("updated_at", { ascending: true }),
     table(client, "groups").select("*").order("group_label", { ascending: true }),
     table(client, "group_predictions").select("*").order("updated_at", { ascending: true }),
+    client.rpc("get_prediction_counts")
   ]);
 
   const results = [
@@ -157,6 +161,7 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     predictionsResult,
     groupsResult,
     groupPredictionsResult,
+    publicPredictionsResult,
   ];
   const error = results.find((result) => result.error)?.error;
   if (error) throw new Error(error.message);
@@ -172,11 +177,18 @@ export async function loadSupabaseAppData(client: SupabaseDataClient): Promise<S
     predictions: (predictionsResult.data as PredictionRow[]).map(mapPrediction),
     groups: (groupsResult.data as GroupRow[]).map(mapGroup),
     groupPredictions: (groupPredictionsResult.data as GroupPredictionRow[]).map(mapGroupPrediction),
+    publicPredictions: (publicPredictionsResult.data as { match_id: string; prediction_count: number }[]).reduce(
+      (acc, { match_id, prediction_count }) => {
+        acc[match_id] = prediction_count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
   };
 }
 
-function table(client: SupabaseDataClient, name: string) {
-  return client.from(name) as QueryTable;
+function table(client: SupabaseClient, name: string) {
+  return client.from(name);
 }
 
 export function mapProfile(row: ProfileRow): Profile {
