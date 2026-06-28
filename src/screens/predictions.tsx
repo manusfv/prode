@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { debounce } from "lodash";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,6 +72,9 @@ function isGroupPredictionComplete(prediction?: GroupPrediction): boolean {
   );
 }
 
+const isStage = (value: string): value is Stage => stageOrder.includes(value as Stage);
+
+
 export function PredictionsScreen() {
   const {
     currentUser,
@@ -91,9 +94,11 @@ export function PredictionsScreen() {
     openPredictionDrawer,
   } = useApp();
   const router = useRouter();
-  const [activeStage, setActiveStage] = useState<Stage>(() => {
-    return stageOrder.find((stage) => openStages.has(stage)) ?? "groups";
-  });
+  const searchParams = useSearchParams();
+  const pathname = usePathname()
+
+  const stageParam = searchParams.get("stage");
+  const activeStage: Stage = stageParam !== null && isStage(stageParam) ? stageParam : (stageOrder.find((stage) => openStages.has(stage)) ?? "groups");
   const [missingOnly, setMissingOnly] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [drawerGroup, setDrawerGroup] = useState<Group | null>(null);
@@ -180,12 +185,19 @@ export function PredictionsScreen() {
     []
   );
 
+  const handleStageChange = (newStage: Stage) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("stage", newStage);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
+
+
 
   return (
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
       <div className="min-w-0">
         <div className="mb-6 grid gap-3">
-          <StageTabs activeStage={activeStage} enabledStages={openStages} onChange={setActiveStage} />
+          <StageTabs activeStage={activeStage} enabledStages={openStages} onChange={handleStageChange} />
           {!editableStages.has(activeStage) && openStages.has(activeStage) && (
             <p className={cn(ui.label, "text-app-amber")}>Vista previa · solo admin</p>
           )}
