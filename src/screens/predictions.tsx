@@ -618,8 +618,17 @@ function MatchCard({
       <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-app-line pt-3 text-xs font-extrabold text-app-muted @max-md:flex-col @max-md:items-start">
         <span className="inline-flex items-center gap-1.5"><CalendarClock size={14} /> {formatKickoff(match.kickoffUtc)}</span>
         {match.city && <span>{match.city}</span>}
-        {status !== "open" && (
-          <Button variant="ghost" size="sm" className="h-auto p-0 text-xs font-extrabold text-app-blue hover:bg-transparent hover:underline" onClick={() => onOpenDrawer(match)}>
+        {status === "open" ? (
+          <span className="inline-flex items-center gap-1.5">
+            Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
+          </span>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-0 text-xs font-extrabold text-app-blue hover:bg-transparent hover:underline"
+            onClick={() => onOpenDrawer(match)}
+          >
             <PanelRightOpen size={15} />
             Pronósticos: {submittedCount} cargados · {Math.max(0, missingCount)} sin pronóstico
           </Button>
