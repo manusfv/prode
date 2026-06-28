@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Eye, EyeOff, Info } from "lucide-react";
@@ -23,19 +24,32 @@ import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type Lea
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
+import { isStage } from "@/lib/tournament";
 
 type StandingsView = "overall" | Stage;
 
 export function LeaderboardScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname()
+  
+  const stageParam = searchParams.get("view");
+  const view: StandingsView = stageParam !== null && isStage(stageParam) ? stageParam : "overall";
+
+  const handleViewChange = (newView: StandingsView) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("view", newView);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
+
   const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser } = useApp();
-  const [view, setView] = useState<StandingsView>("overall");
   const [preview, setPreview] = useState(false);
 
   // If the selected stage stops being revealed (admin toggled it off), fall back
   // to the accumulated view so a hidden stage's standings aren't shown.
   useEffect(() => {
     if (view !== "overall" && !standingsStages.has(view)) {
-      setView("overall");
+      handleViewChange("overall");
     }
   }, [view, standingsStages]);
 
@@ -59,7 +73,7 @@ export function LeaderboardScreen() {
           <StageTabs
             activeStage={view}
             enabledStages={standingsStages}
-            onChange={setView}
+            onChange={handleViewChange}
             leadingOption={{ value: "overall", label: "Acumulado" }}
             label="Vista"
           />
