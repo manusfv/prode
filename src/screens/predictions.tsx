@@ -11,6 +11,7 @@ import {
   PanelRightOpen,
   Plus,
 } from "lucide-react";
+import { debounce } from "lodash";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -173,6 +174,13 @@ export function PredictionsScreen() {
   ).length;
   const missingCount = missingMatches + missingGroups;
 
+  const debouncedUpdatePrediction = useMemo(
+    () =>
+      debounce(updatePrediction, 500),
+    []
+  );
+
+
   return (
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
       <div className="min-w-0">
@@ -232,7 +240,7 @@ export function PredictionsScreen() {
                   teams={teams}
                   profiles={profiles}
                   editableStages={editableStages}
-                  onChange={updatePrediction}
+                  onChange={debouncedUpdatePrediction}
                   onOpenDrawer={openPredictionDrawer}
                 />
               ))}
