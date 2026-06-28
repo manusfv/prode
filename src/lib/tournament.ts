@@ -20,6 +20,9 @@ export const stageOrder: Stage[] = [
   "final",
 ];
 
+export const isStage = (value: string): value is Stage => stageOrder.includes(value as Stage);
+
+
 export const appTimeZone = "America/Argentina/Buenos_Aires";
 
 export function getMatchStatus(match: Match, now = new Date()): MatchStatus {

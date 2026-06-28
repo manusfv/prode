@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarClock, ChevronDown } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,6 +14,7 @@ import {
   getTeamFlag,
   getTeamLabel,
   isGroupProvisional,
+  isStage,
   stageOrder,
 } from "@/lib/tournament";
 import {
@@ -34,21 +36,35 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-context";
 import { StageBadge, StageTabs, StatusChip } from "@/components/badges";
 
+
 export function ResultsScreen() {
   const { matches, predictions, groups, groupPredictions, profiles, teams, now, currentUser, resultsStages } = useApp();
 
-  const [activeStage, setActiveStage] = useState<Stage>(() => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname()
+  
+  const getPreferredStage = () => {
     const preferred = getDefaultResultStage(matches, groups, now);
     if (resultsStages.has(preferred)) return preferred;
     return stageOrder.find((stage) => resultsStages.has(stage)) ?? preferred;
-  });
+  }
+  
+  const stageParam = searchParams.get("stage");
+  const activeStage: Stage = stageParam !== null && isStage(stageParam) ? stageParam : getPreferredStage();
+
+  const handleStageChange = (newStage: Stage) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("stage", newStage);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
 
   // If the active stage stops being revealed (admin toggled off results_open),
   // fall back to a still-revealed stage so a hidden stage's results aren't shown.
   useEffect(() => {
     if (resultsStages.size > 0 && !resultsStages.has(activeStage)) {
       const fallback = stageOrder.find((stage) => resultsStages.has(stage));
-      if (fallback) setActiveStage(fallback);
+      if (fallback) handleStageChange(fallback);
     }
   }, [resultsStages, activeStage]);
 
@@ -75,7 +91,7 @@ export function ResultsScreen() {
 
   return (
     <section className="grid gap-3.5">
-      <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={setActiveStage} />
+      <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={handleStageChange} />
 
       <div className={cn(ui.panel, "flex items-end justify-between gap-3 p-4 max-lg:flex-col max-lg:items-start")}>
         <div>
