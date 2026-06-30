@@ -49,9 +49,20 @@ type FeedMatchRow = {
   stage: string;
   homeTeam: { tla: string | null } | null;
   awayTeam: { tla: string | null } | null;
-  score: { winner: string | null; fullTime: { home: number | null; away: number | null } };
+  score: { winner: string | null; fullTime: { home: number | null; away: number | null }; penalties?: { home: number | null; away: number | null } };
 };
 type MatchesResponse = { matches: FeedMatchRow[] };
+
+function calculateScoreWithoutPenalties(row: FeedMatchRow): { home: number | null; away: number | null } {
+  if (!row.score.fullTime.away || !row.score.fullTime.home) {
+    return { home: null, away: null };
+  }
+
+  return {
+    home: row.score.fullTime.home - (row.score.penalties?.home ?? 0),
+    away: row.score.fullTime.away - (row.score.penalties?.away ?? 0),
+  }
+}
 
 export function parseKnockoutMatches(json: unknown): FeedMatch[] {
   const rows = (json as MatchesResponse).matches ?? [];
@@ -59,6 +70,9 @@ export function parseKnockoutMatches(json: unknown): FeedMatch[] {
     .map((row): FeedMatch | null => {
       const stage = mapFeedStage(row.stage);
       if (!stage) return null;
+
+      const { home: homeScore, away: awayScore } = calculateScoreWithoutPenalties(row);
+
       return {
         feedId: row.id,
         stage,
@@ -66,8 +80,8 @@ export function parseKnockoutMatches(json: unknown): FeedMatch[] {
         homeTla: row.homeTeam?.tla ?? null,
         awayTla: row.awayTeam?.tla ?? null,
         status: row.status,
-        homeScore: row.score?.fullTime?.home ?? null,
-        awayScore: row.score?.fullTime?.away ?? null,
+        homeScore: homeScore,
+        awayScore: awayScore,
         winner: (row.score?.winner as FeedMatch["winner"]) ?? null,
       };
     })

@@ -6,6 +6,7 @@ import {
   scoreGroupPrediction,
   scoreGroupPredictionOrNull,
   scorePrediction,
+  STAGE_POINTS,
 } from "./scoring";
 import { formatKickoff, getMatchStatus } from "./tournament";
 
@@ -104,12 +105,12 @@ describe("scorePrediction", () => {
 
   it("awards the spec points for every knockout stage", () => {
     const cases: { stage: Stage; outcome: number; exact: number }[] = [
-      { stage: "round32", outcome: 10, exact: 25 },
-      { stage: "round16", outcome: 30, exact: 50 },
-      { stage: "quarter", outcome: 60, exact: 80 },
-      { stage: "semi", outcome: 90, exact: 110 },
-      { stage: "third", outcome: 120, exact: 150 },
-      { stage: "final", outcome: 120, exact: 150 },
+      { stage: "round32", ...STAGE_POINTS.round32 },
+      { stage: "round16", ...STAGE_POINTS.round16 },
+      { stage: "quarter", ...STAGE_POINTS.quarter },
+      { stage: "semi", ...STAGE_POINTS.semi },
+      { stage: "third", ...STAGE_POINTS.third },
+      { stage: "final", ...STAGE_POINTS.final },
     ];
     for (const { stage, outcome, exact } of cases) {
       const match: Match = { ...round32Match, stage, homeScore: 2, awayScore: 1 };

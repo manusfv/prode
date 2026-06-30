@@ -82,6 +82,15 @@ const matchesSample = {
       awayTeam: { tla: "JPN" },
       score: { winner: "AWAY_TEAM", fullTime: { home: 0, away: 1 } },
     },
+    {
+      id: 537004,
+      utcDate: "2026-06-20T18:00:00Z",
+      status: "FINISHED",
+      stage: "LAST_32",
+      homeTeam: { tla: "FRA" },
+      awayTeam: { tla: "SWE" },
+      score: { winner: "HOME_TEAM", fullTime: { home: 5, away: 4 }, penalties: { home: 4, away: 3 } },
+    },
   ],
 };
 
@@ -104,7 +113,7 @@ describe("mapFeedStage", () => {
 describe("parseKnockoutMatches", () => {
   it("normalizes knockout matches and drops non-knockout stages", () => {
     const result = parseKnockoutMatches(matchesSample);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     expect(result[0]).toEqual({
       feedId: 537001,
       stage: "round32",
@@ -113,6 +122,17 @@ describe("parseKnockoutMatches", () => {
       awayTla: "CAN",
       status: "FINISHED",
       homeScore: 2,
+      awayScore: 1,
+      winner: "HOME_TEAM",
+    });
+    expect(result[2]).toEqual({
+      feedId: 537004,
+      stage: "round32",
+      utcDate: "2026-06-20T18:00:00Z",
+      homeTla: "FRA",
+      awayTla: "SWE",
+      status: "FINISHED",
+      homeScore: 1,
       awayScore: 1,
       winner: "HOME_TEAM",
     });
