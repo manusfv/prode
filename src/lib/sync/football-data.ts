@@ -54,7 +54,7 @@ type FeedMatchRow = {
 type MatchesResponse = { matches: FeedMatchRow[] };
 
 function calculateScoreWithoutPenalties(row: FeedMatchRow): { home: number | null; away: number | null } {
-  if (!row.score.fullTime.away || !row.score.fullTime.home) {
+  if (row.score.fullTime.away === null || row.score.fullTime.home === null) {
     return { home: null, away: null };
   }
 
