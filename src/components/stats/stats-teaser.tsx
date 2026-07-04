@@ -33,7 +33,6 @@ export function StatsTeaser() {
       <Button variant="ghost" className="flex w-full items-center justify-between gap-3 p-0 text-left hover:bg-transparent" onClick={() => router.push("/estadisticas")}>
         <h2 className="m-0 flex items-center gap-1.5 text-base font-black leading-tight">
           <BarChart3 size={16} /> Estadísticas
-          <Badge className="bg-app-green text-[10px] font-black uppercase tracking-wide text-white">Nuevo</Badge>
         </h2>
         <ChevronRight size={18} />
       </Button>

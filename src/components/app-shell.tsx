@@ -686,7 +686,7 @@ function SidebarContent({
         <NavLink href={tabRoutes.predictions} icon={<CircleDot />} label="Pronósticos" active={activeTab === "predictions"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.leaderboard} icon={<Trophy />} label="Tabla" active={activeTab === "leaderboard"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.results} icon={<CalendarClock />} label="Resultados" active={activeTab === "results"} onNavigate={onNavigate} />
-        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} badge="Nuevo" />
+        <NavLink href={tabRoutes.stats} icon={<BarChart3 />} label="Estadísticas" active={activeTab === "stats"} onNavigate={onNavigate} />
         <NavLink href={tabRoutes.rules} icon={<Info />} label="Reglas" active={activeTab === "rules"} onNavigate={onNavigate} />
         {isAdmin && <NavLink href={tabRoutes.admin} icon={<ShieldCheck />} label="Admin" active={activeTab === "admin"} onNavigate={onNavigate} />}
       </nav>
