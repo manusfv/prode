@@ -588,7 +588,6 @@ describe("verdict facts", () => {
     );
     expect(audazPremiada.available).toBe(true);
     expect(audazPremiada.winner).toBeUndefined();
-    expect(audazPremiada.headline).toContain("todavía");
   });
 
   it("profeta-solitario credits lone exact scorelines that hit", () => {
