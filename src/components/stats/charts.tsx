@@ -171,7 +171,7 @@ export function SimilarityGrid({ matrix }: { matrix: SimilarityMatrix }) {
                   <td
                     key={col.id}
                     className="size-9 rounded-md text-center align-middle text-app-text"
-                    style={{ background: `color-mix(in srgb, var(--color-app-green) ${v}%, var(--color-app-surface))` }}
+                    style={{ background: `color-mix(in srgb, var(--color-app-green) ${row.id !== col.id ? v : 0}%, var(--color-app-surface))` }}
                     title={`${row.displayName} vs ${col.displayName}: ${v}%`}
                   >
                     {row.id === col.id ? "—" : v}
