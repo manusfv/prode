@@ -212,7 +212,7 @@ export function MatchSplit({ home, draw, away, labels }: { home: number; draw: n
 /** Generic line chart for points/position over rounds. */
 export function LineStat({ data, series }: { data: Array<Record<string, number | string>>; series: Array<{ key: string; color: string }> }) {
   return (
-    <ChartContainer height={260} minWidth={Math.max(320, data.length * 70)}>
+    <ChartContainer height={400} minWidth={Math.max(320, data.length * 70)}>
       <LineChart data={data} margin={{ left: 0, right: 12, top: 12 }}>
         <CartesianGrid stroke={chartColors.line} strokeDasharray="3 3" />
         <XAxis dataKey="stage" tick={{ fill: chartColors.muted, fontSize: 11, fontWeight: 700 }} />
