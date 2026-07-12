@@ -97,7 +97,7 @@ export function PredictionsScreen() {
   const pathname = usePathname()
 
   const stageParam = searchParams.get("stage");
-  const defaultStage = stageOrder.reverse().find((stage) => openStages.has(stage)) ?? "groups";
+  const defaultStage = stageOrder.findLast((stage) => openStages.has(stage)) ?? "groups";
   const activeStage: Stage = stageParam !== null && isStage(stageParam) ? stageParam : defaultStage;
   const [missingOnly, setMissingOnly] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
