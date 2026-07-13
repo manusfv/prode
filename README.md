@@ -16,6 +16,25 @@
 
 Everyone predicts match scores, points accumulate as results come in, and there's a leaderboard. One admin runs the whole thing. The app is in Spanish.
 
+## Features
+
+- **Predictions**: score predictions for every match, with steppers made for phones. Knockout matches with a tied score ask who advances.
+- **Leaderboard**: total and per-stage points, and a toggle to include provisional results.
+- **Results**: every match with its result, and a drawer that reveals everyone's predictions once the match kicks off.
+- **Statistics**: points race over time, a "dream table" of predicted standings, accuracy distribution, favorite scorelines, goal margins, streaks, participation, and a similarity matrix that finds your prediction twin (and your opposite).
+- **Admin**: approve users, manage teams and fixture slots, edit knockout crossings, load provisional/final results, import/export CSV, recalculate points, and show or hide each stage's tab.
+- Light/dark/system theme, and a "Novedades" modal that announces new features in the app.
+
+## Screenshots
+
+| Predictions (group stage) | Predictions (round of 16) |
+| :--: | :--: |
+| ![Predictions, group stage](docs/screenshots/prode-grupos.png) | ![Predictions, round of 16](docs/screenshots/prode-octavos.png) |
+
+| Leaderboard | Statistics |
+| :--: | :--: |
+| ![Leaderboard](docs/screenshots/prode-tabla.png) | ![Statistics](docs/screenshots/prode-estadisticas.png) |
+
 ## How it works
 
 Predictions are per match. You can fill the whole group stage upfront or go match by match. Knockout rounds only open once the real matchups are known, and the admin controls which stage tabs are visible.
