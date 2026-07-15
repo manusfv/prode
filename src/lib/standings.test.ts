@@ -14,6 +14,12 @@ const matches: Match[] = [
   { id: "m2", matchNo: 2, stage: "round16", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-02T00:00:00.000Z", homeScore: 2, awayScore: 1, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null, finalizedSource: null, feedMatchId: null },
 ];
 
+const finalsMatches: Match[] = [
+  ...matches,
+  { id: "m3", matchNo: 3, stage: "third", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-03T00:00:00.000Z", homeScore: 0, awayScore: 0, winnerTeamId: null, finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null, finalizedSource: null, feedMatchId: null },
+  { id: "m4", matchNo: 4, stage: "final", homeTeamId: "a", awayTeamId: "b", kickoffUtc: "2026-06-04T00:00:00.000Z", homeScore: 1, awayScore: 0, winnerTeamId: "a", finalizedAt: null, finalizedBy: null, updatedAt: null, updatedBy: null, finalizedSource: null, feedMatchId: null },
+];
+
 function pred(id: string, userId: string, matchId: string, points: number, exact = false): Prediction {
   return { id, userId, matchId, homeScore: 0, awayScore: 0, points, exactHit: exact, outcomeHit: !exact, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z" };
 }
@@ -82,6 +88,17 @@ describe("getStageLeaderboard", () => {
   it("uses group predictions for the groups stage", () => {
     const rows = getStageLeaderboard("groups", { predictions, profiles, groupPredictions, matches, groups: finalizedGroups });
     expect(rows.find((r) => r.user.id === "u1")!.points).toBe(8);
+  });
+
+  it("aggregates both stages for the finals tab", () => {
+    const finalsPreds: Prediction[] = [
+      pred("pf1", "u1", "m3", 4), // third
+      pred("pf2", "u1", "m4", 7), // final
+      pred("pf3", "u2", "m4", 2), // final
+    ];
+    const rows = getStageLeaderboard("finals", { predictions: finalsPreds, profiles, groupPredictions, matches: finalsMatches, groups: finalizedGroups });
+    expect(rows.find((r) => r.user.id === "u1")!.points).toBe(11); // 4 + 7
+    expect(rows.find((r) => r.user.id === "u2")!.points).toBe(2);
   });
 });
 

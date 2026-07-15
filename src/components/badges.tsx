@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { stageLabels, stageOrder } from "@/lib/tournament";
+import { stageLabels, stageTabs } from "@/lib/tournament";
+import type { StageTabId } from "@/lib/tournament";
 import type { MatchStatus, Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
@@ -66,7 +67,7 @@ export function StatusChip({
   );
 }
 
-export function StageTabs<T extends string = Stage>({
+export function StageTabs<T extends string = StageTabId>({
   activeStage,
   enabledStages,
   onChange,
@@ -86,7 +87,7 @@ export function StageTabs<T extends string = Stage>({
   const activeLabel =
     leadingOption && activeStage === leadingOption.value
       ? leadingOption.label
-      : stageLabels[activeStage as Stage];
+      : (stageTabs.find((tab) => tab.id === activeStage)?.label ?? "");
   const triggerClass =
     "!h-9 shrink-0 rounded-md px-3 text-sm font-extrabold text-app-muted transition-colors hover:text-app-text data-active:bg-app-brand data-active:text-app-brand-fg data-active:shadow-sm disabled:opacity-40 disabled:hover:text-app-muted sm:min-w-20 sm:px-4";
 
@@ -104,13 +105,13 @@ export function StageTabs<T extends string = Stage>({
               <SelectSeparator />
             </>
           )}
-          {stageOrder.map((stage) => (
+          {stageTabs.map((tab) => (
             <SelectItem
-              key={stage}
-              value={stage}
-              disabled={showDisabled ? !enabledStages.has(stage) : false}
+              key={tab.id}
+              value={tab.id}
+              disabled={showDisabled ? !tab.stages.some((stage) => enabledStages.has(stage)) : false}
             >
-              {stageLabels[stage]}
+              {tab.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -129,14 +130,14 @@ export function StageTabs<T extends string = Stage>({
               <span aria-hidden="true" className="mx-0.5 my-0.5 w-px self-stretch bg-app-line" />
             </>
           )}
-          {stageOrder.map((stage) => (
+          {stageTabs.map((tab) => (
             <TabsTrigger
-              key={stage}
-              value={stage}
-              disabled={showDisabled ? !enabledStages.has(stage) : false}
+              key={tab.id}
+              value={tab.id}
+              disabled={showDisabled ? !tab.stages.some((stage) => enabledStages.has(stage)) : false}
               className={triggerClass}
             >
-              {stageLabels[stage]}
+              {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>

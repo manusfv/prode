@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Group } from "./types";
-import { getGroupStatus, hasGroupOrder, isGroupProvisional, stepScore } from "./tournament";
+import {
+  getGroupStatus,
+  hasGroupOrder,
+  isGroupProvisional,
+  isStageTab,
+  resolveStageTab,
+  stageTabs,
+  stageToTab,
+  stepScore,
+  tabStages,
+} from "./tournament";
 
 describe("stepScore", () => {
   it("starts at 0 when incrementing from empty", () => {
@@ -102,5 +112,45 @@ describe("isGroupProvisional", () => {
 
   it("is false when finalized", () => {
     expect(isGroupProvisional(testGroup({ ...full, resultFinalizedAt: "2026-06-13T00:00:00Z" }))).toBe(false);
+  });
+});
+
+describe("stage tabs", () => {
+  it("maps third and final into the finals tab", () => {
+    expect(stageToTab("third")).toBe("finals");
+    expect(stageToTab("final")).toBe("finals");
+  });
+
+  it("maps every other stage to its own tab", () => {
+    expect(stageToTab("groups")).toBe("groups");
+    expect(stageToTab("round32")).toBe("round32");
+    expect(stageToTab("round16")).toBe("round16");
+    expect(stageToTab("quarter")).toBe("quarter");
+    expect(stageToTab("semi")).toBe("semi");
+  });
+
+  it("labels the finals tab 'Final y 3er puesto'", () => {
+    expect(stageTabs.find((tab) => tab.id === "finals")!.label).toBe("Final y 3er puesto");
+  });
+
+  it("returns the stages a tab covers", () => {
+    expect(tabStages("finals")).toEqual(["third", "final"]);
+    expect(tabStages("semi")).toEqual(["semi"]);
+  });
+
+  it("recognizes valid tab ids", () => {
+    expect(isStageTab("finals")).toBe(true);
+    expect(isStageTab("groups")).toBe(true);
+    expect(isStageTab("third")).toBe(false);
+    expect(isStageTab("nope")).toBe(false);
+  });
+
+  it("resolves tab ids, legacy stage values, and unknowns", () => {
+    expect(resolveStageTab("finals")).toBe("finals");
+    expect(resolveStageTab("third")).toBe("finals");
+    expect(resolveStageTab("final")).toBe("finals");
+    expect(resolveStageTab("round16")).toBe("round16");
+    expect(resolveStageTab(null)).toBeNull();
+    expect(resolveStageTab("bogus")).toBeNull();
   });
 });

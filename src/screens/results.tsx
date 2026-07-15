@@ -14,9 +14,12 @@ import {
   getTeamFlag,
   getTeamLabel,
   isGroupProvisional,
-  isStage,
+  resolveStageTab,
   stageOrder,
+  stageToTab,
+  tabStages,
 } from "@/lib/tournament";
+import type { StageTabId } from "@/lib/tournament";
 import {
   getDefaultResultStage,
   sortComparison,
@@ -27,7 +30,6 @@ import type {
   Match,
   Prediction,
   Profile,
-  Stage,
   Team,
 } from "@/lib/types";
 import { compareGroups, ui } from "@/lib/ui-tokens";
@@ -44,29 +46,29 @@ export function ResultsScreen() {
   const searchParams = useSearchParams();
   const pathname = usePathname()
   
-  const getPreferredStage = () => {
+  const getPreferredTab = (): StageTabId => {
     const preferred = getDefaultResultStage(matches, groups, now);
-    if (resultsStages.has(preferred)) return preferred;
-    return stageOrder.find((stage) => resultsStages.has(stage)) ?? preferred;
+    if (resultsStages.has(preferred)) return stageToTab(preferred);
+    return stageToTab(stageOrder.find((stage) => resultsStages.has(stage)) ?? preferred);
   }
-  
-  const stageParam = searchParams.get("stage");
-  const activeStage: Stage = stageParam !== null && isStage(stageParam) ? stageParam : getPreferredStage();
 
-  const handleStageChange = (newStage: Stage) => {
+  const stageParam = searchParams.get("stage");
+  const activeTab: StageTabId = resolveStageTab(stageParam) ?? getPreferredTab();
+
+  const handleStageChange = (newTab: StageTabId) => {
     const params = new URLSearchParams(searchParams);
-    params.set("stage", newStage);
+    params.set("stage", newTab);
     router.replace(`${pathname}?${params.toString()}`);
   }
 
   // If the active stage stops being revealed (admin toggled off results_open),
   // fall back to a still-revealed stage so a hidden stage's results aren't shown.
   useEffect(() => {
-    if (resultsStages.size > 0 && !resultsStages.has(activeStage)) {
+    if (resultsStages.size > 0 && !tabStages(activeTab).some((stage) => resultsStages.has(stage))) {
       const fallback = stageOrder.find((stage) => resultsStages.has(stage));
-      if (fallback) handleStageChange(fallback);
+      if (fallback) handleStageChange(stageToTab(fallback));
     }
-  }, [resultsStages, activeStage]);
+  }, [resultsStages, activeTab]);
 
   const approvedProfiles = useMemo(
     () => profiles.filter((profile) => profile.approved),
@@ -74,11 +76,13 @@ export function ResultsScreen() {
   );
 
   const stageMatches = useMemo(
-    () =>
-      matches
-        .filter((match) => match.stage === activeStage)
-        .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()),
-    [matches, activeStage],
+    () => {
+      const stages = tabStages(activeTab);
+      return matches
+        .filter((match) => stages.includes(match.stage))
+        .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime());
+    },
+    [matches, activeTab],
   );
 
   const sortedGroups = useMemo(
@@ -86,12 +90,12 @@ export function ResultsScreen() {
     [groups],
   );
 
-  const isGroups = activeStage === "groups";
+  const isGroups = activeTab === "groups";
   const count = isGroups ? sortedGroups.length : stageMatches.length;
 
   return (
     <section className="grid gap-3.5">
-      <StageTabs activeStage={activeStage} enabledStages={resultsStages} onChange={handleStageChange} />
+      <StageTabs activeStage={activeTab} enabledStages={resultsStages} onChange={handleStageChange} />
 
       <div className={cn(ui.panel, "flex items-end justify-between gap-3 p-4 max-lg:flex-col max-lg:items-start")}>
         <div>

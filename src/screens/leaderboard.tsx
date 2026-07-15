@@ -18,15 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StageTabs } from "@/components/badges";
-import type { Stage } from "@/lib/types";
 import { ui } from "@/lib/ui-tokens";
 import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
-import { isStage } from "@/lib/tournament";
+import { resolveStageTab, tabStages } from "@/lib/tournament";
+import type { StageTabId } from "@/lib/tournament";
 
-type StandingsView = "overall" | Stage;
+type StandingsView = "overall" | StageTabId;
 
 export function LeaderboardScreen() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export function LeaderboardScreen() {
   const pathname = usePathname()
   
   const stageParam = searchParams.get("view");
-  const view: StandingsView = stageParam !== null && isStage(stageParam) ? stageParam : "overall";
+  const view: StandingsView = resolveStageTab(stageParam) ?? "overall";
 
   const handleViewChange = (newView: StandingsView) => {
     const params = new URLSearchParams(searchParams);
@@ -48,7 +48,7 @@ export function LeaderboardScreen() {
   // If the selected stage stops being revealed (admin toggled it off), fall back
   // to the accumulated view so a hidden stage's standings aren't shown.
   useEffect(() => {
-    if (view !== "overall" && !standingsStages.has(view)) {
+    if (view !== "overall" && !tabStages(view).some((stage) => standingsStages.has(stage))) {
       handleViewChange("overall");
     }
   }, [view, standingsStages]);
