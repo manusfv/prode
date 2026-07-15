@@ -40,11 +40,14 @@ import {
   getMatchStatus,
   getTeamFlag,
   getTeamLabel,
-  isStage,
+  resolveStageTab,
   stageLabels,
   stageOrder,
+  stageToTab,
   stepScore,
+  tabStages,
 } from "@/lib/tournament";
+import type { StageTabId } from "@/lib/tournament";
 import type {
   Group,
   GroupPrediction,
@@ -97,8 +100,8 @@ export function PredictionsScreen() {
   const pathname = usePathname()
 
   const stageParam = searchParams.get("stage");
-  const defaultStage = stageOrder.findLast((stage) => openStages.has(stage)) ?? "groups";
-  const activeStage: Stage = stageParam !== null && isStage(stageParam) ? stageParam : defaultStage;
+  const defaultTab = stageToTab(stageOrder.findLast((stage) => openStages.has(stage)) ?? "groups");
+  const activeTab: StageTabId = resolveStageTab(stageParam) ?? defaultTab;
   const [missingOnly, setMissingOnly] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [drawerGroup, setDrawerGroup] = useState<Group | null>(null);
@@ -120,11 +123,12 @@ export function PredictionsScreen() {
   }, [currentUser, groupPredictions]);
 
   const visibleMatches = useMemo(() => {
+    const stages = tabStages(activeTab);
     return matches
-      .filter((match) => match.stage === activeStage)
+      .filter((match) => stages.includes(match.stage))
       .filter((match) => !missingOnly || !currentPredictionMap.has(match.id))
       .sort((a, b) => new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime());
-  }, [activeStage, currentPredictionMap, matches, missingOnly]);
+  }, [activeTab, currentPredictionMap, matches, missingOnly]);
 
   const groupOptions = useMemo(() => {
     return groups.map((group) => group.groupLabel).sort(compareGroups);
@@ -145,18 +149,19 @@ export function PredictionsScreen() {
     const consider = (iso: string) => {
       if (!latest || new Date(iso).getTime() > new Date(latest).getTime()) latest = iso;
     };
-    if (activeStage === "groups") {
+    if (activeTab === "groups") {
       for (const prediction of currentGroupPredictionMap.values()) consider(prediction.updatedAt);
     } else {
+      const stages = tabStages(activeTab);
       const stageMatchIds = new Set(
-        matches.filter((match) => match.stage === activeStage).map((match) => match.id),
+        matches.filter((match) => stages.includes(match.stage)).map((match) => match.id),
       );
       for (const prediction of currentPredictionMap.values()) {
         if (stageMatchIds.has(prediction.matchId)) consider(prediction.updatedAt);
       }
     }
     return latest;
-  }, [activeStage, currentGroupPredictionMap, currentPredictionMap, matches]);
+  }, [activeTab, currentGroupPredictionMap, currentPredictionMap, matches]);
 
   const leaderboard = useMemo(
     () => getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }),
@@ -185,9 +190,9 @@ export function PredictionsScreen() {
     []
   );
 
-  const handleStageChange = (newStage: Stage) => {
+  const handleStageChange = (newTab: StageTabId) => {
     const params = new URLSearchParams(searchParams);
-    params.set("stage", newStage);
+    params.set("stage", newTab);
     router.replace(`${pathname}?${params.toString()}`);
   }
 
@@ -195,13 +200,14 @@ export function PredictionsScreen() {
     <section className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4 max-lg:grid-cols-1">
       <div className="min-w-0">
         <div className="mb-6 grid gap-3">
-          <StageTabs activeStage={activeStage} enabledStages={openStages} onChange={handleStageChange} />
-          {!editableStages.has(activeStage) && openStages.has(activeStage) && (
+          <StageTabs activeStage={activeTab} enabledStages={openStages} onChange={handleStageChange} />
+          {!tabStages(activeTab).some((stage) => editableStages.has(stage)) &&
+            tabStages(activeTab).some((stage) => openStages.has(stage)) && (
             <p className={cn(ui.label, "text-app-amber")}>Vista previa · solo admin</p>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
-              {activeStage === "groups" && (
+              {activeTab === "groups" && (
                 <GroupFilter options={groupOptions} selected={selectedGroups} onChange={setSelectedGroups} />
               )}
               <Button
@@ -223,7 +229,7 @@ export function PredictionsScreen() {
           </div>
         </div>
         <div className="grid gap-3 xl:grid-cols-2">
-          {activeStage === "groups"
+          {activeTab === "groups"
             ? visibleGroups.map((group) => (
                 <GroupStandingsCard
                   key={group.groupLabel}
