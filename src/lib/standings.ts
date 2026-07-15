@@ -1,5 +1,5 @@
 import type { Group, GroupPrediction, Match, Prediction, Profile, Stage } from "./types";
-import { isGroupProvisional } from "./tournament";
+import { isGroupProvisional, tabStages, type StageTabId } from "./tournament";
 
 type LeaderboardInput = {
   profiles: Profile[];
@@ -104,9 +104,9 @@ export function getLeaderboard({
   return buildLeaderboard({ profiles, predictions: predSubset, groupPredictions: groupSubset });
 }
 
-/** Leaderboard of points earned in a single stage. */
+/** Leaderboard of points earned in a single tab (one or more stages). */
 export function getStageLeaderboard(
-  stage: Stage,
+  tab: StageTabId,
   {
     predictions,
     profiles,
@@ -123,12 +123,16 @@ export function getStageLeaderboard(
     includeProvisional?: boolean;
   },
 ): LeaderboardRow[] {
-  if (stage === "groups") {
+  const stages = tabStages(tab);
+  if (stages.includes("groups")) {
     const groupSubset = filterGroupPredictions(groupPredictions, groups, includeProvisional);
     return buildLeaderboard({ profiles, predictions: [], groupPredictions: groupSubset });
   }
   const byMatch = stageByMatchId(matches);
-  const predSubset = predictions.filter((prediction) => byMatch.get(prediction.matchId) === stage);
+  const predSubset = predictions.filter((prediction) => {
+    const stage = byMatch.get(prediction.matchId);
+    return stage !== undefined && stages.includes(stage);
+  });
   return buildLeaderboard({ profiles, predictions: predSubset, groupPredictions: [] });
 }
 
