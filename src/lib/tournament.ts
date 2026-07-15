@@ -22,6 +22,42 @@ export const stageOrder: Stage[] = [
 
 export const isStage = (value: string): value is Stage => stageOrder.includes(value as Stage);
 
+export type StageTabId = "groups" | "round32" | "round16" | "quarter" | "semi" | "finals";
+
+/** Tab layer over `Stage`: the finals tab merges the 3er-puesto and final matches. */
+export const stageTabs: { id: StageTabId; label: string; stages: Stage[] }[] = [
+  { id: "groups", label: stageLabels.groups, stages: ["groups"] },
+  { id: "round32", label: stageLabels.round32, stages: ["round32"] },
+  { id: "round16", label: stageLabels.round16, stages: ["round16"] },
+  { id: "quarter", label: stageLabels.quarter, stages: ["quarter"] },
+  { id: "semi", label: stageLabels.semi, stages: ["semi"] },
+  { id: "finals", label: "Final y 3er puesto", stages: ["third", "final"] },
+];
+
+const stageToTabMap: Record<Stage, StageTabId> = stageTabs.reduce((acc, tab) => {
+  for (const stage of tab.stages) acc[stage] = tab.id;
+  return acc;
+}, {} as Record<Stage, StageTabId>);
+
+export function stageToTab(stage: Stage): StageTabId {
+  return stageToTabMap[stage];
+}
+
+export function tabStages(id: StageTabId): Stage[] {
+  return stageTabs.find((tab) => tab.id === id)?.stages ?? [];
+}
+
+export function isStageTab(value: string): value is StageTabId {
+  return stageTabs.some((tab) => tab.id === value);
+}
+
+/** Accepts a tab id or a legacy `Stage` value, returning the owning tab (or null). */
+export function resolveStageTab(param: string | null): StageTabId | null {
+  if (param === null) return null;
+  if (isStageTab(param)) return param;
+  if (isStage(param)) return stageToTab(param);
+  return null;
+}
 
 export const appTimeZone = "America/Argentina/Buenos_Aires";
 
