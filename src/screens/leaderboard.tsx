@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { Eye, EyeOff, Info } from "lucide-react";
+import { Crown, Eye, EyeOff, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import { getInitials, getLeaderboard, getStageLeaderboard, podiumOrder, type Lea
 import { cn } from "@/lib/utils";
 
 import { useApp } from "@/components/app-context";
-import { resolveStageTab, tabStages } from "@/lib/tournament";
+import { isTournamentComplete, resolveStageTab, tabStages } from "@/lib/tournament";
 import type { StageTabId } from "@/lib/tournament";
 
 type StandingsView = "overall" | StageTabId;
@@ -42,7 +42,7 @@ export function LeaderboardScreen() {
     router.replace(`${pathname}?${params.toString()}`);
   }
 
-  const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser } = useApp();
+  const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser, now, openWinnerCelebration } = useApp();
   const [preview, setPreview] = useState(false);
 
   // If the selected stage stops being revealed (admin toggled it off), fall back
@@ -63,6 +63,9 @@ export function LeaderboardScreen() {
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
 
+  const tournamentComplete = isTournamentComplete(matches, standingsStages, now);
+  const showChampion = tournamentComplete && view === "overall";
+
   const canPreview = standingsStages.has("groups");
   const showPreviewToggle = canPreview && (view === "overall" || view === "groups");
 
@@ -78,6 +81,17 @@ export function LeaderboardScreen() {
             label="Vista"
           />
         </div>
+        {tournamentComplete && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={openWinnerCelebration}
+          >
+            Ver celebración
+          </Button>
+        )}
         <StandingsLegend />
         <Tooltip
           content={
@@ -112,7 +126,7 @@ export function LeaderboardScreen() {
             Mostrando la tabla <strong className="font-black">con resultados provisionales incluidos</strong>. No es el resultado final.
           </p>
         )}
-        {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} />}
+        {podium.length > 0 && <Podium rows={podium} currentUserId={currentUser.id} showChampion={showChampion} />}
         {rest.length > 0 && <StandingsTable rows={rest} currentUserId={currentUser.id} />}
         {rows.length === 0 && (
           <p className="mt-4 rounded-lg border border-app-line bg-app-surface px-3 py-6 text-center text-sm font-bold text-app-muted">
@@ -170,32 +184,39 @@ const avatarToneByRank: Record<number, string> = {
   3: "bg-app-amber/60 text-app-bg",
 };
 
-function Podium({ rows, currentUserId }: { rows: LeaderboardRow[]; currentUserId: string }) {
+function Podium({ rows, currentUserId, showChampion }: { rows: LeaderboardRow[]; currentUserId: string; showChampion: boolean }) {
   const ordered = podiumOrder(rows);
   return (
     <div className="mt-4 grid grid-cols-3 items-end gap-2 sm:gap-3">
       {ordered.map((row) => (
-        <PodiumSpot key={row.user.id} row={row} isMe={row.user.id === currentUserId} />
+        <PodiumSpot key={row.user.id} row={row} isMe={row.user.id === currentUserId} isChampion={showChampion && row.rank === 1} />
       ))}
     </div>
   );
 }
 
-function PodiumSpot({ row, isMe }: { row: LeaderboardRow; isMe: boolean }) {
+function PodiumSpot({ row, isMe, isChampion }: { row: LeaderboardRow; isMe: boolean; isChampion?: boolean }) {
   return (
     <div
       className={cn(
         "grid justify-items-center gap-1 rounded-xl border border-app-line bg-app-surface px-2 py-3 text-center",
         row.rank === 1 && "border-app-amber/50 bg-app-amber/5 pt-5",
         row.rank === 2 && "pt-4",
+        isChampion && "border-app-amber shadow-app-card ring-2 ring-app-amber/40",
         isMe && "ring-2 ring-app-brand",
       )}
     >
+      {isChampion && <Crown className="size-5 text-app-amber" aria-hidden="true" />}
       <span className="text-xl leading-none">{medalByRank[row.rank] ?? "•"}</span>
       <span className={cn("grid size-9 place-items-center rounded-full text-sm font-black", avatarToneByRank[row.rank] ?? "bg-app-muted text-app-bg")}>
         {getInitials(row.user.displayName)}
       </span>
       <strong className="mt-1 max-w-full truncate text-sm font-black">{row.user.displayName}</strong>
+      {isChampion && (
+        <span className="rounded-full bg-app-amber px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-app-bg">
+          Campeón
+        </span>
+      )}
       <em className="text-lg font-black not-italic text-app-green">{row.points}</em>
       <small className="text-xs font-bold text-app-muted">
         {row.exactHits} ex · {row.outcomeHits} ac
