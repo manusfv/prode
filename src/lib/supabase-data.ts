@@ -112,21 +112,6 @@ export type SupabaseAppData = {
   publicPredictions: Record<string, number>;
 };
 
-// type SupabaseDataClient = {
-//   auth: {
-//     getUser: () => Promise<{ data: { user: { id: string } | null }; error: { message: string } | null }>;
-//   };
-//   from: (table: string) => unknown;
-//   rpc: (functionName: string, params?: unknown) => PromiseLike<QueryResult>;
-// };
-
-type QueryResult = { data: unknown; error: { message: string } | null };
-type QueryBuilder = PromiseLike<QueryResult> & {
-  order: (column: string, options?: { ascending?: boolean }) => PromiseLike<QueryResult>;
-  eq: (column: string, value: string) => PromiseLike<QueryResult>;
-};
-
-
 export async function loadSupabaseAppData(client: SupabaseClient): Promise<SupabaseAppData> {
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw new Error(userError.message);

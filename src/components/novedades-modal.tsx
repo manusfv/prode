@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Medal, Sparkles, TimerReset, type LucideIcon } from "lucide-react";
+import { Medal, Sparkles, type LucideIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ui, tabRoutes } from "@/lib/ui-tokens";
+import { ui } from "@/lib/ui-tokens";
 import { cn } from "@/lib/utils";
 
 // Bump this whenever there are new novedades to show everyone again.
