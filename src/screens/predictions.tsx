@@ -11,8 +11,7 @@ import {
   PanelRightOpen,
   Plus,
 } from "lucide-react";
-import { debounce } from "lodash";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -58,6 +57,7 @@ import type {
   Stage,
   Team,
 } from "@/lib/types";
+import { createPredictionDebouncer } from "@/lib/prediction-debouncer";
 import { compareGroups, ui } from "@/lib/ui-tokens";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
@@ -184,11 +184,37 @@ export function PredictionsScreen() {
   ).length;
   const missingCount = missingMatches + missingGroups;
 
-  const debouncedUpdatePrediction = useMemo(
-    () =>
-      debounce(updatePrediction, 500),
-    []
+  // updatePrediction is rebuilt every render and closes over `predictions`, so the
+  // debounced wrapper reads it through a ref: the debounce timer stays stable while
+  // the call always sees the latest state.
+  const updatePredictionRef = useRef(updatePrediction);
+  useEffect(() => {
+    updatePredictionRef.current = updatePrediction;
+  });
+
+  const debouncer = useMemo(
+    () => createPredictionDebouncer((match, patch) => updatePredictionRef.current(match, patch), 500),
+    [],
   );
+
+  // A pending score must never be lost on the way out: flush every match (never
+  // cancel) when leaving the screen, and when the page is hidden or closed, where
+  // the timers would otherwise die with the page.
+  useEffect(() => {
+    const flushAll = () => debouncer.flushAll();
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") flushAll();
+    };
+
+    window.addEventListener("pagehide", flushAll);
+    document.addEventListener("visibilitychange", flushWhenHidden);
+
+    return () => {
+      window.removeEventListener("pagehide", flushAll);
+      document.removeEventListener("visibilitychange", flushWhenHidden);
+      flushAll();
+    };
+  }, [debouncer]);
 
   const handleStageChange = (newTab: StageTabId) => {
     const params = new URLSearchParams(searchParams);
@@ -257,7 +283,7 @@ export function PredictionsScreen() {
                   teams={teams}
                   profiles={profiles}
                   editableStages={editableStages}
-                  onChange={debouncedUpdatePrediction}
+                  onChange={debouncer.schedule}
                   onOpenDrawer={openPredictionDrawer}
                 />
               ))}
