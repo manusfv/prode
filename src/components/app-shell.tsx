@@ -184,8 +184,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore write failures
     }
-    router.push(tabRoutes.leaderboard);
-  }, [router]);
+    // Only navigate if we're not already on the tabla (avoids dropping the
+    // active ?view= sub-tab when the celebration is replayed from there).
+    if (pathname !== tabRoutes.leaderboard) router.push(tabRoutes.leaderboard);
+  }, [router, pathname]);
+  const dismissCelebration = useCallback(() => {
+    setCelebrationOpen(false);
+    try {
+      window.localStorage.setItem(CELEBRATION_KEY, "1");
+    } catch {
+      // ignore write failures
+    }
+  }, []);
 
   const refreshSupabaseData = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -675,6 +685,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <WinnerCelebrationOverlay
           open={celebrationOpen}
           onClose={closeCelebration}
+          onDismiss={dismissCelebration}
           rows={overallLeaderboard}
           currentUserId={currentUser.id}
         />
