@@ -155,7 +155,7 @@ function StandingsLegend() {
           <div>
             <dt className="font-black text-app-text">Puntos</dt>
             <dd className="m-0">
-              Tu total. En los cruces, los puntos suben a medida que avanza el torneo — por acertar
+              Tu total. En los cruces, los puntos suben a medida que avanza el torneo, por acertar
               el <strong className="font-bold text-app-text">ganador</strong> o el{" "}
               <strong className="font-bold text-app-text">resultado exacto</strong>:
               <table className="mt-1.5 w-full border-collapse">
