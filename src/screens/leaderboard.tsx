@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { Crown, Eye, EyeOff, Info } from "lucide-react";
+import { Crown, Eye, EyeOff, Info, PartyPopper } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -85,11 +85,13 @@ export function LeaderboardScreen() {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="shrink-0"
+            size="lg"
+            className="shrink-0 h-9 w-9 px-0 sm:h-12 sm:w-12 sm:[&_svg]:size-5 xl:w-auto xl:px-4"
             onClick={openWinnerCelebration}
+            aria-label="Ver celebración"
           >
-            Ver celebración
+            <PartyPopper aria-hidden="true" />
+            <span className="hidden xl:inline">Ver celebración</span>
           </Button>
         )}
         <StandingsLegend />
@@ -147,16 +149,36 @@ function StandingsLegend() {
       >
         <Info className="size-4" aria-hidden="true" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-w-[min(20rem,calc(100vw-1.5rem))] font-normal backdrop-blur-md">
+      <PopoverContent align="start" className="max-w-[min(22rem,calc(100vw-1.5rem))] font-normal backdrop-blur-md">
         <p className="m-0 mb-2 text-sm font-black text-app-text">Cómo se lee la tabla</p>
         <dl className="m-0 space-y-2 text-xs leading-normal text-app-muted">
           <div>
             <dt className="font-black text-app-text">Puntos</dt>
             <dd className="m-0">
-              Tu total. En cruces, <strong className="font-bold text-app-text">3</strong> por el
-              resultado exacto y <strong className="font-bold text-app-text">1</strong> por acertar
-              ganador o empate. En grupos, <strong className="font-bold text-app-text">10/8/6/4</strong>{" "}
-              por cada posición acertada (máx. 28 por grupo).
+              Tu total. En los cruces, los puntos suben a medida que avanza el torneo — por acertar
+              el <strong className="font-bold text-app-text">ganador</strong> o el{" "}
+              <strong className="font-bold text-app-text">resultado exacto</strong>:
+              <table className="mt-1.5 w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-app-line text-app-muted [&_th:first-child]:text-left [&_th]:pb-1 [&_th]:text-right [&_th]:font-black">
+                    <th>Ronda</th>
+                    <th>Ganador</th>
+                    <th>Exacto</th>
+                  </tr>
+                </thead>
+                <tbody className="font-bold text-app-text [&_td:first-child]:text-left [&_td]:pt-1 [&_td]:text-right">
+                  <tr><td>16avos</td><td>10</td><td>25</td></tr>
+                  <tr><td>Octavos</td><td>30</td><td>50</td></tr>
+                  <tr><td>Cuartos</td><td>60</td><td>80</td></tr>
+                  <tr><td>Semis</td><td>90</td><td>110</td></tr>
+                  <tr><td>3er puesto</td><td>90</td><td>110</td></tr>
+                  <tr><td>Final</td><td>120</td><td>150</td></tr>
+                </tbody>
+              </table>
+              <span className="mt-1.5 block">
+                En grupos, <strong className="font-bold text-app-text">10/8/6/4</strong> por cada
+                posición acertada (máx. 28 por grupo).
+              </span>
             </dd>
           </div>
           <div>
@@ -199,13 +221,19 @@ function PodiumSpot({ row, isMe, isChampion }: { row: LeaderboardRow; isMe: bool
   return (
     <div
       className={cn(
-        "grid justify-items-center gap-1 rounded-xl border border-app-line bg-app-surface px-2 py-3 text-center",
+        "relative isolate grid justify-items-center gap-1 rounded-xl border border-app-line bg-app-surface px-2 py-3 text-center",
         row.rank === 1 && "border-app-amber/50 bg-app-amber/5 pt-5",
         row.rank === 2 && "pt-4",
         isChampion && "border-app-amber shadow-app-card ring-2 ring-app-amber/40",
         isMe && "ring-2 ring-app-brand",
       )}
     >
+      {isChampion && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-1 -z-10 rounded-2xl bg-app-amber/20 blur-lg"
+        />
+      )}
       {isChampion && <Crown className="size-5 text-app-amber" aria-hidden="true" />}
       <span className="text-xl leading-none">{medalByRank[row.rank] ?? "•"}</span>
       <span className={cn("grid size-9 place-items-center rounded-full text-sm font-black", avatarToneByRank[row.rank] ?? "bg-app-muted text-app-bg")}>
@@ -213,7 +241,7 @@ function PodiumSpot({ row, isMe, isChampion }: { row: LeaderboardRow; isMe: bool
       </span>
       <strong className="mt-1 max-w-full truncate text-sm font-black">{row.user.displayName}</strong>
       {isChampion && (
-        <span className="rounded-full bg-app-amber px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-app-bg">
+        <span className="rounded-full bg-app-amber px-2 py-0.5 text-xs font-black uppercase tracking-wide text-app-bg">
           Campeón
         </span>
       )}
