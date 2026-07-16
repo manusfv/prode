@@ -16,8 +16,7 @@ export async function fireConfetti(): Promise<void> {
   if (typeof window === "undefined") return;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
-  const confettiModule = await import("canvas-confetti");
-  const confetti = (confettiModule as any).default;
+  const { default: confetti } = await import("canvas-confetti");
   const colors = tokenColors();
   for (const x of [0.25, 0.5, 0.75]) {
     confetti({ particleCount: 60, spread: 70, startVelocity: 45, origin: { x, y: 0.6 }, colors });
