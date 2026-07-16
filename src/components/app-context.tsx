@@ -41,6 +41,7 @@ export type AppContextValue = {
   updatePrediction: (match: Match, patch: Partial<Prediction>) => void;
   updateGroupPrediction: (groupLabel: string, order: (string | null)[]) => void;
   openPredictionDrawer: (match: Match) => void;
+  openWinnerCelebration: () => void;
   refreshSupabaseData: () => Promise<void> | void;
   signOut: () => Promise<void> | void;
   finalizeMatch: (match: Match) => Promise<void> | void;

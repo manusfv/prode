@@ -68,6 +68,7 @@ import type {
 import { pageTitles, tabRoutes, ui, type AppRoute } from "@/lib/ui-tokens";
 import { getEditablePredictionsStages, getPredictionsStages, getResultsStages, getStandingsStages } from "@/lib/tab-visibility";
 import { getLeaderboard } from "@/lib/standings";
+import { isTournamentComplete } from "@/lib/tournament";
 import { useHydratedNow } from "@/lib/use-hydrated-now";
 import { useTheme, type Theme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,7 @@ import {
 } from "./app-context";
 import { PredictionDrawer } from "@/screens/predictions";
 import { NovedadesModal } from "@/components/novedades-modal";
+import { WinnerCelebrationOverlay } from "@/components/winner-celebration-overlay";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,6 +119,8 @@ const PUBLIC_AUTH_ROUTES = new Set(["/ingresar", "/crear-cuenta", "/recuperar", 
 // Signed-in users are bounced away from these to the app. NOTE: /restablecer is
 // intentionally excluded — the reset email link lands there already signed in.
 const REDIRECT_WHEN_AUTHED = new Set(["/ingresar", "/crear-cuenta", "/recuperar"]);
+// localStorage flag so the winner celebration auto-plays only once per device.
+const CELEBRATION_KEY = "prode:winner-celebrated:v1";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -147,13 +151,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const resultsStages = useMemo(() => getResultsStages(stages, matches, groups, isAdmin), [stages, matches, groups, isAdmin]);
   const standingsStages = useMemo(() => getStandingsStages(stages, isAdmin), [stages, isAdmin]);
 
-  const me = useMemo(
-    () =>
-      getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }).find(
-        (row) => row.user.id === currentUser?.id,
-      ),
-    [predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser],
+  const overallLeaderboard = useMemo(
+    () => getLeaderboard({ predictions, profiles, groupPredictions, matches, groups, standingsStages }),
+    [predictions, profiles, groupPredictions, matches, groups, standingsStages],
   );
+  const me = useMemo(
+    () => overallLeaderboard.find((row) => row.user.id === currentUser?.id),
+    [overallLeaderboard, currentUser],
+  );
+
+  const tournamentComplete = useMemo(
+    () => isTournamentComplete(matches, standingsStages, now),
+    [matches, standingsStages, now],
+  );
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+
+  // Auto-play the celebration once per device once the tournament is complete.
+  useEffect(() => {
+    if (!tournamentComplete) return;
+    try {
+      if (window.localStorage.getItem(CELEBRATION_KEY) !== "1") setCelebrationOpen(true);
+    } catch {
+      // localStorage unavailable — skip the auto-play.
+    }
+  }, [tournamentComplete]);
+
+  const openWinnerCelebration = useCallback(() => setCelebrationOpen(true), []);
+  const closeCelebration = useCallback(() => {
+    setCelebrationOpen(false);
+    try {
+      window.localStorage.setItem(CELEBRATION_KEY, "1");
+    } catch {
+      // ignore write failures
+    }
+    router.push(tabRoutes.leaderboard);
+  }, [router]);
 
   const refreshSupabaseData = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -566,6 +598,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     updatePrediction,
     updateGroupPrediction,
     openPredictionDrawer: setDrawerMatch,
+    openWinnerCelebration,
     refreshSupabaseData,
     signOut,
     finalizeMatch,
@@ -639,6 +672,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClose={() => setDrawerMatch(null)}
         />
         <NovedadesModal />
+        <WinnerCelebrationOverlay
+          open={celebrationOpen}
+          onClose={closeCelebration}
+          rows={overallLeaderboard}
+          currentUserId={currentUser.id}
+        />
       </main>
     </AppContext.Provider>
   );
