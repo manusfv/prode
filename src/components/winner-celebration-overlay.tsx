@@ -55,7 +55,7 @@ export function WinnerCelebrationOverlay({
 
   // Fire confetti when the champion lands.
   useEffect(() => {
-    if (open && step >= 3) void fireConfetti();
+    if (open && step === 3) void fireConfetti();
   }, [open, step]);
 
   // Esc closes.
@@ -129,7 +129,7 @@ function CelebrationPodiumSpot({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-1 rounded-xl border border-app-line bg-app-surface px-2 py-3 transition-all duration-500",
+        "flex flex-col items-center gap-1 rounded-xl border border-app-line bg-app-surface px-2 py-3 transition-all duration-500 motion-reduce:transition-none",
         isChampion && "border-app-amber/60 bg-app-amber/10 py-5 shadow-app-card",
         revealed ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
       )}
