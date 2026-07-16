@@ -163,7 +163,7 @@ export function WinnerCelebrationOverlay({
           )}
 
           <motion.div
-            layout
+            layout={!reduced}
             transition={{ layout: { type: "spring", stiffness: 260, damping: 30 } }}
             className="relative flex w-full max-w-md flex-col items-center gap-7 text-center"
           >
