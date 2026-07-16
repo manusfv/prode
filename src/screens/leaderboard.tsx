@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Crown, Eye, EyeOff, Info, PartyPopper } from "lucide-react";
 
@@ -36,11 +36,11 @@ export function LeaderboardScreen() {
   const stageParam = searchParams.get("view");
   const view: StandingsView = resolveStageTab(stageParam) ?? "overall";
 
-  const handleViewChange = (newView: StandingsView) => {
+  const handleViewChange = useCallback((newView: StandingsView) => {
     const params = new URLSearchParams(searchParams);
     params.set("view", newView);
     router.replace(`${pathname}?${params.toString()}`);
-  }
+  }, [searchParams, router, pathname]);
 
   const { predictions, profiles, groupPredictions, matches, groups, standingsStages, currentUser, now, openWinnerCelebration } = useApp();
   const [preview, setPreview] = useState(false);
@@ -51,7 +51,7 @@ export function LeaderboardScreen() {
     if (view !== "overall" && !tabStages(view).some((stage) => standingsStages.has(stage))) {
       handleViewChange("overall");
     }
-  }, [view, standingsStages]);
+  }, [view, standingsStages, handleViewChange]);
 
   const rows = useMemo(() => {
     if (view === "overall") {

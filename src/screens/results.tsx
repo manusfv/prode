@@ -3,7 +3,7 @@
 import { CalendarClock, ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,11 +55,11 @@ export function ResultsScreen() {
   const stageParam = searchParams.get("stage");
   const activeTab: StageTabId = resolveStageTab(stageParam) ?? getPreferredTab();
 
-  const handleStageChange = (newTab: StageTabId) => {
+  const handleStageChange = useCallback((newTab: StageTabId) => {
     const params = new URLSearchParams(searchParams);
     params.set("stage", newTab);
     router.replace(`${pathname}?${params.toString()}`);
-  }
+  }, [searchParams, router, pathname]);
 
   // If the active stage stops being revealed (admin toggled off results_open),
   // fall back to a still-revealed stage so a hidden stage's results aren't shown.
@@ -68,7 +68,7 @@ export function ResultsScreen() {
       const fallback = stageOrder.find((stage) => resultsStages.has(stage));
       if (fallback) handleStageChange(stageToTab(fallback));
     }
-  }, [resultsStages, activeTab]);
+  }, [resultsStages, activeTab, handleStageChange]);
 
   const approvedProfiles = useMemo(
     () => profiles.filter((profile) => profile.approved),
