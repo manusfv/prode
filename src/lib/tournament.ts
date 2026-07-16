@@ -84,6 +84,22 @@ export function getGroupStatus(group: Group, now = new Date()): GroupStatus {
   return new Date(group.locksAt).getTime() <= now.getTime() ? "locked" : "open";
 }
 
+/**
+ * The tournament is over: every final + 3er-puesto match is finalized AND the
+ * admin has revealed the finals standings (so the champion the celebration shows
+ * matches what the tabla shows).
+ */
+export function isTournamentComplete(
+  matches: Match[],
+  standingsStages: Set<Stage>,
+  now = new Date(),
+): boolean {
+  if (!standingsStages.has("final")) return false;
+  const finalMatches = matches.filter((m) => m.stage === "final" || m.stage === "third");
+  if (finalMatches.length === 0) return false;
+  return finalMatches.every((m) => getMatchStatus(m, now) === "finalized");
+}
+
 export function hasGroupOrder(group: Group): boolean {
   return [group.firstTeamId, group.secondTeamId, group.thirdTeamId, group.fourthTeamId].every(Boolean);
 }

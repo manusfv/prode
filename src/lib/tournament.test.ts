@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Group } from "./types";
+import type { Group, Match, Stage } from "./types";
 import {
   getGroupStatus,
   hasGroupOrder,
   isGroupProvisional,
+  isTournamentComplete,
   isStageTab,
   resolveStageTab,
   stageTabs,
@@ -152,5 +153,46 @@ describe("stage tabs", () => {
     expect(resolveStageTab("round16")).toBe("round16");
     expect(resolveStageTab(null)).toBeNull();
     expect(resolveStageTab("bogus")).toBeNull();
+  });
+});
+
+describe("isTournamentComplete", () => {
+  const baseMatch: Match = {
+    id: "m", matchNo: 1, stage: "final",
+    homeTeamId: null, awayTeamId: null,
+    kickoffUtc: "2026-07-19T19:00:00.000Z",
+    status: undefined,
+    homeScore: null, awayScore: null, winnerTeamId: null,
+    finalizedAt: null, finalizedBy: null,
+    updatedAt: null, updatedBy: null,
+    finalizedSource: null, feedMatchId: null,
+  };
+  const finalized = (over: Partial<Match>): Match => ({
+    ...baseMatch, status: "finalized", finalizedAt: "2026-07-19T21:00:00.000Z", ...over,
+  });
+  const revealed: Set<Stage> = new Set(["final"]);
+
+  it("is complete when all final + third matches are finalized and standings are revealed", () => {
+    const matches = [finalized({ id: "f", stage: "final" }), finalized({ id: "t", stage: "third" })];
+    expect(isTournamentComplete(matches, revealed)).toBe(true);
+  });
+
+  it("is not complete when a final match is unfinalized", () => {
+    const matches = [{ ...baseMatch, id: "f", stage: "final" as Stage }, finalized({ id: "t", stage: "third" })];
+    expect(isTournamentComplete(matches, revealed)).toBe(false);
+  });
+
+  it("is not complete when the third-place match is unfinalized", () => {
+    const matches = [finalized({ id: "f", stage: "final" }), { ...baseMatch, id: "t", stage: "third" as Stage }];
+    expect(isTournamentComplete(matches, revealed)).toBe(false);
+  });
+
+  it("is not complete when finals standings are not revealed", () => {
+    const matches = [finalized({ id: "f", stage: "final" }), finalized({ id: "t", stage: "third" })];
+    expect(isTournamentComplete(matches, new Set(["groups"]))).toBe(false);
+  });
+
+  it("is not complete when there are no final/third matches", () => {
+    expect(isTournamentComplete([finalized({ id: "s", stage: "semi" })], revealed)).toBe(false);
   });
 });
