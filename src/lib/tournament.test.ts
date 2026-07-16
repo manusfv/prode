@@ -129,8 +129,8 @@ describe("stage tabs", () => {
     expect(stageToTab("semi")).toBe("semi");
   });
 
-  it("labels the finals tab 'Final y 3er puesto'", () => {
-    expect(stageTabs.find((tab) => tab.id === "finals")!.label).toBe("Final y 3er puesto");
+  it("labels the finals tab '3er puesto y final'", () => {
+    expect(stageTabs.find((tab) => tab.id === "finals")!.label).toBe("3er puesto y final");
   });
 
   it("returns the stages a tab covers", () => {

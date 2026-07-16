@@ -31,7 +31,7 @@ export const stageTabs: { id: StageTabId; label: string; stages: Stage[] }[] = [
   { id: "round16", label: stageLabels.round16, stages: ["round16"] },
   { id: "quarter", label: stageLabels.quarter, stages: ["quarter"] },
   { id: "semi", label: stageLabels.semi, stages: ["semi"] },
-  { id: "finals", label: "Final y 3er puesto", stages: ["third", "final"] },
+  { id: "finals", label: "3er puesto y final", stages: ["third", "final"] },
 ];
 
 const stageToTabMap: Record<Stage, StageTabId> = stageTabs.reduce((acc, tab) => {
